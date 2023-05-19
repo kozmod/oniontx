@@ -1,3 +1,9 @@
+.PHONY: lint
+lint: ## Run `golangci-lint`
+	@go version
+	@golangci-lint --version
+	@golangci-lint run ./...
+
 .PHONT: tools
 tools: ## Run tools (vet, gofmt, goimports, tidy, etc.)
 	@go version

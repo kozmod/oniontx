@@ -1,4 +1,5 @@
 # OnionTx
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/kozmod/oniontx)
 
 The utility for transferring transaction management of the stdlib to the service layer.
 
