@@ -1,4 +1,4 @@
-module oniontx
+module github.com/kozmod/oniontx
 
 go 1.20
 
