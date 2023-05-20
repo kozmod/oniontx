@@ -53,6 +53,7 @@ func NewTransactorWithOptions(db *sql.DB, options sql.TxOptions) *Transactor {
 	return &Transactor{db: db, options: options}
 }
 
+// WithinTransaction execute all queries in transaction (create new transaction or reuse transaction obtained from context.Context)
 func (t *Transactor) WithinTransaction(ctx context.Context, fn func(ctx context.Context) error) (err error) {
 	tx, ok := ctx.Value(txKey{}).(*sql.Tx)
 	if !ok {
