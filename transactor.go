@@ -18,9 +18,6 @@ type Executor interface {
 	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
 }
 
-type TxProducer interface {
-}
-
 type txKey struct{}
 
 // InjectTx injects transaction to context
@@ -29,7 +26,7 @@ func InjectTx(ctx context.Context, tx *sql.Tx) context.Context {
 }
 
 // ExtractExecutor extracts Executor from context
-func ExtractExecutor(ctx context.Context, db *sql.DB) (Executor, bool) {
+func ExtractExecutor(ctx context.Context) (Executor, bool) {
 	tx, ok := ctx.Value(txKey{}).(*sql.Tx)
 	return tx, ok
 }
