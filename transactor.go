@@ -26,7 +26,7 @@ func injectTx(ctx context.Context, db *sql.DB, tx *sql.Tx) context.Context {
 	return context.WithValue(ctx, db, tx)
 }
 
-// ExtractExecutorOrDefault extracts Executor from context or return default Executor (*sql.DB)
+// ExtractExecutorOrDefault extracts Executor (*sql.Tx) from context or return default Executor (*sql.DB)
 func ExtractExecutorOrDefault(ctx context.Context, db *sql.DB) Executor {
 	tx, ok := ctx.Value(db).(*sql.Tx)
 	if !ok {
@@ -80,4 +80,9 @@ func (t *Transactor) WithinTransaction(ctx context.Context, fn func(ctx context.
 	}()
 
 	return fn(injectTx(ctx, t.db, tx))
+}
+
+// ExtractExecutorOrDefault extracts Executor (*sql.Tx) from context or return default Executor (*sql.DB)
+func (t *Transactor) ExtractExecutorOrDefault(ctx context.Context) Executor {
+	return ExtractExecutorOrDefault(ctx, t.db)
 }
