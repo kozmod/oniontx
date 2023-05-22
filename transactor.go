@@ -36,26 +36,27 @@ func ExtractExecutorOrDefault(ctx context.Context, db *sql.DB) Executor {
 }
 
 type Transactor struct {
-	db      *sql.DB
-	options sql.TxOptions
+	db *sql.DB
 }
 
 func NewTransactor(db *sql.DB) *Transactor {
-	return &Transactor{db: db, options: sql.TxOptions{}}
-}
-
-func NewTransactorWithOptions(db *sql.DB, options sql.TxOptions) *Transactor {
-	return &Transactor{db: db, options: options}
+	return &Transactor{db: db}
 }
 
 // WithinTransaction execute all queries in transaction (create new transaction or reuse transaction obtained from context.Context)
-func (t *Transactor) WithinTransaction(ctx context.Context, fn func(ctx context.Context) error) (err error) {
+func (t *Transactor) WithinTransaction(ctx context.Context, fn func(ctx context.Context) error, options ...Option) (err error) {
 	tx, ok := ctx.Value(t.db).(*sql.Tx)
 	if !ok {
 		if t.db == nil {
 			return xerrors.Errorf("transactor: cannot begin transaction: database is nil")
 		}
-		tx, err = t.db.BeginTx(ctx, &t.options)
+
+		var txOptions sql.TxOptions
+		for _, option := range options {
+			option(&txOptions)
+		}
+
+		tx, err = t.db.BeginTx(ctx, &txOptions)
 		if err != nil {
 			return xerrors.Errorf("transactor: cannot begin transaction: %w", err)
 		}
