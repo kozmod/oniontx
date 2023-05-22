@@ -18,26 +18,21 @@ type Executor interface {
 	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
 }
 
-type txKey struct{}
-
-// InjectTx injects transaction to context
-func InjectTx(ctx context.Context, tx *sql.Tx) context.Context {
-	return context.WithValue(ctx, txKey{}, tx)
-}
-
-// ExtractExecutor extracts Executor from context
-func ExtractExecutor(ctx context.Context) (Executor, bool) {
-	tx, ok := ctx.Value(txKey{}).(*sql.Tx)
-	return tx, ok
-}
-
-// ExtractExecutorOrDefault extracts Executor from context or return default
-func ExtractExecutorOrDefault(ctx context.Context, db *sql.DB) Executor {
-	tx, ok := ctx.Value(txKey{}).(*sql.Tx)
-	if ok {
-		return tx
+// injectTx injects transaction to context
+func injectTx(ctx context.Context, db *sql.DB, tx *sql.Tx) context.Context {
+	if db == nil {
+		return ctx
 	}
-	return db
+	return context.WithValue(ctx, db, tx)
+}
+
+// ExtractExecutorOrDefault extracts Executor from context or return default Executor (*sql.DB)
+func ExtractExecutorOrDefault(ctx context.Context, db *sql.DB) Executor {
+	tx, ok := ctx.Value(db).(*sql.Tx)
+	if !ok {
+		return db
+	}
+	return tx
 }
 
 type Transactor struct {
@@ -55,8 +50,11 @@ func NewTransactorWithOptions(db *sql.DB, options sql.TxOptions) *Transactor {
 
 // WithinTransaction execute all queries in transaction (create new transaction or reuse transaction obtained from context.Context)
 func (t *Transactor) WithinTransaction(ctx context.Context, fn func(ctx context.Context) error) (err error) {
-	tx, ok := ctx.Value(txKey{}).(*sql.Tx)
+	tx, ok := ctx.Value(t.db).(*sql.Tx)
 	if !ok {
+		if t.db == nil {
+			return xerrors.Errorf("transactor: cannot begin transaction: database is nil")
+		}
 		tx, err = t.db.BeginTx(ctx, &t.options)
 		if err != nil {
 			return xerrors.Errorf("transactor: cannot begin transaction: %w", err)
@@ -80,5 +78,5 @@ func (t *Transactor) WithinTransaction(ctx context.Context, fn func(ctx context.
 		}
 	}()
 
-	return fn(InjectTx(ctx, tx))
+	return fn(injectTx(ctx, t.db, tx))
 }

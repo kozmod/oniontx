@@ -8,6 +8,7 @@
 The utility for transferring transaction management of the stdlib to the service layer.
 
 ## Example
+Execution different repositories with the same `sql.DB` instance
 ```go
 type RepositoryA struct {
 	db *sql.DB
