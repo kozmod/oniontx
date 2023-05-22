@@ -8,6 +8,7 @@
 The utility for transferring transaction management of the stdlib to the service layer.
 
 ## Example
+1️⃣Execution different repositories with the same `sql.DB` instance
 ```go
 type RepositoryA struct {
 	db *sql.DB
@@ -52,6 +53,26 @@ func  (s *Service)Do(ctx context.Context) error{
 		}
 		return nil
 	})
+	if err != nil {
+		return fmt.Errorf("execute: %v", err)
+	}
+	return nil
+}
+```
+2️⃣ Start transaction with `sql.TxOptions`
+```go
+func (s *Service) Do(ctx context.Context) error {
+	err := s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+		if err := s.repositoryA.Do(ctx); err != nil {
+			return fmt.Errorf("call repositoryA: %+v", err)
+		}
+		if err := s.repositoryB.Do(ctx); err != nil {
+			return fmt.Errorf("call repositoryB: %+v", err)
+		}
+		return nil
+	},
+		oniontx.WithReadOnly(true),
+		oniontx.WithIsolationLevel(6))
 	if err != nil {
 		return fmt.Errorf("execute: %v", err)
 	}
