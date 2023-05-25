@@ -3,8 +3,13 @@ package oniontx
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"golang.org/x/xerrors"
+)
+
+var (
+	ErrNilDB = xerrors.New(" database is nil")
 )
 
 type Executor interface {
@@ -18,17 +23,38 @@ type Executor interface {
 	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
 }
 
+type transaction interface {
+	Executor
+	Rollback() error
+	Commit() error
+}
+
+type database interface {
+	Executor
+	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
+}
+
+type ctxKey string
+
+func createKey(in any) ctxKey {
+	return ctxKey(fmt.Sprintf("%p_%#v", in, in))
+}
+
 // injectTx injects transaction to context
-func injectTx(ctx context.Context, db *sql.DB, tx *sql.Tx) context.Context {
-	if db == nil {
+func injectTx(ctx context.Context, db database, tx transaction) context.Context {
+	if db == nil || tx == nil {
 		return ctx
 	}
-	return context.WithValue(ctx, db, tx)
+	key := createKey(db)
+	return context.WithValue(ctx, key, tx)
 }
 
 // ExtractExecutorOrDefault extracts Executor (*sql.Tx) from context or return default Executor (*sql.DB)
-func ExtractExecutorOrDefault(ctx context.Context, db *sql.DB) Executor {
-	tx, ok := ctx.Value(db).(*sql.Tx)
+func ExtractExecutorOrDefault(ctx context.Context, db database) Executor {
+	var (
+		key    = createKey(db)
+		tx, ok = ctx.Value(key).(transaction)
+	)
 	if !ok {
 		return db
 	}
@@ -36,27 +62,36 @@ func ExtractExecutorOrDefault(ctx context.Context, db *sql.DB) Executor {
 }
 
 type Transactor struct {
-	db *sql.DB
+	db        database
+	beginTxFn func(ctx context.Context, options *sql.TxOptions) (transaction, error)
 }
 
-func NewTransactor(db *sql.DB) *Transactor {
-	return &Transactor{db: db}
+func NewTransactor(db database) *Transactor {
+	return &Transactor{
+		db: db,
+		beginTxFn: func(ctx context.Context, options *sql.TxOptions) (transaction, error) {
+			return db.BeginTx(ctx, options)
+		}}
 }
 
 // WithinTransaction execute all queries in transaction (create new transaction or reuse transaction obtained from context.Context)
 func (t *Transactor) WithinTransaction(ctx context.Context, fn func(ctx context.Context) error, options ...Option) (err error) {
-	tx, ok := ctx.Value(t.db).(*sql.Tx)
-	if !ok {
-		if t.db == nil {
-			return xerrors.Errorf("transactor: cannot begin transaction: database is nil")
-		}
+	if t.db == nil {
+		return xerrors.Errorf("transactor: cannot begin transaction: %w", ErrNilDB)
+	}
 
+	var (
+		key    = createKey(t.db)
+		tx, ok = ctx.Value(key).(transaction)
+	)
+
+	if !ok {
 		var txOptions sql.TxOptions
 		for _, option := range options {
 			option(&txOptions)
 		}
 
-		tx, err = t.db.BeginTx(ctx, &txOptions)
+		tx, err = t.beginTxFn(ctx, &txOptions)
 		if err != nil {
 			return xerrors.Errorf("transactor: cannot begin transaction: %w", err)
 		}
@@ -74,7 +109,7 @@ func (t *Transactor) WithinTransaction(ctx context.Context, fn func(ctx context.
 			}
 		default:
 			if err = tx.Commit(); err != nil {
-				err = xerrors.Errorf("transactor: cannot commit transaction: %v", err)
+				err = xerrors.Errorf("transactor: cannot commit transaction: %w", err)
 			}
 		}
 	}()
