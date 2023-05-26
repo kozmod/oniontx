@@ -12,32 +12,34 @@ var (
 	ErrNilDB = xerrors.New(" database is nil")
 )
 
-type Executor interface {
-	Exec(query string, args ...any) (sql.Result, error)
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-	Query(query string, args ...any) (*sql.Rows, error)
-	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-	QueryRow(query string, args ...any) *sql.Row
-	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
-	Prepare(query string) (*sql.Stmt, error)
-	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
-}
+type (
+	Executor interface {
+		Exec(query string, args ...any) (sql.Result, error)
+		ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+		Query(query string, args ...any) (*sql.Rows, error)
+		QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+		QueryRow(query string, args ...any) *sql.Row
+		QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+		Prepare(query string) (*sql.Stmt, error)
+		PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
+	}
 
-type transaction interface {
-	Executor
-	Rollback() error
-	Commit() error
-}
+	transaction interface {
+		Executor
+		Rollback() error
+		Commit() error
+	}
 
-type database interface {
-	Executor
-	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
-}
+	database interface {
+		Executor
+		BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
+	}
+)
 
 type ctxKey string
 
 func createKey(in any) ctxKey {
-	return ctxKey(fmt.Sprintf("%p_%#v", in, in))
+	return ctxKey(fmt.Sprintf("%p_%T", in, in))
 }
 
 // injectTx injects transaction to context
