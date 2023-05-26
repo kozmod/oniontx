@@ -200,6 +200,44 @@ func Test_Transactor(t *testing.T) {
 	})
 }
 
+func Test_Option(t *testing.T) {
+	const (
+		isolationLevelSerializable = sql.LevelSerializable
+		isolationLevelDefault      = sql.LevelDefault
+		readOnly                   = true
+	)
+
+	t.Run("WithIsolationLevel", func(t *testing.T) {
+		var (
+			txOptions = sql.TxOptions{}
+			option    = WithIsolationLevel(int(isolationLevelSerializable))
+		)
+		option(&txOptions)
+		assertTrue(t, txOptions.Isolation == isolationLevelSerializable)
+		assertTrue(t, !txOptions.ReadOnly)
+	})
+	t.Run("WithIsolationLevel", func(t *testing.T) {
+		var (
+			txOptions = sql.TxOptions{}
+			option    = WithReadOnly(readOnly)
+		)
+		option(&txOptions)
+		assertTrue(t, txOptions.Isolation == isolationLevelDefault)
+		assertTrue(t, txOptions.ReadOnly)
+	})
+	t.Run("all", func(t *testing.T) {
+		var (
+			txOptions = sql.TxOptions{}
+			options   = []Option{WithReadOnly(readOnly), WithIsolationLevel(int(isolationLevelSerializable))}
+		)
+		for _, option := range options {
+			option(&txOptions)
+		}
+		assertTrue(t, txOptions.Isolation == isolationLevelSerializable)
+		assertTrue(t, txOptions.ReadOnly)
+	})
+}
+
 // transactionMock was added to avoid to use external dependencies for mocking
 func assertTrue(t *testing.T, val bool) {
 	t.Helper()
