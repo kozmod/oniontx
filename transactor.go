@@ -53,14 +53,20 @@ func injectTx(ctx context.Context, db database, tx transaction) context.Context 
 
 // ExtractExecutorOrDefault extracts Executor (*sql.Tx) from context or return default Executor (*sql.DB)
 func ExtractExecutorOrDefault(ctx context.Context, db database) Executor {
-	var (
-		key    = createKey(db)
-		tx, ok = ctx.Value(key).(transaction)
-	)
+	tx, ok := ExtractTx(ctx, db)
 	if !ok {
 		return db
 	}
 	return tx
+}
+
+// ExtractTx extracts *sql.Tx or return false
+func ExtractTx(ctx context.Context, db database) (*sql.Tx, bool) {
+	var (
+		key    = createKey(db)
+		tx, ok = ctx.Value(key).(*sql.Tx)
+	)
+	return tx, ok
 }
 
 type Transactor struct {
