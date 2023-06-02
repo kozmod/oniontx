@@ -238,6 +238,71 @@ func Test_Option(t *testing.T) {
 	})
 }
 
+func Test_ExtractTx(t *testing.T) {
+	t.Run("success_extract_tx_when_tx_exists", func(t *testing.T) {
+		var (
+			db  = sql.DB{}
+			tx  = sql.Tx{}
+			ctx = injectTx(context.Background(), &db, &tx)
+		)
+
+		extractedTx, ok := ExtractTx(ctx, &db)
+		assertTrue(t, ok)
+		assertTrue(t, extractedTx == &tx)
+	})
+	t.Run("not_extract_tx_when_db_argument_is_not_the_same", func(t *testing.T) {
+		var (
+			tx  = sql.Tx{}
+			ctx = injectTx(context.Background(), &sql.DB{}, &tx)
+		)
+
+		extractedTx, ok := ExtractTx(ctx, &sql.DB{})
+		assertTrue(t, ok == false)
+		assertTrue(t, extractedTx == nil)
+	})
+	t.Run("not_extract_tx_when_db_argument_is_not_the_same_v2", func(t *testing.T) {
+		var (
+			tx  = sql.Tx{}
+			ctx = injectTx(context.Background(), nil, &tx)
+		)
+
+		extractedTx, ok := ExtractTx(ctx, &sql.DB{})
+		assertTrue(t, ok == false)
+		assertTrue(t, extractedTx == nil)
+	})
+	t.Run("not_extract_tx_when_db_argument_is_not_the_same_v3", func(t *testing.T) {
+		var (
+			tx  = sql.Tx{}
+			ctx = injectTx(context.Background(), &sql.DB{}, &tx)
+		)
+
+		extractedTx, ok := ExtractTx(ctx, nil)
+		assertTrue(t, ok == false)
+		assertTrue(t, extractedTx == nil)
+	})
+	t.Run("not_extract_tx_when_db_argument_is_nil", func(t *testing.T) {
+		var (
+			tx  = sql.Tx{}
+			ctx = injectTx(context.Background(), nil, &tx)
+		)
+
+		extractedTx, ok := ExtractTx(ctx, nil)
+		assertTrue(t, ok == false)
+		assertTrue(t, extractedTx == nil)
+	})
+	t.Run("not_extract_tx_when_injected_tx_is_nil", func(t *testing.T) {
+		var (
+			db  = sql.DB{}
+			ctx = injectTx(context.Background(), &db, nil)
+		)
+
+		extractedTx, ok := ExtractTx(ctx, &db)
+		assertTrue(t, ok == false)
+		assertTrue(t, extractedTx == nil)
+	})
+
+}
+
 // transactionMock was added to avoid to use external dependencies for mocking
 func assertTrue(t *testing.T, val bool) {
 	t.Helper()
