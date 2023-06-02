@@ -1,10 +1,11 @@
 # OnionTx <img align="right" src=".github/assets/onion_1.png" alt="drawing"  width="90" />
-![test](https://github.com/kozmod/oniontx/actions/workflows/test.yml/badge.svg)
+[![test](https://github.com/kozmod/oniontx/actions/workflows/test.yml/badge.svg)](https://github.com/kozmod/oniontx/actions/workflows/test.yml)
+[![Release](https://github.com/kozmod/oniontx/actions/workflows/release.yml/badge.svg)](https://github.com/kozmod/oniontx/actions/workflows/release.yml)
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/kozmod/oniontx)
 [![Go Report Card](https://goreportcard.com/badge/github.com/kozmod/oniontx)](https://goreportcard.com/report/github.com/kozmod/oniontx)
 ![GitHub release date](https://img.shields.io/github/release-date/kozmod/oniontx)
 ![GitHub last commit](https://img.shields.io/github/last-commit/kozmod/oniontx)
-![GitHub MIT license](https://img.shields.io/github/license/kozmod/progen)
+[![GitHub MIT license](https://img.shields.io/github/license/kozmod/oniontx)](https://github.com/kozmod/oniontx/blob/dev/LICENSE)
 
 The utility for transferring transaction management of the stdlib to the service layer.
 ___
