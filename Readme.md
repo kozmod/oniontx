@@ -8,17 +8,21 @@
 [![GitHub MIT license](https://img.shields.io/github/license/kozmod/oniontx)](https://github.com/kozmod/oniontx/blob/dev/LICENSE)
 
 The utility for transferring transaction management of the stdlib to the service layer.
+
+**NOTE**: Transactor was developed to work with only the same instance of tha `*sql.DB`
 ___
 
 ## Example
 1️⃣Execution different repositories with the same `sql.DB` instance
 ```go
+package some
+
 type RepositoryA struct {
-	db *sql.DB
+	transactor oniontx.Transactor
 }
 
 func (r RepositoryA) Do(ctx context.Context) error {
-	executor := oniontx.ExtractExecutorOrDefault(ctx, r.db)
+	executor := r.transactor.ExtractExecutorOrDefault(ctx)
 	_, err := executor.ExecContext(ctx, "UPDATE some_A SET value = 1")
 	if err != nil {
 		return fmt.Errorf("update 'some_A': %w", err)
@@ -27,11 +31,11 @@ func (r RepositoryA) Do(ctx context.Context) error {
 }
 
 type RepositoryB struct {
-	db *sql.DB
+	transactor oniontx.Transactor
 }
 
 func (r RepositoryB) Do(ctx context.Context) error {
-	executor := oniontx.ExtractExecutorOrDefault(ctx, r.db)
+	executor := r.transactor.ExtractExecutorOrDefault(ctx)
 	_, err := executor.ExecContext(ctx, "UPDATE some_B SET value = 1")
 	if err != nil {
 		return fmt.Errorf("update 'some_B': %w", err)
@@ -42,7 +46,7 @@ func (r RepositoryB) Do(ctx context.Context) error {
 type Service struct {
 	repositoryA *RepositoryA
 	repositoryB *RepositoryB
-	
+
 	transactor oniontx.Transactor
 }
 
@@ -64,6 +68,8 @@ func  (s *Service)Do(ctx context.Context) error{
 ```
 2️⃣ Start transaction with `sql.TxOptions`
 ```go
+package some
+
 func (s *Service) Do(ctx context.Context) error {
 	err := s.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
 		if err := s.repositoryA.Do(ctx); err != nil {
