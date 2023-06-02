@@ -65,6 +65,32 @@ func  (s *Service)Do(ctx context.Context) error{
 	}
 	return nil
 }
+
+
+func main() {
+	var (
+		db *sql.DB = // ...
+
+		transactor = oniontx.NewTransactor(db)
+	repositoryA = RepositoryA{
+		transactor: transactor,
+	}
+	repositoryB = RepositoryB{
+		transactor: transactor,
+	}
+
+	service = Service{
+		repositoryA: &repositoryA,
+		repositoryB: &repositoryB,
+		transactor: transactor,
+	}
+	)
+
+	err := service.Do(context.Background())
+	if err != nil {
+		os.Exit(1)
+	}
+}
 ```
 2️⃣ Start transaction with `sql.TxOptions`
 ```go
