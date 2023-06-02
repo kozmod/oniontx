@@ -38,8 +38,8 @@ type (
 
 type ctxKey string
 
-func createKey(in any) ctxKey {
-	return ctxKey(fmt.Sprintf("%p_%T", in, in))
+func createKey(in database) ctxKey {
+	return ctxKey(fmt.Sprintf("%p", in))
 }
 
 // injectTx injects transaction to context
@@ -51,32 +51,18 @@ func injectTx(ctx context.Context, db database, tx transaction) context.Context 
 	return context.WithValue(ctx, key, tx)
 }
 
-// ExtractExecutorOrDefault extracts Executor (*sql.Tx) from context or return default Executor (*sql.DB)
-func ExtractExecutorOrDefault(ctx context.Context, db database) Executor {
-	tx, ok := ExtractTx(ctx, db)
-	if !ok {
-		return db
-	}
-	return tx
-}
-
-// ExtractTx extracts *sql.Tx or return false
-func ExtractTx(ctx context.Context, db database) (*sql.Tx, bool) {
-	var (
-		key    = createKey(db)
-		tx, ok = ctx.Value(key).(*sql.Tx)
-	)
-	return tx, ok
-}
-
 type Transactor struct {
 	db        database
 	beginTxFn func(ctx context.Context, options *sql.TxOptions) (transaction, error)
 }
 
-func NewTransactor(db database) *Transactor {
+func NewTransactor(db *sql.DB) *Transactor {
+	var base database
+	if db != nil {
+		base = db
+	}
 	return &Transactor{
-		db: db,
+		db: base,
 		beginTxFn: func(ctx context.Context, options *sql.TxOptions) (transaction, error) {
 			return db.BeginTx(ctx, options)
 		}}
@@ -127,5 +113,16 @@ func (t *Transactor) WithinTransaction(ctx context.Context, fn func(ctx context.
 
 // ExtractExecutorOrDefault extracts Executor (*sql.Tx) from context or return default Executor (*sql.DB)
 func (t *Transactor) ExtractExecutorOrDefault(ctx context.Context) Executor {
-	return ExtractExecutorOrDefault(ctx, t.db)
+	var (
+		key    = createKey(t.db)
+		tx, ok = ctx.Value(key).(transaction)
+	)
+	if !ok {
+		return t.db
+	}
+	return tx
+}
+
+func (t *Transactor) DB() *sql.DB {
+	return t.db.(*sql.DB)
 }
