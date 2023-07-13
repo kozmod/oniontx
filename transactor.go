@@ -69,7 +69,12 @@ func NewTransactor(db *sql.DB) *Transactor {
 }
 
 // WithinTransaction execute all queries in transaction (create new transaction or reuse transaction obtained from context.Context)
-func (t *Transactor) WithinTransaction(ctx context.Context, fn func(ctx context.Context) error, options ...Option) (err error) {
+func (t *Transactor) WithinTransaction(ctx context.Context, fn func(ctx context.Context) error) (err error) {
+	return t.WithinOptionalTransaction(ctx, fn)
+}
+
+// WithinOptionalTransaction execute all queries in transaction with options (create new transaction or reuse transaction obtained from context.Context)
+func (t *Transactor) WithinOptionalTransaction(ctx context.Context, fn func(ctx context.Context) error, options ...Option) (err error) {
 	if t.db == nil {
 		return xerrors.Errorf("transactor: cannot begin transaction: %w", ErrNilDB)
 	}

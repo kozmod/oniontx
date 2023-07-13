@@ -13,9 +13,9 @@ The utility for transferring transaction management of the stdlib to the service
 ___
 
 ## Example
-1️⃣Execution different repositories with the same `sql.DB` instance
+1️⃣ Execution different repositories with the same `sql.DB` instance
 ```go
-package some
+package mane
 
 type RepositoryA struct {
 	transactor oniontx.Transactor
@@ -66,24 +66,23 @@ func  (s *Service)Do(ctx context.Context) error{
 	return nil
 }
 
-
 func main() {
 	var (
-		db *sql.DB = // ...
+		db *sql.DB // ...
 
 		transactor = oniontx.NewTransactor(db)
-	repositoryA = RepositoryA{
-		transactor: transactor,
-	}
-	repositoryB = RepositoryB{
-		transactor: transactor,
-	}
+		repositoryA = RepositoryA{
+			transactor: transactor,
+		}
+		repositoryB = RepositoryB{
+			transactor: transactor,
+		}
 
-	service = Service{
-		repositoryA: &repositoryA,
-		repositoryB: &repositoryB,
-		transactor: transactor,
-	}
+		service = Service{
+			repositoryA: &repositoryA,
+			repositoryB: &repositoryB,
+			transactor: transactor,
+		}
 	)
 
 	err := service.Do(context.Background())
