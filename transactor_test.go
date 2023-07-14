@@ -116,129 +116,178 @@ func Test_ExtractExecutorOrDefault(t *testing.T) {
 }
 
 func Test_Transactor(t *testing.T) {
-	t.Run("with_new_tx", func(t *testing.T) {
-		t.Run("not_create_tx_when_db_is_nil", func(t *testing.T) {
-			var (
-				executed bool
-			)
-			transactor := NewTransactor(nil)
-			err := transactor.WithinTransaction(context.Background(), func(ctx context.Context) error {
-				executed = true
-				return nil
+	t.Run("WithinTransaction", func(t *testing.T) {
+		t.Run("with_new_tx", func(t *testing.T) {
+			t.Run("not_create_tx_when_db_is_nil", func(t *testing.T) {
+				var (
+					executed bool
+				)
+				transactor := NewTransactor(nil)
+				err := transactor.WithinTransaction(context.Background(), func(ctx context.Context) error {
+					executed = true
+					return nil
+				})
+				assertTrue(t, err != nil)
+				assertTrue(t, errors.Is(err, ErrNilDB))
+				assertTrue(t, !executed)
 			})
-			assertTrue(t, err != nil)
-			assertTrue(t, errors.Is(err, ErrNilDB))
-			assertTrue(t, !executed)
-		})
-		t.Run("error_when_tx_commit_error_happen", func(t *testing.T) {
-			var (
-				executed bool
-				expErr   = xerrors.New("commit_error")
-				txMock   = transactionMock{
-					commitFn: func() error {
-						return expErr
-					},
-				}
-				transactor = Transactor{
-					db: databaseMock{},
-					beginTxFn: func(ctx context.Context, options *sql.TxOptions) (transaction, error) {
-						return &txMock, nil
-					},
-				}
-			)
+			t.Run("error_when_tx_commit_error_happen", func(t *testing.T) {
+				var (
+					executed bool
+					expErr   = xerrors.New("commit_error")
+					txMock   = transactionMock{
+						commitFn: func() error {
+							return expErr
+						},
+					}
+					transactor = Transactor{
+						db: databaseMock{},
+						beginTxFn: func(ctx context.Context, options *sql.TxOptions) (transaction, error) {
+							return &txMock, nil
+						},
+					}
+				)
 
-			err := transactor.WithinTransaction(context.Background(), func(ctx context.Context) error {
-				executed = true
-				return nil
+				err := transactor.WithinTransaction(context.Background(), func(ctx context.Context) error {
+					executed = true
+					return nil
+				})
+				assertTrue(t, err != nil)
+				assertTrue(t, errors.Is(err, expErr))
+				assertTrue(t, executed)
 			})
-			assertTrue(t, err != nil)
-			assertTrue(t, errors.Is(err, expErr))
-			assertTrue(t, executed)
-		})
-		t.Run("error_when_fn_panic_and_rollback_error_happen", func(t *testing.T) {
-			var (
-				executed bool
-				expErr   = xerrors.New("rollback_error")
-				txMock   = transactionMock{
-					rollbackFn: func() error {
-						return expErr
-					},
-				}
-				transactor = Transactor{
-					db: databaseMock{},
-					beginTxFn: func(ctx context.Context, options *sql.TxOptions) (transaction, error) {
-						return &txMock, nil
-					},
-				}
-			)
+			t.Run("error_when_fn_panic_and_rollback_error_happen", func(t *testing.T) {
+				var (
+					executed bool
+					expErr   = xerrors.New("rollback_error")
+					txMock   = transactionMock{
+						rollbackFn: func() error {
+							return expErr
+						},
+					}
+					transactor = Transactor{
+						db: databaseMock{},
+						beginTxFn: func(ctx context.Context, options *sql.TxOptions) (transaction, error) {
+							return &txMock, nil
+						},
+					}
+				)
 
-			err := transactor.WithinTransaction(context.Background(), func(ctx context.Context) error {
-				executed = true
-				panic("some_panic")
+				err := transactor.WithinTransaction(context.Background(), func(ctx context.Context) error {
+					executed = true
+					panic("some_panic")
+				})
+				assertTrue(t, err != nil)
+				assertTrue(t, errors.Is(err, expErr))
+				assertTrue(t, executed)
 			})
-			assertTrue(t, err != nil)
-			assertTrue(t, errors.Is(err, expErr))
-			assertTrue(t, executed)
-		})
-		t.Run("error_when_fn_return_error_and_rollback_error_happen", func(t *testing.T) {
-			var (
-				executed bool
-				expFnErr = xerrors.New("fn_error")
-				expRbErr = xerrors.New("rollback_error")
-				txMock   = transactionMock{
-					rollbackFn: func() error {
-						return expRbErr
-					},
-				}
-				transactor = Transactor{
-					db: databaseMock{},
-					beginTxFn: func(ctx context.Context, options *sql.TxOptions) (transaction, error) {
-						return &txMock, nil
-					},
-				}
-			)
+			t.Run("error_when_fn_return_error_and_rollback_error_happen", func(t *testing.T) {
+				var (
+					executed bool
+					expFnErr = xerrors.New("fn_error")
+					expRbErr = xerrors.New("rollback_error")
+					txMock   = transactionMock{
+						rollbackFn: func() error {
+							return expRbErr
+						},
+					}
+					transactor = Transactor{
+						db: databaseMock{},
+						beginTxFn: func(ctx context.Context, options *sql.TxOptions) (transaction, error) {
+							return &txMock, nil
+						},
+					}
+				)
 
-			err := transactor.WithinTransaction(context.Background(), func(ctx context.Context) error {
-				executed = true
-				return expFnErr
+				err := transactor.WithinTransaction(context.Background(), func(ctx context.Context) error {
+					executed = true
+					return expFnErr
+				})
+				assertTrue(t, err != nil)
+				assertTrue(t, errors.Is(err, expRbErr))
+				assertTrue(t, strings.Contains(err.Error(), expFnErr.Error()))
+				assertTrue(t, executed)
 			})
-			assertTrue(t, err != nil)
-			assertTrue(t, errors.Is(err, expRbErr))
-			assertTrue(t, strings.Contains(err.Error(), expFnErr.Error()))
-			assertTrue(t, executed)
+		})
+		t.Run("with_tx_from_context", func(t *testing.T) {
+			t.Run("success_commit_tx_when_tx_is_exists_in_context", func(t *testing.T) {
+				var (
+					executed, committed bool
+					dbMock              = databaseMock{}
+					txMock              = transactionMock{
+						commitFn: func() error {
+							committed = true
+							return nil
+						},
+					}
+					dbKey = createKey(&dbMock)
+					ctx   = context.WithValue(context.Background(), dbKey, &txMock)
+
+					transactor = Transactor{
+						db: &dbMock,
+						beginTxFn: func(ctx context.Context, options *sql.TxOptions) (transaction, error) {
+							return &txMock, nil
+						},
+					}
+				)
+
+				err := transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+					executed = true
+					return nil
+				})
+				assertTrue(t, err == nil)
+				assertTrue(t, executed)
+				assertTrue(t, committed)
+			})
 		})
 	})
-	t.Run("with_tx_from_context", func(t *testing.T) {
-		t.Run("success_commit_tx_when_tx_is_exists_in_context", func(t *testing.T) {
+
+	t.Run("DB", func(t *testing.T) {
+		t.Run("same_db", func(t *testing.T) {
 			var (
-				executed, committed bool
-				dbMock              = databaseMock{}
-				txMock              = transactionMock{
-					commitFn: func() error {
-						committed = true
-						return nil
-					},
-				}
-				dbKey = createKey(&dbMock)
-				ctx   = context.WithValue(context.Background(), dbKey, &txMock)
-
-				transactor = Transactor{
-					db: &dbMock,
-					beginTxFn: func(ctx context.Context, options *sql.TxOptions) (transaction, error) {
-						return &txMock, nil
-					},
-				}
+				db         = sql.DB{}
+				transactor = NewTransactor(&db)
 			)
-
-			err := transactor.WithinTransaction(ctx, func(ctx context.Context) error {
-				executed = true
-				return nil
-			})
-			assertTrue(t, err == nil)
-			assertTrue(t, executed)
-			assertTrue(t, committed)
+			assertTrue(t, &db == transactor.DB())
+		})
+		t.Run("same_db_with_any_transactor_instance", func(t *testing.T) {
+			var (
+				db          = sql.DB{}
+				transactorA = NewTransactor(&db)
+				transactorB = NewTransactor(&db)
+			)
+			assertTrue(t, &db == transactorA.DB())
+			assertTrue(t, &db == transactorB.DB())
+			assertTrue(t, transactorA.DB() == transactorB.DB())
 		})
 	})
+
+	t.Run("TryExtractTransaction", func(t *testing.T) {
+		t.Run("success_extract", func(t *testing.T) {
+			var (
+				db         = sql.DB{}
+				tx         = sql.Tx{}
+				transactor = NewTransactor(&db)
+				ctx        = context.WithValue(context.Background(), createKey(&db), &tx)
+			)
+			transactor.beginTxFn = func(ctx context.Context, options *sql.TxOptions) (transaction, error) {
+				return &tx, nil
+			}
+			extractedTx, ok := transactor.TryExtractTransaction(ctx)
+			assertTrue(t, ok)
+			assertTrue(t, &tx == extractedTx)
+		})
+		t.Run("fail_extract", func(t *testing.T) {
+			var (
+				db         = sql.DB{}
+				transactor = NewTransactor(&db)
+			)
+			extractedTx, ok := transactor.TryExtractTransaction(context.Background())
+			assertTrue(t, !ok)
+			assertTrue(t, extractedTx == nil)
+		})
+	})
+
 }
 
 func Test_Option(t *testing.T) {

@@ -13,6 +13,7 @@ var (
 )
 
 type (
+	// Executor represents common methods of sql.DB and sql.Tx
 	Executor interface {
 		Exec(query string, args ...any) (sql.Result, error)
 		ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
@@ -116,7 +117,7 @@ func (t *Transactor) WithinOptionalTransaction(ctx context.Context, fn func(ctx 
 	return fn(injectTx(ctx, t.db, tx))
 }
 
-// ExtractExecutorOrDefault extracts Executor (*sql.Tx) from context or return default Executor (*sql.DB)
+// ExtractExecutorOrDefault extracts Executor (*sql.Tx) from context.Context or return `default Executor (*sql.DB)`
 func (t *Transactor) ExtractExecutorOrDefault(ctx context.Context) Executor {
 	var (
 		key    = createKey(t.db)
@@ -128,6 +129,16 @@ func (t *Transactor) ExtractExecutorOrDefault(ctx context.Context) Executor {
 	return tx
 }
 
+// TryExtractTransaction extracts pointer of sql.Tx from context.Context or return `false`
+func (t *Transactor) TryExtractTransaction(ctx context.Context) (*sql.Tx, bool) {
+	var (
+		key    = createKey(t.db)
+		tx, ok = ctx.Value(key).(*sql.Tx)
+	)
+	return tx, ok
+}
+
+// DB returns pointer of sql.DB which using in Transactor
 func (t *Transactor) DB() *sql.DB {
 	return t.db.(*sql.DB)
 }
