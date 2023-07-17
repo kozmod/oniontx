@@ -122,7 +122,7 @@ import (
 
 func main() {
 	var (
-		//db *sql.DB = // ...
+		db *sql.DB // database pointer 
 
 		transactor  = oniontx.NewTransactor(db)
 		repositoryA = repoA.RepositoryA{
@@ -149,7 +149,7 @@ func main() {
 2️⃣ Start transaction with `sql.TxOptions`
 ```go
 func (s *Service) Do(ctx context.Context) error {
-	err := s.Transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+	err := s.Transactor.WithinOptionalTransaction(ctx, func(ctx context.Context) error {
 		if err := s.RepositoryA.Do(ctx); err != nil {
 			return fmt.Errorf("call repositoryA: %+v", err)
 		}
