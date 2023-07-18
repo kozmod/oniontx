@@ -48,7 +48,7 @@ func Test_ExtractExecutorOrDefault(t *testing.T) {
 			transactor = NewTransactor(&defaultDB)
 			ctx        = context.WithValue(context.Background(), &defaultDB, nil)
 		)
-		executor := transactor.ExtractExecutorOrDefault(ctx)
+		executor := transactor.GetExecutor(ctx)
 		assertTrue(t, executor == &defaultDB)
 	})
 	t.Run("return_new_tx_when_tx_does_not_exist_for_same_db_instance", func(t *testing.T) {
@@ -65,8 +65,8 @@ func Test_ExtractExecutorOrDefault(t *testing.T) {
 		transactor.beginTxFn = func(ctx context.Context, options *sql.TxOptions) (transaction, error) {
 			return &txMock, nil
 		}
-		err := transactor.WithinTransaction(ctx, func(ctx context.Context) error {
-			executor := transactor.ExtractExecutorOrDefault(ctx)
+		err := transactor.WithinTx(ctx, func(ctx context.Context) error {
+			executor := transactor.GetExecutor(ctx)
 			assertTrue(t, executor == &txMock)
 			return nil
 		})
@@ -83,8 +83,8 @@ func Test_ExtractExecutorOrDefault(t *testing.T) {
 			transactor = NewTransactor(&db)
 			ctx        = injectTx(context.Background(), &db, &txMock)
 		)
-		err := transactor.WithinTransaction(ctx, func(ctx context.Context) error {
-			executor := transactor.ExtractExecutorOrDefault(ctx)
+		err := transactor.WithinTx(ctx, func(ctx context.Context) error {
+			executor := transactor.GetExecutor(ctx)
 			assertTrue(t, executor == &txMock)
 			return nil
 		})
@@ -105,8 +105,8 @@ func Test_ExtractExecutorOrDefault(t *testing.T) {
 		transactor.beginTxFn = func(ctx context.Context, options *sql.TxOptions) (transaction, error) {
 			return &txMock, nil
 		}
-		err := transactor.WithinTransaction(ctx, func(ctx context.Context) error {
-			executor := transactor.ExtractExecutorOrDefault(ctx)
+		err := transactor.WithinTx(ctx, func(ctx context.Context) error {
+			executor := transactor.GetExecutor(ctx)
 			assertTrue(t, executor == &txMock)
 			assertTrue(t, executor != &txOtherMock)
 			return nil
@@ -116,14 +116,14 @@ func Test_ExtractExecutorOrDefault(t *testing.T) {
 }
 
 func Test_Transactor(t *testing.T) {
-	t.Run("WithinTransaction", func(t *testing.T) {
+	t.Run("WithinTx", func(t *testing.T) {
 		t.Run("with_new_tx", func(t *testing.T) {
 			t.Run("not_create_tx_when_db_is_nil", func(t *testing.T) {
 				var (
 					executed bool
 				)
 				transactor := NewTransactor(nil)
-				err := transactor.WithinTransaction(context.Background(), func(ctx context.Context) error {
+				err := transactor.WithinTx(context.Background(), func(ctx context.Context) error {
 					executed = true
 					return nil
 				})
@@ -148,7 +148,7 @@ func Test_Transactor(t *testing.T) {
 					}
 				)
 
-				err := transactor.WithinTransaction(context.Background(), func(ctx context.Context) error {
+				err := transactor.WithinTx(context.Background(), func(ctx context.Context) error {
 					executed = true
 					return nil
 				})
@@ -173,7 +173,7 @@ func Test_Transactor(t *testing.T) {
 					}
 				)
 
-				err := transactor.WithinTransaction(context.Background(), func(ctx context.Context) error {
+				err := transactor.WithinTx(context.Background(), func(ctx context.Context) error {
 					executed = true
 					panic("some_panic")
 				})
@@ -199,7 +199,7 @@ func Test_Transactor(t *testing.T) {
 					}
 				)
 
-				err := transactor.WithinTransaction(context.Background(), func(ctx context.Context) error {
+				err := transactor.WithinTx(context.Background(), func(ctx context.Context) error {
 					executed = true
 					return expFnErr
 				})
@@ -231,7 +231,7 @@ func Test_Transactor(t *testing.T) {
 					}
 				)
 
-				err := transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+				err := transactor.WithinTx(ctx, func(ctx context.Context) error {
 					executed = true
 					return nil
 				})
@@ -262,7 +262,7 @@ func Test_Transactor(t *testing.T) {
 		})
 	})
 
-	t.Run("TryExtractTransaction", func(t *testing.T) {
+	t.Run("TryGetTx", func(t *testing.T) {
 		t.Run("success_extract", func(t *testing.T) {
 			var (
 				db         = sql.DB{}
@@ -273,7 +273,7 @@ func Test_Transactor(t *testing.T) {
 			transactor.beginTxFn = func(ctx context.Context, options *sql.TxOptions) (transaction, error) {
 				return &tx, nil
 			}
-			extractedTx, ok := transactor.TryExtractTransaction(ctx)
+			extractedTx, ok := transactor.TryGetTx(ctx)
 			assertTrue(t, ok)
 			assertTrue(t, &tx == extractedTx)
 		})
@@ -282,7 +282,7 @@ func Test_Transactor(t *testing.T) {
 				db         = sql.DB{}
 				transactor = NewTransactor(&db)
 			)
-			extractedTx, ok := transactor.TryExtractTransaction(context.Background())
+			extractedTx, ok := transactor.TryGetTx(context.Background())
 			assertTrue(t, !ok)
 			assertTrue(t, extractedTx == nil)
 		})
