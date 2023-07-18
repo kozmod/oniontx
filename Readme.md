@@ -33,7 +33,7 @@ type RepositoryA struct {
 }
 
 func (r RepositoryA) Do(ctx context.Context) error {
-	executor := r.Transactor.ExtractExecutorOrDefault(ctx)
+	executor := r.Transactor.GetExecutor(ctx)
 	_, err := executor.ExecContext(ctx, "UPDATE some_A SET value = 1")
 	if err != nil {
 		return fmt.Errorf("update 'some_A': %w", err)
@@ -56,7 +56,7 @@ type RepositoryB struct {
 }
 
 func (r RepositoryB) Do(ctx context.Context) error {
-	executor := r.Transactor.ExtractExecutorOrDefault(ctx)
+	executor := r.Transactor.GetExecutor(ctx)
 	_, err := executor.ExecContext(ctx, "UPDATE some_B SET value = 1")
 	if err != nil {
 		return fmt.Errorf("update 'some_B': %w", err)
@@ -74,7 +74,7 @@ import (
 
 // transactor is the contract of  the oniontx.Transactor
 type transactor interface {
-	WithinTransaction(ctx context.Context, fn func(ctx context.Context) error) (err error)
+	WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error)
 }
 
 // Repo is the contract of repositories
@@ -90,7 +90,7 @@ type Usecase struct {
 }
 
 func  (s *Usecase)Do(ctx context.Context) error{
-	err := s.Transactor.WithinTransaction(ctx, func(ctx context.Context) error {
+	err := s.Transactor.WithinTx(ctx, func(ctx context.Context) error {
 		if err := s.RepositoryA.Do(ctx); err != nil {
 			return fmt.Errorf("call repositoryA: %+v", err)
 		}
@@ -110,6 +110,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"os"
 	
 	"github.com/kozmod/oniontx"
@@ -149,7 +150,7 @@ func main() {
 2️⃣ Start transaction with `sql.TxOptions`
 ```go
 func (s *Service) Do(ctx context.Context) error {
-	err := s.Transactor.WithinOptionalTransaction(ctx, func(ctx context.Context) error {
+	err := s.Transactor.WithinTxWithOpts(ctx, func(ctx context.Context) error {
 		if err := s.RepositoryA.Do(ctx); err != nil {
 			return fmt.Errorf("call repositoryA: %+v", err)
 		}

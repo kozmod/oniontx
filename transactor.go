@@ -70,13 +70,13 @@ func NewTransactor(db *sql.DB) *Transactor {
 		}}
 }
 
-// WithinTransaction execute all queries in transaction (create new transaction or reuse transaction obtained from context.Context).
-func (t *Transactor) WithinTransaction(ctx context.Context, fn func(ctx context.Context) error) (err error) {
-	return t.WithinOptionalTransaction(ctx, fn)
+// WithinTx execute all queries in transaction (create new transaction or reuse transaction obtained from context.Context).
+func (t *Transactor) WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error) {
+	return t.WithinTxWithOpts(ctx, fn)
 }
 
-// WithinOptionalTransaction execute all queries in transaction with options (create new transaction or reuse transaction obtained from context.Context).
-func (t *Transactor) WithinOptionalTransaction(ctx context.Context, fn func(ctx context.Context) error, options ...Option) (err error) {
+// WithinTxWithOpts execute all queries in transaction with options (create new transaction or reuse transaction obtained from context.Context).
+func (t *Transactor) WithinTxWithOpts(ctx context.Context, fn func(ctx context.Context) error, options ...Option) (err error) {
 	if t.db == nil {
 		return xerrors.Errorf("transactor: cannot begin transaction: %w", ErrNilDB)
 	}
@@ -118,8 +118,8 @@ func (t *Transactor) WithinOptionalTransaction(ctx context.Context, fn func(ctx 
 	return fn(injectTx(ctx, t.db, tx))
 }
 
-// ExtractExecutorOrDefault extracts Executor (*sql.Tx) from context.Context or return default Executor (*sql.DB).
-func (t *Transactor) ExtractExecutorOrDefault(ctx context.Context) Executor {
+// GetExecutor extracts Executor (*sql.Tx) from context.Context or return default Executor (*sql.DB).
+func (t *Transactor) GetExecutor(ctx context.Context) Executor {
 	var (
 		key    = createKey(t.db)
 		tx, ok = ctx.Value(key).(transaction)
@@ -130,8 +130,8 @@ func (t *Transactor) ExtractExecutorOrDefault(ctx context.Context) Executor {
 	return tx
 }
 
-// TryExtractTransaction extracts pointer of sql.Tx from context.Context or return `false`.
-func (t *Transactor) TryExtractTransaction(ctx context.Context) (*sql.Tx, bool) {
+// TryGetTx extracts pointer of sql.Tx from context.Context or return `false`.
+func (t *Transactor) TryGetTx(ctx context.Context) (*sql.Tx, bool) {
 	var (
 		key    = createKey(t.db)
 		tx, ok = ctx.Value(key).(*sql.Tx)
