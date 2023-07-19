@@ -16,8 +16,10 @@ ___
 Move a maintaining of transactions to `Application` layer using owner defined contract.
 ___
 
-## Example
-1️⃣ Execution different repositories with the same `sql.DB` instance
+## Examples
+
+---
+1️⃣ Execution a transaction for different `repositories` with the same `oniontx.Transactor` instance:
 ```go
 package repoA
 
@@ -133,23 +135,24 @@ func main() {
 			Transactor: transactor,
 		}
 
-		service = usecase.Usecase{
+		usecase = usecase.Usecase{
 			RepositoryA: &repositoryA,
 			RepositoryB: &repositoryB,
 			Transactor:  transactor,
 		}
 	)
 
-	err := service.Do(context.Background())
+	err := usecase.Do(context.Background())
 	if err != nil {
 		os.Exit(1)
 	}
 }
 
 ```
-2️⃣ Start transaction with `sql.TxOptions`
+---
+2️⃣ Execution a transaction with `sql.TxOptions`:
 ```go
-func (s *Service) Do(ctx context.Context) error {
+func (s *Usecase) Do(ctx context.Context) error {
 	err := s.Transactor.WithinTxWithOpts(ctx, func(ctx context.Context) error {
 		if err := s.RepositoryA.Do(ctx); err != nil {
 			return fmt.Errorf("call repositoryA: %+v", err)
@@ -165,5 +168,140 @@ func (s *Service) Do(ctx context.Context) error {
 		return fmt.Errorf("execute: %v", err)
 	}
 	return nil
+}
+```
+---
+3️⃣Execution the same transaction for different `usecases` with the same `oniontx.Transactor` instance:
+```go
+package a
+
+import (
+	"context"
+	"fmt"
+)
+
+type (
+	// transactor is the contract of  the oniontx.Transactor
+	transactor interface {
+		WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error)
+	}
+
+	// Repo is the contract of repositories
+	repoA interface {
+		Insert(ctx context.Context, val int) error
+		Delete(ctx context.Context, val float64) error
+	}
+)
+
+type UsecaseA struct {
+	Repo repoA
+
+	Transactor transactor
+}
+
+func (s *UsecaseA) Exec(ctx context.Context, insert int, delete float64) error {
+	err := s.Transactor.WithinTx(ctx, func(ctx context.Context) error {
+		if err := s.Repo.Insert(ctx, insert); err != nil {
+			return fmt.Errorf("call repository - insert: %w", err)
+		}
+		if err := s.Repo.Delete(ctx, delete); err != nil {
+			return fmt.Errorf("call repository - delete: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("usecaseA - execute: %w", err)
+	}
+	return nil
+}
+```
+```go
+package b
+
+import (
+	"context"
+	"fmt"
+)
+
+type (
+	// transactor is the contract of  the oniontx.Transactor
+	transactor interface {
+		WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error)
+	}
+
+	// Repo is the contract of repositories
+	repoB interface {
+		Insert(ctx context.Context, val string) error
+	}
+
+	// Repo is the contract of the usecase
+	usecaseA interface {
+		Exec(ctx context.Context, insert int, delete float64) error
+	}
+)
+
+type UsecaseB struct {
+	Repo     repoB
+	UsecaseA usecaseA
+
+	Transactor transactor
+}
+
+func (s *UsecaseB) Exec(ctx context.Context, insertA string, insertB int, delete float64) error {
+	err := s.Transactor.WithinTx(ctx, func(ctx context.Context) error {
+		if err := s.Repo.Insert(ctx, insertA); err != nil {
+			return fmt.Errorf("call repository - insert: %w", err)
+		}
+		if err := s.UsecaseA.Exec(ctx, insertB, delete); err != nil {
+			return fmt.Errorf("call usecaseB - exec: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("execute: %w", err)
+	}
+	return nil
+}
+```
+```go
+package main
+
+import (
+	"context"
+	"database/sql"
+	"os"
+
+	"github.com/kozmod/oniontx"
+
+	"github.com/user/some_project/internal/repoA"
+	"github.com/user/some_project/internal/repoB"
+	"github.com/user/some_project/internal/usecase/a"
+	"github.com/user/some_project/internal/usecase/b"
+)
+
+func main() {
+	var (
+		db *sql.DB // ...DB
+
+		transactor = oniontx.NewTransactor(db)
+
+		usecaseA = a.UsecaseA{
+			Repo: repoA.RepositoryA{
+				Transactor: transactor,
+			},
+		}
+
+		usecaseB = b.UsecaseB{
+			Repo: repoB.RepositoryB{
+				Transactor: transactor,
+			},
+			UsecaseA: &usecaseA,
+		}
+	)
+
+	err := usecaseB.Exec(context.Background(), "some_to_insert_usecase_A", 1, 1.1)
+	if err != nil {
+		os.Exit(1)
+	}
 }
 ```
