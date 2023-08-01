@@ -2,144 +2,113 @@ package oniontx
 
 import (
 	"context"
-	"database/sql"
-	"fmt"
+	"errors"
 
 	"golang.org/x/xerrors"
 )
 
 var (
-	ErrNilDB = xerrors.New(" database is nil")
+	ErrNilBeginner     = xerrors.New("tx beginner is nil")
+	ErrCommitFailed    = xerrors.New("commit failed")
+	ErrRollbackFailed  = xerrors.New("rollback failed")
+	ErrRollbackSuccess = xerrors.New("rollback tx")
 )
 
 type (
-	// Executor represents common methods of sql.DB and sql.Tx.
-	Executor interface {
-		Exec(query string, args ...any) (sql.Result, error)
-		ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-		Query(query string, args ...any) (*sql.Rows, error)
-		QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-		QueryRow(query string, args ...any) *sql.Row
-		QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
-		Prepare(query string) (*sql.Stmt, error)
-		PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
+	TxBeginner[C TxCommitter, O any] interface {
+		comparable
+		BeginTx(ctx context.Context, opts ...Option[O]) (C, error)
 	}
 
-	transaction interface {
-		Executor
-		Rollback() error
-		Commit() error
+	TxCommitter interface {
+		Rollback(ctx context.Context) error
+		Commit(ctx context.Context) error
 	}
 
-	database interface {
-		Executor
-		BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
+	Option[TxOpt any] interface {
+		Apply(in TxOpt)
+	}
+
+	СtxOperator[C TxCommitter] interface {
+		Inject(ctx context.Context, c C) context.Context
+		Extract(ctx context.Context) (C, bool)
 	}
 )
 
-type ctxKey string
-
-func createKey(in database) ctxKey {
-	return ctxKey(fmt.Sprintf("%p", in))
+// Transactor manage a transaction for single TxBeginner instance.
+type Transactor[B TxBeginner[C, O], C TxCommitter, O any] struct {
+	beginner B
+	operator СtxOperator[C]
 }
 
-// injectTx injects transaction to context.
-func injectTx(ctx context.Context, db database, tx transaction) context.Context {
-	if db == nil || tx == nil {
-		return ctx
+// NewTransactor creates new Transactor.
+func NewTransactor[B TxBeginner[C, O], C TxCommitter, O any](
+	beginner B,
+	operator СtxOperator[C]) *Transactor[B, C, O] {
+	var base B
+	if base != beginner {
+		base = beginner
 	}
-	key := createKey(db)
-	return context.WithValue(ctx, key, tx)
-}
-
-type Transactor struct {
-	db        database
-	beginTxFn func(ctx context.Context, options *sql.TxOptions) (transaction, error)
-}
-
-// NewTransactor creates new  Transactor with pointer of the sql.DB.
-func NewTransactor(db *sql.DB) *Transactor {
-	var base database
-	if db != nil {
-		base = db
+	return &Transactor[B, C, O]{
+		beginner: base,
+		operator: operator,
 	}
-	return &Transactor{
-		db: base,
-		beginTxFn: func(ctx context.Context, options *sql.TxOptions) (transaction, error) {
-			return db.BeginTx(ctx, options)
-		}}
 }
 
-// WithinTx execute all queries in transaction (create new transaction or reuse transaction obtained from context.Context).
-func (t *Transactor) WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error) {
+// WithinTx execute all queries with TxCommitter.
+// The function create new TxCommitter or reuse TxCommitter obtained from context.Context.
+func (t *Transactor[B, C, O]) WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error) {
 	return t.WithinTxWithOpts(ctx, fn)
 }
 
-// WithinTxWithOpts execute all queries in transaction with options (create new transaction or reuse transaction obtained from context.Context).
-func (t *Transactor) WithinTxWithOpts(ctx context.Context, fn func(ctx context.Context) error, options ...Option) (err error) {
-	if t.db == nil {
-		return xerrors.Errorf("transactor: cannot begin transaction: %w", ErrNilDB)
+// WithinTxWithOpts execute all queries with TxCommitter and transaction Options.
+// The function create new TxCommitter or reuse TxCommitter obtained from context.Context.
+func (t *Transactor[B, C, O]) WithinTxWithOpts(ctx context.Context, fn func(ctx context.Context) error, opts ...Option[O]) (err error) {
+	var nilDB B
+	if t.beginner == nilDB {
+		return xerrors.Errorf("transactor: cannot begin: %w", ErrNilBeginner)
 	}
 
-	var (
-		key    = createKey(t.db)
-		tx, ok = ctx.Value(key).(transaction)
-	)
-
+	tx, ok := t.operator.Extract(ctx)
 	if !ok {
-		var txOptions sql.TxOptions
-		for _, option := range options {
-			option(&txOptions)
-		}
-
-		tx, err = t.beginTxFn(ctx, &txOptions)
+		tx, err = t.beginner.BeginTx(ctx, opts...)
 		if err != nil {
-			return xerrors.Errorf("transactor: cannot begin transaction: %w", err)
+			return xerrors.Errorf("transactor: cannot begin: %w", err)
 		}
 	}
 
 	defer func() {
 		switch p := recover(); {
 		case p != nil:
-			if rbErr := tx.Rollback(); rbErr != nil {
-				err = xerrors.Errorf("transactor: tx execute with panic [%v]: rollback err: %w", p, rbErr)
+			if rbErr := tx.Rollback(ctx); rbErr != nil {
+				err = xerrors.Errorf("transactor: panic: %v: %w", p, errors.Join(rbErr, ErrRollbackFailed))
+				return
 			}
+			err = xerrors.Errorf("transactor: panic: %v: %w", p, ErrRollbackSuccess)
 		case err != nil:
-			if rbErr := tx.Rollback(); rbErr != nil {
-				err = xerrors.Errorf("transactor: tx err [%v] , rollback err: %w", err, rbErr)
+			if rbErr := tx.Rollback(ctx); rbErr != nil {
+				err = xerrors.Errorf("transactor: %w", errors.Join(err, rbErr, ErrRollbackFailed))
+				return
 			}
+			err = xerrors.Errorf("transactor: %w", errors.Join(err, ErrRollbackSuccess))
 		default:
-			if err = tx.Commit(); err != nil {
-				err = xerrors.Errorf("transactor: cannot commit transaction: %w", err)
+			if err = tx.Commit(ctx); err != nil {
+				err = xerrors.Errorf("transactor: %w", errors.Join(err, ErrCommitFailed))
 			}
 		}
 	}()
 
-	return fn(injectTx(ctx, t.db, tx))
+	ctx = t.operator.Inject(ctx, tx)
+	return fn(ctx)
 }
 
-// GetExecutor extracts Executor (*sql.Tx) from context.Context or return default Executor (*sql.DB).
-func (t *Transactor) GetExecutor(ctx context.Context) Executor {
-	var (
-		key    = createKey(t.db)
-		tx, ok = ctx.Value(key).(transaction)
-	)
-	if !ok {
-		return t.db
-	}
-	return tx
-}
-
-// TryGetTx extracts pointer of sql.Tx from context.Context or return `false`.
-func (t *Transactor) TryGetTx(ctx context.Context) (*sql.Tx, bool) {
-	var (
-		key    = createKey(t.db)
-		tx, ok = ctx.Value(key).(*sql.Tx)
-	)
+// TryGetTx returns pointer of TxBeginner from context.Context or return `false`.
+func (t *Transactor[B, C, O]) TryGetTx(ctx context.Context) (C, bool) {
+	tx, ok := t.operator.Extract(ctx)
 	return tx, ok
 }
 
-// DB returns pointer of sql.DB which using in Transactor.
-func (t *Transactor) DB() *sql.DB {
-	return t.db.(*sql.DB)
+// TxBeginner returns pointer of TxBeginner which using in Transactor.
+func (t *Transactor[B, C, O]) TxBeginner() B {
+	return t.beginner
 }
