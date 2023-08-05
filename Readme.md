@@ -20,7 +20,7 @@ ___
 ## Examples
 
 ---
-1️⃣ Execution a transaction for different `repositories` with the same `oniontx.Transactor` instance:
+1️⃣ Execution a transaction for different `repositories` with the same `oniontx.Transactor` instance (`stdlib`[<sup>**ⓘ**</sup>](#stdlib) contains default implementation):
 ```go
 package db
 
@@ -394,5 +394,74 @@ func main() {
 	if err != nil {
 		os.Exit(1)
 	}
+}
+```
+5️⃣ <a name="stdlib"><a/>`Transactor` implementation for `stdlib`:
+```go
+package main
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"log"
+	"testing"
+
+	oniontx "github.com/kozmod/oniontx/stdlib"
+)
+
+func main() {
+	var (
+		db *sql.DB // database instance
+
+		tr = oniontx.NewTransactor(db)
+		r1 = repoA{t: tr}
+		r2 = repoB{t: tr}
+	)
+
+	err := tr.WithinTxWithOpts(context.Background(), func(ctx context.Context) error {
+		err := r1.InsertInTx(ctx, "repoA")
+		if err != nil {
+			return err
+		}
+		err = r2.InsertInTx(ctx, "repoB")
+		if err != nil {
+			return err
+		}
+		return nil
+	},
+		oniontx.WithReadOnly(true),
+	)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	
+}
+
+type repoA struct {
+	t *oniontx.Transactor
+}
+
+func (r *repoA) InsertInTx(ctx context.Context, val string) error {
+	ex := r.t.GetExecutor(ctx)
+	_, err := ex.ExecContext(ctx, `INSERT INTO tx (text) VALUES ($1)`, val)
+	if err != nil {
+		return fmt.Errorf("repoA.InsertInTx: %w", err)
+	}
+	return nil
+}
+
+type repoB struct {
+	t *oniontx.Transactor
+}
+
+func (r *repoB) InsertInTx(ctx context.Context, val string) error {
+	ex := r.t.GetExecutor(ctx)
+	_, err := ex.ExecContext(ctx, `INSERT INTO tx (text) VALUES ($1)`, val)
+	if err != nil {
+		return fmt.Errorf("repoB.InsertInTx: %w", err)
+	}
+	return nil
 }
 ```
