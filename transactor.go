@@ -9,6 +9,7 @@ import (
 
 var (
 	ErrNilBeginner     = xerrors.New("tx beginner is nil")
+	ErrBeginTx         = xerrors.New("begin tx")
 	ErrCommitFailed    = xerrors.New("commit failed")
 	ErrRollbackFailed  = xerrors.New("rollback failed")
 	ErrRollbackSuccess = xerrors.New("rollback tx")
@@ -45,12 +46,12 @@ type Transactor[B TxBeginner[C, O], C TxCommitter, O any] struct {
 func NewTransactor[B TxBeginner[C, O], C TxCommitter, O any](
 	beginner B,
 	operator СtxOperator[C]) *Transactor[B, C, O] {
-	var base B
-	if base != beginner {
-		base = beginner
+	var b B
+	if b != beginner {
+		b = beginner
 	}
 	return &Transactor[B, C, O]{
-		beginner: base,
+		beginner: b,
 		operator: operator,
 	}
 }
@@ -73,7 +74,7 @@ func (t *Transactor[B, C, O]) WithinTxWithOpts(ctx context.Context, fn func(ctx 
 	if !ok {
 		tx, err = t.beginner.BeginTx(ctx, opts...)
 		if err != nil {
-			return xerrors.Errorf("transactor: cannot begin: %w", err)
+			return xerrors.Errorf("transactor: cannot begin: %w", errors.Join(err, ErrBeginTx))
 		}
 	}
 
