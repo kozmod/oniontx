@@ -306,8 +306,40 @@ func Test_Transactor(t *testing.T) {
 			assertTrue(t, rollbackCalled)
 			assertTrue(t, beginCalled)
 		})
+		t.Run("failed_begin_tx", func(t *testing.T) {
+			var (
+				ctx         = context.Background()
+				beginCalled bool
+				beginErr    = fmt.Errorf("some_begin_error")
+				b           = &beginnerMock[*committerMock, any]{
+					beginFn: func(ctx context.Context, opts ...Option[any]) (*committerMock, error) {
+						beginCalled = true
+						return nil, beginErr
+					},
+				}
+				o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock, any](&b)
+				tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](b, o)
+			)
+			err := tr.WithinTx(ctx, func(ctx context.Context) error {
+				_, ok := o.Extract(ctx)
+				assertTrue(t, !ok)
+				return nil
+			})
+			assertTrue(t, errors.Is(err, ErrBeginTx))
+			assertTrue(t, beginCalled)
+		})
+		t.Run("error_when_beginner_is_nil", func(t *testing.T) {
+			var (
+				ctx = context.Background()
+				o   = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock, any](nil)
+				tr  = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](nil, o)
+			)
+			err := tr.WithinTx(ctx, func(ctx context.Context) error {
+				return nil
+			})
+			assertTrue(t, errors.Is(err, ErrNilBeginner))
+		})
 	})
-
 }
 
 // beginnerMock was added to avoid to use external dependencies for mocking
