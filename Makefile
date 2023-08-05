@@ -1,9 +1,3 @@
-.PHONY: lint
-lint: ## Run `golangci-lint`
-	@go version
-	@golangci-lint --version
-	@golangci-lint run ./...
-
 .PHONT: tools
 tools: ## Run tools (vet, gofmt, goimports, tidy, etc.)
 	@go version
@@ -11,6 +5,16 @@ tools: ## Run tools (vet, gofmt, goimports, tidy, etc.)
 	goimports -w .
 	go mod tidy
 	go vet ./...
+
+.PHONT: test
+test: ## Run tests
+	go test ./...
+
+.PHONY: lint
+lint: ## Run `golangci-lint`
+	@go version
+	@golangci-lint --version
+	@golangci-lint run .
 
 .PHONY: help
 help: ## List all make targets with description

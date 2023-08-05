@@ -13,13 +13,56 @@ The utility for transferring transaction management of the stdlib to the service
 ___
 ## Main idea
 # <img src=".github/assets/clean_arch.png" alt="drawing"  width="250" />
-Move a maintaining of transactions to `Application` layer using owner defined contract.
+Move a maintaining of transactions to `Application` layer using owner defined contract. 
+Library contains contracts and abstractions to adapt any other library to move transactions to `Application` layer.
 ___
 
 ## Examples
 
 ---
-1️⃣ Execution a transaction for different `repositories` with the same `oniontx.Transactor` instance:
+1️⃣ Execution a transaction for different `repositories` with the same `oniontx.Transactor` instance (`stdlib`[<sup>**ⓘ**</sup>](#stdlib) contains default implementation):
+```go
+package db
+
+import (
+	"context"
+	"database/sql"
+
+	"github.com/kozmod/oniontx"
+)
+
+// Executor represents common methods of sql.DB and sql.Tx.
+type Executor interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
+// DB is sql.DB wrapper, implements oniontx.TxBeginner.
+type DB struct {
+	*sql.DB
+}
+
+func (db *DB) BeginTx(ctx context.Context, opts ...oniontx.Option[*sql.TxOptions]) (*Tx, error) {
+	var txOptions sql.TxOptions
+	for _, opt := range opts {
+		opt.Apply(&txOptions)
+	}
+	tx, err := db.DB.BeginTx(ctx, &txOptions)
+	return &Tx{Tx: tx}, err
+}
+
+// Tx is sql.Tx wrapper, implements oniontx.TxCommitter.
+type Tx struct {
+	*sql.Tx
+}
+
+func (t *Tx) Rollback(_ context.Context) error {
+	return t.Tx.Rollback()
+}
+
+func (t *Tx) Commit(_ context.Context) error {
+	return t.Tx.Commit()
+}
+```
 ```go
 package repoA
 
@@ -28,15 +71,21 @@ import (
 	"fmt"
 
 	"github.com/kozmod/oniontx"
+
+	"github.com/user/some_project/internal/db"
 )
 
 type RepositoryA struct {
-	Transactor *oniontx.Transactor
+	Transactor *oniontx.Transactor[*db.DB, *db.Tx, *sql.TxOptions]
 }
 
-func (r RepositoryA) Do(ctx context.Context) error {
-	executor := r.Transactor.GetExecutor(ctx)
-	_, err := executor.ExecContext(ctx, "UPDATE some_A SET value = 1")
+func (r RepositoryA) Insert(ctx context.Context, val int) error {
+	var executor db.Executor
+	executor, ok  := r.Transactor.TryGetTx(ctx)
+	if !ok {
+		executor = r.Transactor.TxBeginner()
+	}
+	_, err := executor.ExecContext(ctx, "UPDATE some_A SET value = $1", val)
 	if err != nil {
 		return fmt.Errorf("update 'some_A': %w", err)
 	}
@@ -51,17 +100,23 @@ import (
 	"fmt"
 	
 	"github.com/kozmod/oniontx"
+	
+	"github.com/user/some_project/internal/db"
 )
 
 type RepositoryB struct {
-	Transactor *oniontx.Transactor
+	Transactor *oniontx.Transactor[*db.DB, *db.Tx, *sql.TxOptions]
 }
 
-func (r RepositoryB) Do(ctx context.Context) error {
-	executor := r.Transactor.GetExecutor(ctx)
-	_, err := executor.ExecContext(ctx, "UPDATE some_B SET value = 1")
+func (r RepositoryB) Insert(ctx context.Context, val int) error {
+	var executor db.Executor
+	executor, ok := r.Transactor.TryGetTx(ctx)
+	if !ok {
+		executor = r.Transactor.TxBeginner()
+	}
+	_, err := executor.ExecContext(ctx, "UPDATE some_A SET value = $1", val)
 	if err != nil {
-		return fmt.Errorf("update 'some_B': %w", err)
+		return fmt.Errorf("update 'some_A': %w", err)
 	}
 	return nil
 }
@@ -74,35 +129,37 @@ import (
 	"fmt"
 )
 
-// transactor is the contract of  the oniontx.Transactor
-type transactor interface {
-	WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error)
-}
+type (
+	// transactor is the contract of  the oniontx.Transactor
+	transactor interface {
+		WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error)
+	}
 
-// Repo is the contract of repositories
-type repo interface {
-	Do(ctx context.Context) error
-}
+	// Repo is the contract of repositories
+	repo interface {
+		Insert(ctx context.Context, val int) error
+	}
+)
 
-type Usecase struct {
-	RepositoryA repo
-	RepositoryB repo
+type UseCase struct {
+	RepoA repo
+	RepoB repo
 
 	Transactor transactor
 }
 
-func  (s *Usecase)Do(ctx context.Context) error{
+func (s *UseCase) Exec(ctx context.Context, insert int) error {
 	err := s.Transactor.WithinTx(ctx, func(ctx context.Context) error {
-		if err := s.RepositoryA.Do(ctx); err != nil {
-			return fmt.Errorf("call repositoryA: %+v", err)
+		if err := s.RepoA.Insert(ctx, insert); err != nil {
+			return fmt.Errorf("call repository A: %w", err)
 		}
-		if err := s.RepositoryB.Do(ctx); err != nil {
-			return fmt.Errorf("call repositoryB: %+v", err)
+		if err := s.RepoB.Insert(ctx, insert); err != nil {
+			return fmt.Errorf("call repository B: %w", err)
 		}
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("execute: %v", err)
+		return fmt.Errorf(" execute: %w", err)
 	}
 	return nil
 }
@@ -125,9 +182,12 @@ import (
 
 func main() {
 	var (
-		db *sql.DB // database pointer 
+		database *sql.DB // database pointer
 
-		transactor  = oniontx.NewTransactor(db)
+		wrapper    = &db.DB{DB: database}
+		operator   = oniontx.NewContextOperator[*db.DB, *db.Tx, *sql.TxOptions](&wrapper)
+		transactor = oniontx.NewTransactor[*db.DB, *db.Tx, *sql.TxOptions](wrapper, operator)
+
 		repositoryA = repoA.RepositoryA{
 			Transactor: transactor,
 		}
@@ -135,22 +195,50 @@ func main() {
 			Transactor: transactor,
 		}
 
-		usecase = usecase.Usecase{
-			RepositoryA: &repositoryA,
-			RepositoryB: &repositoryB,
+		useCase = usecase.UseCase{
+			RepoA: &repositoryA,
+			RepoB: &repositoryB,
 			Transactor:  transactor,
 		}
 	)
 
-	err := usecase.Do(context.Background())
+	err := useCase.Exec(context.Background(), 1)
 	if err != nil {
 		os.Exit(1)
 	}
 }
-
 ```
 ---
 2️⃣ Execution a transaction with `sql.TxOptions`:
+```go
+package db
+
+// ... other contracts and abstraction implementations
+
+
+// TxOption implements oniontx.Option.
+type TxOption func(opt *sql.TxOptions)
+
+// Apply the TxOption to sql.TxOptions.
+func (r TxOption) Apply(opt *sql.TxOptions) {
+	r(opt)
+}
+
+// WithReadOnly set `ReadOnly` sql.TxOptions option.
+func WithReadOnly(readonly bool) oniontx.Option[*sql.TxOptions] {
+	return TxOption(func(opt *sql.TxOptions) {
+		opt.ReadOnly = readonly
+	})
+}
+
+// WithIsolationLevel set sql.TxOptions isolation level.
+func WithIsolationLevel(level int) oniontx.Option[*sql.TxOptions] {
+	return TxOption(func(opt *sql.TxOptions) {
+		opt.Isolation = sql.IsolationLevel(level)
+	})
+}
+
+```
 ```go
 func (s *Usecase) Do(ctx context.Context) error {
 	err := s.Transactor.WithinTxWithOpts(ctx, func(ctx context.Context) error {
@@ -162,8 +250,8 @@ func (s *Usecase) Do(ctx context.Context) error {
 		}
 		return nil
 	},
-		oniontx.WithReadOnly(true),
-		oniontx.WithIsolationLevel(6))
+		db.WithReadOnly(true),
+		db.WithIsolationLevel(6))
 	if err != nil {
 		return fmt.Errorf("execute: %v", err)
 	}
@@ -193,13 +281,13 @@ type (
 	}
 )
 
-type UsecaseA struct {
+type UseCaseA struct {
 	Repo repoA
 
 	Transactor transactor
 }
 
-func (s *UsecaseA) Exec(ctx context.Context, insert int, delete float64) error {
+func (s *UseCaseA) Exec(ctx context.Context, insert int, delete float64) error {
 	err := s.Transactor.WithinTx(ctx, func(ctx context.Context) error {
 		if err := s.Repo.Insert(ctx, insert); err != nil {
 			return fmt.Errorf("call repository - insert: %w", err)
@@ -234,25 +322,25 @@ type (
 		Insert(ctx context.Context, val string) error
 	}
 
-	// Repo is the contract of the usecase
-	usecaseA interface {
+	// Repo is the contract of the useCase
+	useCaseA interface {
 		Exec(ctx context.Context, insert int, delete float64) error
 	}
 )
 
-type UsecaseB struct {
+type UseCaseB struct {
 	Repo     repoB
-	UsecaseA usecaseA
+	UseCaseA useCaseA
 
 	Transactor transactor
 }
 
-func (s *UsecaseB) Exec(ctx context.Context, insertA string, insertB int, delete float64) error {
+func (s *UseCaseB) Exec(ctx context.Context, insertA string, insertB int, delete float64) error {
 	err := s.Transactor.WithinTx(ctx, func(ctx context.Context) error {
 		if err := s.Repo.Insert(ctx, insertA); err != nil {
 			return fmt.Errorf("call repository - insert: %w", err)
 		}
-		if err := s.UsecaseA.Exec(ctx, insertB, delete); err != nil {
+		if err := s.UseCaseA.Exec(ctx, insertB, delete); err != nil {
 			return fmt.Errorf("call usecaseB - exec: %w", err)
 		}
 		return nil
@@ -273,6 +361,7 @@ import (
 
 	"github.com/kozmod/oniontx"
 
+	"github.com/user/some_project/internal/db"
 	"github.com/user/some_project/internal/repoA"
 	"github.com/user/some_project/internal/repoB"
 	"github.com/user/some_project/internal/usecase/a"
@@ -281,27 +370,98 @@ import (
 
 func main() {
 	var (
-		db *sql.DB // ...DB
+		database *sql.DB // database pointer
 
-		transactor = oniontx.NewTransactor(db)
+		wrapper    = &db.DB{DB: database}
+		operator   = oniontx.NewContextOperator[*db.DB, *db.Tx, *sql.TxOptions](&wrapper)
+		transactor = oniontx.NewTransactor[*db.DB, *db.Tx, *sql.TxOptions](wrapper, operator)
 
-		usecaseA = a.UsecaseA{
+		useCaseA = a.UseCaseA{
 			Repo: repoA.RepositoryA{
 				Transactor: transactor,
 			},
 		}
 
-		usecaseB = b.UsecaseB{
+		useCaseB = b.UseCaseB{
 			Repo: repoB.RepositoryB{
 				Transactor: transactor,
 			},
-			UsecaseA: &usecaseA,
+			UseCaseA: &useCaseA,
 		}
 	)
 
-	err := usecaseB.Exec(context.Background(), "some_to_insert_usecase_A", 1, 1.1)
+	err := useCaseB.Exec(context.Background(), "some_to_insert_useCase_A", 1, 1.1)
 	if err != nil {
 		os.Exit(1)
 	}
+}
+```
+5️⃣ <a name="stdlib"><a/>`Transactor` implementation for `stdlib`:
+```go
+package main
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"log"
+	"testing"
+
+	oniontx "github.com/kozmod/oniontx/stdlib"
+)
+
+func main() {
+	var (
+		db *sql.DB // database instance
+
+		tr = oniontx.NewTransactor(db)
+		r1 = repoA{t: tr}
+		r2 = repoB{t: tr}
+	)
+
+	err := tr.WithinTxWithOpts(context.Background(), func(ctx context.Context) error {
+		err := r1.InsertInTx(ctx, "repoA")
+		if err != nil {
+			return err
+		}
+		err = r2.InsertInTx(ctx, "repoB")
+		if err != nil {
+			return err
+		}
+		return nil
+	},
+		oniontx.WithReadOnly(true),
+	)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	
+}
+
+type repoA struct {
+	t *oniontx.Transactor
+}
+
+func (r *repoA) InsertInTx(ctx context.Context, val string) error {
+	ex := r.t.GetExecutor(ctx)
+	_, err := ex.ExecContext(ctx, `INSERT INTO tx (text) VALUES ($1)`, val)
+	if err != nil {
+		return fmt.Errorf("repoA.InsertInTx: %w", err)
+	}
+	return nil
+}
+
+type repoB struct {
+	t *oniontx.Transactor
+}
+
+func (r *repoB) InsertInTx(ctx context.Context, val string) error {
+	ex := r.t.GetExecutor(ctx)
+	_, err := ex.ExecContext(ctx, `INSERT INTO tx (text) VALUES ($1)`, val)
+	if err != nil {
+		return fmt.Errorf("repoB.InsertInTx: %w", err)
+	}
+	return nil
 }
 ```
