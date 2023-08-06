@@ -185,7 +185,7 @@ func main() {
 		database *sql.DB // database pointer
 
 		wrapper    = &db.DB{DB: database}
-		operator   = oniontx.NewContextOperator[*db.DB, *db.Tx, *sql.TxOptions](&wrapper)
+		operator   = oniontx.NewContextOperator[*db.DB, *db.Tx](&wrapper)
 		transactor = oniontx.NewTransactor[*db.DB, *db.Tx, *sql.TxOptions](wrapper, operator)
 
 		repositoryA = repoA.RepositoryA{
@@ -373,7 +373,7 @@ func main() {
 		database *sql.DB // database pointer
 
 		wrapper    = &db.DB{DB: database}
-		operator   = oniontx.NewContextOperator[*db.DB, *db.Tx, *sql.TxOptions](&wrapper)
+		operator   = oniontx.NewContextOperator[*db.DB, *db.Tx](&wrapper)
 		transactor = oniontx.NewTransactor[*db.DB, *db.Tx, *sql.TxOptions](wrapper, operator)
 
 		useCaseA = a.UseCaseA{

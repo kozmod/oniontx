@@ -14,7 +14,7 @@ func Test_CtxOperator(t *testing.T) {
 			ctx = context.Background()
 			c   = committerMock{}
 			b   = &beginnerMock[*committerMock, any]{}
-			o   = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock, any](&b)
+			o   = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
 		)
 		ctx = o.Inject(ctx, &c)
 		extracted, ok := o.Extract(ctx)
@@ -43,7 +43,7 @@ func Test_Transactor(t *testing.T) {
 					return &c, nil
 				},
 			}
-			o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock, any](&b)
+			o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
 			tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](b, o)
 		)
 		err := tr.WithinTx(ctx, func(ctx context.Context) error {
@@ -74,7 +74,7 @@ func Test_Transactor(t *testing.T) {
 					return &c, nil
 				},
 			}
-			o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock, any](&b)
+			o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
 			tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](b, o)
 		)
 		err := tr.WithinTx(ctx, func(ctx context.Context) error {
@@ -106,7 +106,7 @@ func Test_Transactor(t *testing.T) {
 						return &c, nil
 					},
 				}
-				o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock, any](&b)
+				o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
 				tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](b, o)
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
@@ -130,7 +130,7 @@ func Test_Transactor(t *testing.T) {
 					},
 				}
 				b  = &beginnerMock[*committerMock, any]{}
-				o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock, any](&b)
+				o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
 				tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](b, o)
 			)
 			ctx = o.Inject(ctx, &c)
@@ -159,7 +159,7 @@ func Test_Transactor(t *testing.T) {
 						return &c, nil
 					},
 				}
-				o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock, any](&b)
+				o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
 				tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](b, o)
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
@@ -189,7 +189,7 @@ func Test_Transactor(t *testing.T) {
 						return &c, nil
 					},
 				}
-				o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock, any](&b)
+				o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
 				tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](b, o)
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
@@ -222,7 +222,7 @@ func Test_Transactor(t *testing.T) {
 						return &c, nil
 					},
 				}
-				o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock, any](&b)
+				o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
 				tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](b, o)
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
@@ -257,7 +257,7 @@ func Test_Transactor(t *testing.T) {
 						return &c, nil
 					},
 				}
-				o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock, any](&b)
+				o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
 				tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](b, o)
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
@@ -291,7 +291,7 @@ func Test_Transactor(t *testing.T) {
 						return &c, nil
 					},
 				}
-				o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock, any](&b)
+				o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
 				tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](b, o)
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
@@ -317,7 +317,7 @@ func Test_Transactor(t *testing.T) {
 						return nil, beginErr
 					},
 				}
-				o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock, any](&b)
+				o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
 				tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](b, o)
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
@@ -331,7 +331,7 @@ func Test_Transactor(t *testing.T) {
 		t.Run("error_when_beginner_is_nil", func(t *testing.T) {
 			var (
 				ctx = context.Background()
-				o   = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock, any](nil)
+				o   = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](nil)
 				tr  = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](nil, o)
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {

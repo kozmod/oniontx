@@ -10,14 +10,14 @@ import (
 // Transactor manage a transaction for single sql.DB instance.
 type Transactor struct {
 	transactor *oniontx.Transactor[*DB, *Tx, *sql.TxOptions]
-	operator   *oniontx.ContextOperator[*DB, *Tx, *sql.TxOptions]
+	operator   *oniontx.ContextOperator[*DB, *Tx]
 }
 
 // NewTransactor creates new Transactor.
 func NewTransactor(db *sql.DB) *Transactor {
 	var (
 		base     = &DB{DB: db}
-		operator = oniontx.NewContextOperator[*DB, *Tx, *sql.TxOptions](&base)
+		operator = oniontx.NewContextOperator[*DB, *Tx](&base)
 	)
 	return &Transactor{
 		operator: operator,

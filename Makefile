@@ -8,7 +8,7 @@ tools: ## Run tools (vet, gofmt, goimports, tidy, etc.)
 
 .PHONT: test
 test: ## Run tests
-	go test ./...
+	go test ./... -cover
 
 .PHONY: lint
 lint: ## Run `golangci-lint`

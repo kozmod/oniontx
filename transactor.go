@@ -13,6 +13,7 @@ var (
 	ErrCommitFailed    = xerrors.New("commit failed")
 	ErrRollbackFailed  = xerrors.New("rollback failed")
 	ErrRollbackSuccess = xerrors.New("rollback tx")
+	ErrPanic           = xerrors.New("panic was happened")
 )
 
 type (
