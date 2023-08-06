@@ -19,9 +19,10 @@ ___
 
 ## Examples
 
----
-1️⃣ Execution a transaction for different `repositories` with the same `oniontx.Transactor` instance (`stdlib`[<sup>**ⓘ**</sup>](#stdlib) contains default implementation):
+### Execution
+Execution a transaction for different `repositories` with the same `oniontx.Transactor` instance (`stdlib`[<sup>**ⓘ**</sup>](#stdlib) contains default implementation):
 ```go
+// Prepared contracts for execution
 package db
 
 import (
@@ -209,7 +210,8 @@ func main() {
 }
 ```
 ---
-2️⃣ Execution a transaction with `sql.TxOptions`:
+### Execution with transaction with options
+Execution a transaction with `sql.TxOptions`:
 ```go
 package db
 
@@ -259,7 +261,8 @@ func (s *Usecase) Do(ctx context.Context) error {
 }
 ```
 ---
-3️⃣Execution the same transaction for different `usecases` with the same `oniontx.Transactor` instance:
+### Execution for different use cases
+Execution the same transaction for different `usecases` with the same `oniontx.Transactor` instance:
 ```go
 package a
 
@@ -396,8 +399,10 @@ func main() {
 	}
 }
 ```
-5️⃣ <a name="stdlib"><a/>`Transactor` implementation for `stdlib`:
+### <a name="stdlib"><a/>StdLib implementation
+`Transactor` implementation for `stdlib`:
 ```go
+// Look at to `github.com/kozmod/oniontx` to see `Transactor` implementation for standard library
 package main
 
 import (
