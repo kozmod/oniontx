@@ -7,20 +7,123 @@
 ![GitHub last commit](https://img.shields.io/github/last-commit/kozmod/oniontx)
 [![GitHub MIT license](https://img.shields.io/github/license/kozmod/oniontx)](https://github.com/kozmod/oniontx/blob/dev/LICENSE)
 
-The utility for transferring transaction management of the stdlib to the service layer.
-
-**NOTE**: Transactor was developed to work with only the same instance of tha `*sql.DB`
-___
-## Main idea
+`OnionTx` allows to move transferring transaction management from the `Persistence` (repository) layer to the `Application` (service) layer using owner defined contract.
 # <img src=".github/assets/clean_arch.png" alt="drawing"  width="250" />
-Move a maintaining of transactions to `Application` layer using owner defined contract. 
-Library contains contracts and abstractions to adapt any other library to move transactions to `Application` layer.
-___
+**NOTE**: Transactor was developed to work with only the same instance of tha `*sql.DB`
+### The key features:
+ - [**`stdlib` implementation out of the box**](#stdlib)
+ - [**contract for implementing custom realisation**](#custom)
 
-## Examples
+---
+### <a name="stdlib"><a/>`stdlib` package
+`Transactor` implementation for `stdlib`:
+```go
+// Look at to `github.com/kozmod/oniontx` to see `Transactor` implementation for standard library
+package main
 
-### Execution
-Execution a transaction for different `repositories` with the same `oniontx.Transactor` instance (`stdlib`[<sup>**ⓘ**</sup>](#stdlib) contains default implementation):
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"log"
+	"testing"
+
+	oniontx "github.com/kozmod/oniontx/stdlib"
+)
+
+func main() {
+	var (
+		db *sql.DB // database instance
+
+		tr = oniontx.NewTransactor(db)
+		r1 = repoA{t: tr}
+		r2 = repoB{t: tr}
+	)
+
+	err := tr.WithinTxWithOpts(context.Background(), func(ctx context.Context) error {
+		err := r1.InsertInTx(ctx, "repoA")
+		if err != nil {
+			return err
+		}
+		err = r2.InsertInTx(ctx, "repoB")
+		if err != nil {
+			return err
+		}
+		return nil
+	},
+		oniontx.WithReadOnly(true),
+	)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	
+}
+
+type repoA struct {
+	t *oniontx.Transactor
+}
+
+func (r *repoA) InsertInTx(ctx context.Context, val string) error {
+	ex := r.t.GetExecutor(ctx)
+	_, err := ex.ExecContext(ctx, `INSERT INTO tx (text) VALUES ($1)`, val)
+	if err != nil {
+		return fmt.Errorf("repoA.InsertInTx: %w", err)
+	}
+	return nil
+}
+
+type repoB struct {
+	t *oniontx.Transactor
+}
+
+func (r *repoB) InsertInTx(ctx context.Context, val string) error {
+	ex := r.t.GetExecutor(ctx)
+	_, err := ex.ExecContext(ctx, `INSERT INTO tx (text) VALUES ($1)`, val)
+	if err != nil {
+		return fmt.Errorf("repoB.InsertInTx: %w", err)
+	}
+	return nil
+}
+```
+---
+##  <a name="custom"><a/>Custom realisation
+If it's required, `OnionTx` allowed opportunity to implement custom algorithms for maintaining transactions
+(it is convenient if the persistence to DB implements not standard library: [sqlx](https://github.com/jmoiron/sqlx), [pgx](https://github.com/jackc/pgx), etc.).
+
+#### `OnitonTx` interfaces implementation
+```go 
+type (
+	// Mandatory
+	TxBeginner[C TxCommitter, O any] interface {
+		comparable
+		BeginTx(ctx context.Context, opts ...Option[O]) (C, error)
+	}
+
+ 
+	// Mandatory
+	TxCommitter interface {
+		Rollback(ctx context.Context) error
+		Commit(ctx context.Context) error
+	}
+
+	// Optional - if need to use options for transactions
+	Option[TxOpt any] interface {
+		Apply(in TxOpt)
+	}
+
+	// Optional - using to putting/getting transaction from `context.Context` 
+	// (library contains default `СtxOperator` implementation)
+	СtxOperator[C TxCommitter] interface {
+		Inject(ctx context.Context, c C) context.Context
+		Extract(ctx context.Context) (C, bool)
+	}
+)
+```
+### Examples 
+***All examples based on `stdlib`.***
+
+`TxBeginner` and `TxCommitter` implementation
 ```go
 // Prepared contracts for execution
 package db
@@ -64,6 +167,7 @@ func (t *Tx) Commit(_ context.Context) error {
 	return t.Tx.Commit()
 }
 ```
+Repositories
 ```go
 package repoA
 
@@ -122,6 +226,7 @@ func (r RepositoryB) Insert(ctx context.Context, val int) error {
 	return nil
 }
 ```
+UseCase
 ```go
 package usecase
 
@@ -165,6 +270,7 @@ func (s *UseCase) Exec(ctx context.Context, insert int) error {
 	return nil
 }
 ```
+Main
 ```go
 package main
 
@@ -210,8 +316,8 @@ func main() {
 }
 ```
 ---
-### Execution with transaction with options
-Execution a transaction with `sql.TxOptions`:
+#### Execution with transaction with options
+`Option` implementation:
 ```go
 package db
 
@@ -241,6 +347,7 @@ func WithIsolationLevel(level int) oniontx.Option[*sql.TxOptions] {
 }
 
 ```
+UsCase
 ```go
 func (s *Usecase) Do(ctx context.Context) error {
 	err := s.Transactor.WithinTxWithOpts(ctx, func(ctx context.Context) error {
@@ -261,8 +368,10 @@ func (s *Usecase) Do(ctx context.Context) error {
 }
 ```
 ---
-### Execution for different use cases
-Execution the same transaction for different `usecases` with the same `oniontx.Transactor` instance:
+#### Execution transaction in the different use cases
+***Execution the same transaction for different `usecases` with the same `oniontx.Transactor` instance***
+
+UseCases
 ```go
 package a
 
@@ -354,6 +463,7 @@ func (s *UseCaseB) Exec(ctx context.Context, insertA string, insertB int, delete
 	return nil
 }
 ```
+Main
 ```go
 package main
 
@@ -397,76 +507,5 @@ func main() {
 	if err != nil {
 		os.Exit(1)
 	}
-}
-```
-### <a name="stdlib"><a/>StdLib implementation
-`Transactor` implementation for `stdlib`:
-```go
-// Look at to `github.com/kozmod/oniontx` to see `Transactor` implementation for standard library
-package main
-
-import (
-	"context"
-	"database/sql"
-	"fmt"
-	"log"
-	"testing"
-
-	oniontx "github.com/kozmod/oniontx/stdlib"
-)
-
-func main() {
-	var (
-		db *sql.DB // database instance
-
-		tr = oniontx.NewTransactor(db)
-		r1 = repoA{t: tr}
-		r2 = repoB{t: tr}
-	)
-
-	err := tr.WithinTxWithOpts(context.Background(), func(ctx context.Context) error {
-		err := r1.InsertInTx(ctx, "repoA")
-		if err != nil {
-			return err
-		}
-		err = r2.InsertInTx(ctx, "repoB")
-		if err != nil {
-			return err
-		}
-		return nil
-	},
-		oniontx.WithReadOnly(true),
-	)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-	
-}
-
-type repoA struct {
-	t *oniontx.Transactor
-}
-
-func (r *repoA) InsertInTx(ctx context.Context, val string) error {
-	ex := r.t.GetExecutor(ctx)
-	_, err := ex.ExecContext(ctx, `INSERT INTO tx (text) VALUES ($1)`, val)
-	if err != nil {
-		return fmt.Errorf("repoA.InsertInTx: %w", err)
-	}
-	return nil
-}
-
-type repoB struct {
-	t *oniontx.Transactor
-}
-
-func (r *repoB) InsertInTx(ctx context.Context, val string) error {
-	ex := r.t.GetExecutor(ctx)
-	_, err := ex.ExecContext(ctx, `INSERT INTO tx (text) VALUES ($1)`, val)
-	if err != nil {
-		return fmt.Errorf("repoB.InsertInTx: %w", err)
-	}
-	return nil
 }
 ```
