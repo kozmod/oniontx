@@ -13,7 +13,6 @@ var (
 	ErrCommitFailed    = xerrors.New("commit failed")
 	ErrRollbackFailed  = xerrors.New("rollback failed")
 	ErrRollbackSuccess = xerrors.New("rollback tx")
-	ErrPanic           = xerrors.New("panic was happened")
 )
 
 type (
@@ -104,7 +103,7 @@ func (t *Transactor[B, C, O]) WithinTxWithOpts(ctx context.Context, fn func(ctx 
 	return fn(ctx)
 }
 
-// TryGetTx returns pointer of TxBeginner from context.Context or return `false`.
+// TryGetTx returns pointer of TxCommitter from context.Context or return `false`.
 func (t *Transactor[B, C, O]) TryGetTx(ctx context.Context) (C, bool) {
 	tx, ok := t.operator.Extract(ctx)
 	return tx, ok
