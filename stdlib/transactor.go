@@ -13,7 +13,7 @@ type Transactor struct {
 	operator   *oniontx.ContextOperator[*DB, *Tx]
 }
 
-// NewTransactor creates new Transactor.
+// NewTransactor returns new Transactor.
 func NewTransactor(db *sql.DB) *Transactor {
 	var (
 		base     = &DB{DB: db}

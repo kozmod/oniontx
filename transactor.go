@@ -42,7 +42,7 @@ type Transactor[B TxBeginner[C, O], C TxCommitter, O any] struct {
 	operator СtxOperator[C]
 }
 
-// NewTransactor creates new Transactor.
+// NewTransactor returns new Transactor.
 func NewTransactor[B TxBeginner[C, O], C TxCommitter, O any](
 	beginner B,
 	operator СtxOperator[C]) *Transactor[B, C, O] {
