@@ -342,11 +342,11 @@ func Test_Transactor(t *testing.T) {
 }
 
 // beginnerMock was added to avoid to use external dependencies for mocking
-type beginnerMock[C TxCommitter, O any] struct {
-	beginFn func(ctx context.Context, opts ...Option[O]) (C, error)
+type beginnerMock[T Tx, O any] struct {
+	beginFn func(ctx context.Context, opts ...Option[O]) (T, error)
 }
 
-func (b *beginnerMock[C, O]) BeginTx(ctx context.Context, opts ...Option[O]) (C, error) {
+func (b *beginnerMock[T, O]) BeginTx(ctx context.Context, opts ...Option[O]) (T, error) {
 	return b.beginFn(ctx, opts...)
 }
 
