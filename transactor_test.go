@@ -231,7 +231,6 @@ func Test_Transactor(t *testing.T) {
 				assertTrue(t, &c == tx)
 				return execError
 			})
-			t.Log(err.Error())
 			assertTrue(t, errors.Is(err, ErrRollbackFailed))
 			assertTrue(t, errors.Is(err, execError))
 			assertTrue(t, errors.Is(err, rollbackErr))

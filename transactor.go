@@ -67,14 +67,14 @@ func (t *Transactor[B, C, O]) WithinTx(ctx context.Context, fn func(ctx context.
 func (t *Transactor[B, C, O]) WithinTxWithOpts(ctx context.Context, fn func(ctx context.Context) error, opts ...Option[O]) (err error) {
 	var nilDB B
 	if t.beginner == nilDB {
-		return xerrors.Errorf("transactor: cannot begin: %w", ErrNilBeginner)
+		return xerrors.Errorf("transactor - cannot begin: %w", ErrNilBeginner)
 	}
 
 	tx, ok := t.operator.Extract(ctx)
 	if !ok {
 		tx, err = t.beginner.BeginTx(ctx, opts...)
 		if err != nil {
-			return xerrors.Errorf("transactor: cannot begin: %w", errors.Join(err, ErrBeginTx))
+			return xerrors.Errorf("transactor - cannot begin: %w", errors.Join(err, ErrBeginTx))
 		}
 	}
 
@@ -82,10 +82,10 @@ func (t *Transactor[B, C, O]) WithinTxWithOpts(ctx context.Context, fn func(ctx 
 		switch p := recover(); {
 		case p != nil:
 			if rbErr := tx.Rollback(ctx); rbErr != nil {
-				err = xerrors.Errorf("transactor: panic: %v: %w", p, errors.Join(rbErr, ErrRollbackFailed))
+				err = xerrors.Errorf("transactor - panic [%v]: %w", p, errors.Join(rbErr, ErrRollbackFailed))
 				return
 			}
-			err = xerrors.Errorf("transactor: panic: %v: %w", p, ErrRollbackSuccess)
+			err = xerrors.Errorf("transactor - panic [%v]: %w", p, ErrRollbackSuccess)
 		case err != nil:
 			if rbErr := tx.Rollback(ctx); rbErr != nil {
 				err = xerrors.Errorf("transactor: %w", errors.Join(err, rbErr, ErrRollbackFailed))
