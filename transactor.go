@@ -16,12 +16,12 @@ var (
 )
 
 type (
-	TxBeginner[C TxCommitter, O any] interface {
+	TxBeginner[T Tx, O any] interface {
 		comparable
-		BeginTx(ctx context.Context, opts ...Option[O]) (C, error)
+		BeginTx(ctx context.Context, opts ...Option[O]) (T, error)
 	}
 
-	TxCommitter interface {
+	Tx interface {
 		Rollback(ctx context.Context) error
 		Commit(ctx context.Context) error
 	}
@@ -30,27 +30,27 @@ type (
 		Apply(in TxOpt)
 	}
 
-	СtxOperator[C TxCommitter] interface {
-		Inject(ctx context.Context, c C) context.Context
-		Extract(ctx context.Context) (C, bool)
+	СtxOperator[T Tx] interface {
+		Inject(ctx context.Context, tx T) context.Context
+		Extract(ctx context.Context) (T, bool)
 	}
 )
 
 // Transactor manage a transaction for single TxBeginner instance.
-type Transactor[B TxBeginner[C, O], C TxCommitter, O any] struct {
+type Transactor[B TxBeginner[T, O], T Tx, O any] struct {
 	beginner B
-	operator СtxOperator[C]
+	operator СtxOperator[T]
 }
 
 // NewTransactor returns new Transactor.
-func NewTransactor[B TxBeginner[C, O], C TxCommitter, O any](
+func NewTransactor[B TxBeginner[T, O], T Tx, O any](
 	beginner B,
-	operator СtxOperator[C]) *Transactor[B, C, O] {
+	operator СtxOperator[T]) *Transactor[B, T, O] {
 	var b B
 	if b != beginner {
 		b = beginner
 	}
-	return &Transactor[B, C, O]{
+	return &Transactor[B, T, O]{
 		beginner: b,
 		operator: operator,
 	}
@@ -58,23 +58,23 @@ func NewTransactor[B TxBeginner[C, O], C TxCommitter, O any](
 
 // WithinTx execute all queries with TxCommitter.
 // The function create new TxCommitter or reuse TxCommitter obtained from context.Context.
-func (t *Transactor[B, C, O]) WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error) {
+func (t *Transactor[B, T, O]) WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error) {
 	return t.WithinTxWithOpts(ctx, fn)
 }
 
 // WithinTxWithOpts execute all queries with TxCommitter and transaction Options.
 // The function create new TxCommitter or reuse TxCommitter obtained from context.Context.
-func (t *Transactor[B, C, O]) WithinTxWithOpts(ctx context.Context, fn func(ctx context.Context) error, opts ...Option[O]) (err error) {
+func (t *Transactor[B, T, O]) WithinTxWithOpts(ctx context.Context, fn func(ctx context.Context) error, opts ...Option[O]) (err error) {
 	var nilDB B
 	if t.beginner == nilDB {
-		return xerrors.Errorf("transactor: cannot begin: %w", ErrNilBeginner)
+		return xerrors.Errorf("transactor - cannot begin: %w", ErrNilBeginner)
 	}
 
 	tx, ok := t.operator.Extract(ctx)
 	if !ok {
 		tx, err = t.beginner.BeginTx(ctx, opts...)
 		if err != nil {
-			return xerrors.Errorf("transactor: cannot begin: %w", errors.Join(err, ErrBeginTx))
+			return xerrors.Errorf("transactor - cannot begin: %w", errors.Join(err, ErrBeginTx))
 		}
 	}
 
@@ -82,10 +82,10 @@ func (t *Transactor[B, C, O]) WithinTxWithOpts(ctx context.Context, fn func(ctx 
 		switch p := recover(); {
 		case p != nil:
 			if rbErr := tx.Rollback(ctx); rbErr != nil {
-				err = xerrors.Errorf("transactor: panic: %v: %w", p, errors.Join(rbErr, ErrRollbackFailed))
+				err = xerrors.Errorf("transactor - panic [%v]: %w", p, errors.Join(rbErr, ErrRollbackFailed))
 				return
 			}
-			err = xerrors.Errorf("transactor: panic: %v: %w", p, ErrRollbackSuccess)
+			err = xerrors.Errorf("transactor - panic [%v]: %w", p, ErrRollbackSuccess)
 		case err != nil:
 			if rbErr := tx.Rollback(ctx); rbErr != nil {
 				err = xerrors.Errorf("transactor: %w", errors.Join(err, rbErr, ErrRollbackFailed))
@@ -103,13 +103,13 @@ func (t *Transactor[B, C, O]) WithinTxWithOpts(ctx context.Context, fn func(ctx 
 	return fn(ctx)
 }
 
-// TryGetTx returns pointer of TxCommitter from context.Context or return `false`.
-func (t *Transactor[B, C, O]) TryGetTx(ctx context.Context) (C, bool) {
+// TryGetTx returns pointer of Tx and "true" from context.Context or return `false`.
+func (t *Transactor[B, T, O]) TryGetTx(ctx context.Context) (T, bool) {
 	tx, ok := t.operator.Extract(ctx)
 	return tx, ok
 }
 
 // TxBeginner returns pointer of TxBeginner which using in Transactor.
-func (t *Transactor[B, C, O]) TxBeginner() B {
+func (t *Transactor[B, T, O]) TxBeginner() B {
 	return t.beginner
 }

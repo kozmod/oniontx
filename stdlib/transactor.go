@@ -40,7 +40,7 @@ func (t *Transactor) WithinTxWithOpts(ctx context.Context, fn func(ctx context.C
 	return t.transactor.WithinTxWithOpts(ctx, fn, opts...)
 }
 
-// TryGetTx returns pointer of sql.Tx wrapper from context.Context or return `false`.
+// TryGetTx returns pointer of sql.Tx wrapper and "true" from context.Context or return `false`.
 func (t *Transactor) TryGetTx(ctx context.Context) (*Tx, bool) {
 	return t.transactor.TryGetTx(ctx)
 }

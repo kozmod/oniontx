@@ -231,7 +231,6 @@ func Test_Transactor(t *testing.T) {
 				assertTrue(t, &c == tx)
 				return execError
 			})
-			t.Log(err.Error())
 			assertTrue(t, errors.Is(err, ErrRollbackFailed))
 			assertTrue(t, errors.Is(err, execError))
 			assertTrue(t, errors.Is(err, rollbackErr))
@@ -343,11 +342,11 @@ func Test_Transactor(t *testing.T) {
 }
 
 // beginnerMock was added to avoid to use external dependencies for mocking
-type beginnerMock[C TxCommitter, O any] struct {
-	beginFn func(ctx context.Context, opts ...Option[O]) (C, error)
+type beginnerMock[T Tx, O any] struct {
+	beginFn func(ctx context.Context, opts ...Option[O]) (T, error)
 }
 
-func (b *beginnerMock[C, O]) BeginTx(ctx context.Context, opts ...Option[O]) (C, error) {
+func (b *beginnerMock[T, O]) BeginTx(ctx context.Context, opts ...Option[O]) (T, error) {
 	return b.beginFn(ctx, opts...)
 }
 
