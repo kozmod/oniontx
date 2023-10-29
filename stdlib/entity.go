@@ -55,7 +55,7 @@ func (db *DB) BeginTx(ctx context.Context, opts ...oniontx.Option[*sql.TxOptions
 	return &Tx{Tx: tx}, err
 }
 
-// Tx is sql.Tx wrapper, implements oniontx.TxCommitter.
+// Tx is sql.Tx wrapper, implements oniontx.Tx.
 type Tx struct {
 	*sql.Tx
 }

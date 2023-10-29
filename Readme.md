@@ -95,14 +95,14 @@ If it's required, `OnionTx` allowed opportunity to implement custom algorithms f
 ```go 
 type (
 	// Mandatory
-	TxBeginner[C TxCommitter, O any] interface {
+	TxBeginner[C Tx, O any] interface {
 		comparable
 		BeginTx(ctx context.Context, opts ...Option[O]) (C, error)
 	}
 
  
 	// Mandatory
-	TxCommitter interface {
+	Tx interface {
 		Rollback(ctx context.Context) error
 		Commit(ctx context.Context) error
 	}
@@ -114,7 +114,7 @@ type (
 
 	// Optional - using to putting/getting transaction from `context.Context` 
 	// (library contains default `СtxOperator` implementation)
-	СtxOperator[C TxCommitter] interface {
+	СtxOperator[C Tx] interface {
 		Inject(ctx context.Context, c C) context.Context
 		Extract(ctx context.Context) (C, bool)
 	}
@@ -123,7 +123,7 @@ type (
 ### Examples 
 ***All examples based on `stdlib`.***
 
-`TxBeginner` and `TxCommitter` implementation
+`TxBeginner` and `Tx` implementation
 ```go
 // Prepared contracts for execution
 package db
@@ -154,7 +154,7 @@ func (db *DB) BeginTx(ctx context.Context, opts ...oniontx.Option[*sql.TxOptions
 	return &Tx{Tx: tx}, err
 }
 
-// Tx is sql.Tx wrapper, implements oniontx.TxCommitter.
+// Tx is sql.Tx wrapper, implements oniontx.Tx.
 type Tx struct {
 	*sql.Tx
 }

@@ -56,14 +56,14 @@ func NewTransactor[B TxBeginner[T, O], T Tx, O any](
 	}
 }
 
-// WithinTx execute all queries with TxCommitter.
-// The function create new TxCommitter or reuse TxCommitter obtained from context.Context.
+// WithinTx execute all queries with Tx.
+// The function create new Tx or reuse Tx obtained from context.Context.
 func (t *Transactor[B, T, O]) WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error) {
 	return t.WithinTxWithOpts(ctx, fn)
 }
 
-// WithinTxWithOpts execute all queries with TxCommitter and transaction Options.
-// The function create new TxCommitter or reuse TxCommitter obtained from context.Context.
+// WithinTxWithOpts execute all queries with Tx and transaction Options.
+// The function create new Tx or reuse Tx obtained from context.Context.
 func (t *Transactor[B, T, O]) WithinTxWithOpts(ctx context.Context, fn func(ctx context.Context) error, opts ...Option[O]) (err error) {
 	var nilDB B
 	if t.beginner == nilDB {
