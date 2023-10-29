@@ -336,7 +336,22 @@ func Test_Transactor(t *testing.T) {
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				return nil
 			})
-			assertTrue(t, errors.Is(err, ErrNilBeginner))
+			assertTrue(t, errors.Is(err, ErrNilTxBeginner))
+		})
+		t.Run("error_when_operator_is_nil", func(t *testing.T) {
+			var (
+				ctx = context.Background()
+				b   = &beginnerMock[*committerMock, any]{
+					beginFn: func(ctx context.Context, opts ...Option[any]) (*committerMock, error) {
+						return nil, nil
+					},
+				}
+				tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](b, nil)
+			)
+			err := tr.WithinTx(ctx, func(ctx context.Context) error {
+				return nil
+			})
+			assertTrue(t, errors.Is(err, ErrNilTxOperator))
 		})
 	})
 }

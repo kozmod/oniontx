@@ -8,7 +8,8 @@ import (
 )
 
 var (
-	ErrNilBeginner     = xerrors.New("tx beginner is nil")
+	ErrNilTxBeginner   = xerrors.New("tx beginner is nil")
+	ErrNilTxOperator   = xerrors.New("tx operator is nil")
 	ErrBeginTx         = xerrors.New("begin tx")
 	ErrCommitFailed    = xerrors.New("commit failed")
 	ErrRollbackFailed  = xerrors.New("rollback failed")
@@ -46,12 +47,8 @@ type Transactor[B TxBeginner[T, O], T Tx, O any] struct {
 func NewTransactor[B TxBeginner[T, O], T Tx, O any](
 	beginner B,
 	operator СtxOperator[T]) *Transactor[B, T, O] {
-	var b B
-	if b != beginner {
-		b = beginner
-	}
 	return &Transactor[B, T, O]{
-		beginner: b,
+		beginner: beginner,
 		operator: operator,
 	}
 }
@@ -65,9 +62,16 @@ func (t *Transactor[B, T, O]) WithinTx(ctx context.Context, fn func(ctx context.
 // WithinTxWithOpts execute all queries with Tx and transaction Options.
 // The function create new Tx or reuse Tx obtained from context.Context.
 func (t *Transactor[B, T, O]) WithinTxWithOpts(ctx context.Context, fn func(ctx context.Context) error, opts ...Option[O]) (err error) {
-	var nilDB B
-	if t.beginner == nilDB {
-		return xerrors.Errorf("transactor - cannot begin: %w", ErrNilBeginner)
+	var (
+		nilBeginner B
+		nilOperator СtxOperator[T] = nil
+	)
+	if t.beginner == nilBeginner {
+		return xerrors.Errorf("transactor - can't begin: %w", ErrNilTxBeginner)
+	}
+
+	if t.operator == nilOperator {
+		return xerrors.Errorf("transactor - can't try extract transaction: %w", ErrNilTxOperator)
 	}
 
 	tx, ok := t.operator.Extract(ctx)
