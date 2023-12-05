@@ -92,10 +92,10 @@ func (t *Transactor[B, T, O]) WithinTxWithOpts(ctx context.Context, fn func(ctx 
 			err = xerrors.Errorf("transactor - panic [%v]: %w", p, ErrRollbackSuccess)
 		case err != nil:
 			if rbErr := tx.Rollback(ctx); rbErr != nil {
-				err = xerrors.Errorf("transactor: %w", errors.Join(err, rbErr, ErrRollbackFailed))
+				err = xerrors.Errorf("transactor - call: %w", errors.Join(err, rbErr, ErrRollbackFailed))
 				return
 			}
-			err = xerrors.Errorf("transactor: %w", errors.Join(err, ErrRollbackSuccess))
+			err = xerrors.Errorf("transactor - call: %w", errors.Join(err, ErrRollbackSuccess))
 		default:
 			if err = tx.Commit(ctx); err != nil {
 				err = xerrors.Errorf("transactor: %w", errors.Join(err, ErrCommitFailed))
@@ -103,7 +103,9 @@ func (t *Transactor[B, T, O]) WithinTxWithOpts(ctx context.Context, fn func(ctx 
 		}
 	}()
 
-	ctx = t.operator.Inject(ctx, tx)
+	if !ok {
+		ctx = t.operator.Inject(ctx, tx)
+	}
 	return fn(ctx)
 }
 
