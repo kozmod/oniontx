@@ -353,6 +353,83 @@ func Test_Transactor(t *testing.T) {
 			})
 			assertTrue(t, errors.Is(err, ErrNilTxOperator))
 		})
+		t.Run("recursive_call", func(t *testing.T) {
+			t.Run("success_commit", func(t *testing.T) {
+				var (
+					ctx            = context.Background()
+					commitCalled   bool
+					beginnerCalled bool
+					c              = committerMock{
+						commitFn: func(ctx context.Context) error {
+							commitCalled = true
+							return nil
+						},
+					}
+					b = &beginnerMock[*committerMock, any]{
+						beginFn: func(ctx context.Context, opts ...Option[any]) (*committerMock, error) {
+							beginnerCalled = true
+							assertTrue(t, opts == nil)
+							return &c, nil
+						},
+					}
+					o   = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
+					trA = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](b, o)
+					trB = trA
+				)
+				err := trA.WithinTx(ctx, func(ctx context.Context) error {
+					tx, ok := o.Extract(ctx)
+					assertTrue(t, ok)
+					assertTrue(t, &c == tx)
+					return trB.WithinTx(ctx, func(ctx context.Context) error {
+						tx, ok := o.Extract(ctx)
+						assertTrue(t, ok)
+						assertTrue(t, &c == tx)
+						return nil
+
+					})
+				})
+				assertTrue(t, err == nil)
+				assertTrue(t, beginnerCalled)
+				assertTrue(t, commitCalled)
+			})
+			t.Run("success_rollback", func(t *testing.T) {
+				var (
+					ctx            = context.Background()
+					rollbackCalled bool
+					beginCalled    bool
+					c              = committerMock{
+						rollbackFn: func(ctx context.Context) error {
+							rollbackCalled = true
+							return nil
+						},
+					}
+					b = &beginnerMock[*committerMock, any]{
+						beginFn: func(ctx context.Context, opts ...Option[any]) (*committerMock, error) {
+							beginCalled = true
+							assertTrue(t, opts == nil)
+							return &c, nil
+						},
+					}
+					o   = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
+					trA = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](b, o)
+					trB = trA
+				)
+				err := trA.WithinTx(ctx, func(ctx context.Context) error {
+					tx, ok := o.Extract(ctx)
+					assertTrue(t, ok)
+					assertTrue(t, &c == tx)
+					return trB.WithinTx(ctx, func(ctx context.Context) error {
+						tx, ok := o.Extract(ctx)
+						assertTrue(t, ok)
+						assertTrue(t, &c == tx)
+						return fmt.Errorf("some error")
+					})
+				})
+				assertTrue(t, errors.Is(err, ErrRollbackSuccess))
+				assertTrue(t, rollbackCalled)
+				assertTrue(t, beginCalled)
+			})
+		})
 	})
 }
 
