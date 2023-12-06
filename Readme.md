@@ -8,7 +8,7 @@
 [![GitHub MIT license](https://img.shields.io/github/license/kozmod/oniontx)](https://github.com/kozmod/oniontx/blob/dev/LICENSE)
 
 `OnionTx` allows to move transferring transaction management from the `Persistence` (repository) layer to the `Application` (service) layer using owner defined contract.
-# <img src=".github/assets/clean_arch.png" alt="drawing"  width="250" /> ⇨ <img src=".github/assets/uml.png" alt="drawing"  width="250" />
+# <img src=".github/assets/clean_arch+uml.png" alt="drawing"  width="700" />
 **NOTE**: Transactor was developed to work with only the same instance of tha `*sql.DB`
 ### The key features:
  - [**`stdlib` implementation out of the box**](#stdlib)
