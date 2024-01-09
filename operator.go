@@ -2,11 +2,7 @@ package oniontx
 
 import (
 	"context"
-	"fmt"
 )
-
-// CtxKey is key type for default ContextOperator.
-type CtxKey string
 
 // ContextOperator inject and extract Tx from context.Context.
 type ContextOperator[B any, T Tx] struct {
@@ -22,18 +18,11 @@ func NewContextOperator[B any, T Tx](b *B) *ContextOperator[B, T] {
 
 // Inject returns new context.Context contains Tx as value.
 func (p *ContextOperator[B, T]) Inject(ctx context.Context, tx T) context.Context {
-	key := p.Key()
-	return context.WithValue(ctx, key, tx)
+	return context.WithValue(ctx, p.beginner, tx)
 }
 
 // Extract returns Tx extracted from context.Context.
 func (p *ContextOperator[B, T]) Extract(ctx context.Context) (T, bool) {
-	key := p.Key()
-	c, ok := ctx.Value(key).(T)
+	c, ok := ctx.Value(p.beginner).(T)
 	return c, ok
-}
-
-// Key returns key (CtxKey) for injecting or extracting Tx from context.Context.
-func (p *ContextOperator[B, T]) Key() CtxKey {
-	return CtxKey(fmt.Sprintf("%p", p.beginner))
 }
