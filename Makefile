@@ -9,6 +9,7 @@ tools: ## Run tools (vet, gofmt, goimports, tidy, etc.)
 .PHONT: deps.update
 deps.update: ## Update dependencies versions
 	go get -u all
+	go mod tidy
 
 .PHONT: test
 test: ## Run tests
