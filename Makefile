@@ -6,6 +6,11 @@ tools: ## Run tools (vet, gofmt, goimports, tidy, etc.)
 	go mod tidy
 	go vet ./...
 
+.PHONT: deps.update
+deps.update: ## Update dependencies versions
+	go get -u all
+	go mod tidy
+
 .PHONT: test
 test: ## Run tests
 	go test ./... -cover
@@ -18,7 +23,7 @@ lint: ## Run `golangci-lint`
 
 .PHONY: help
 help: ## List all make targets with description
-	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+	@grep -h -E '^[.a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
 .PHONY: list
 list: ## List all make targets
