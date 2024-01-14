@@ -85,18 +85,28 @@ func (t *Transactor[B, T, O]) WithinTxWithOpts(ctx context.Context, fn func(ctx 
 	defer func() {
 		switch p := recover(); {
 		case p != nil:
+			if ok {
+				err = xerrors.Errorf("transactor - panic [%v]", p)
+				return
+			}
 			if rbErr := tx.Rollback(ctx); rbErr != nil {
 				err = xerrors.Errorf("transactor - panic [%v]: %w", p, errors.Join(rbErr, ErrRollbackFailed))
+			} else {
+				err = xerrors.Errorf("transactor - panic [%v]: %w", p, ErrRollbackSuccess)
+			}
+		case err != nil:
+			if ok {
 				return
 			}
-			err = xerrors.Errorf("transactor - panic [%v]: %w", p, ErrRollbackSuccess)
-		case err != nil:
 			if rbErr := tx.Rollback(ctx); rbErr != nil {
 				err = xerrors.Errorf("transactor - call: %w", errors.Join(err, rbErr, ErrRollbackFailed))
+			} else {
+				err = xerrors.Errorf("transactor - call: %w", errors.Join(err, ErrRollbackSuccess))
+			}
+		default:
+			if ok {
 				return
 			}
-			err = xerrors.Errorf("transactor - call: %w", errors.Join(err, ErrRollbackSuccess))
-		default:
 			if err = tx.Commit(ctx); err != nil {
 				err = xerrors.Errorf("transactor: %w", errors.Join(err, ErrCommitFailed))
 			}
