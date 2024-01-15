@@ -3,17 +3,16 @@ package oniontx
 import (
 	"context"
 	"errors"
-
-	"golang.org/x/xerrors"
+	"fmt"
 )
 
 var (
-	ErrNilTxBeginner   = xerrors.New("tx beginner is nil")
-	ErrNilTxOperator   = xerrors.New("tx operator is nil")
-	ErrBeginTx         = xerrors.New("begin tx")
-	ErrCommitFailed    = xerrors.New("commit failed")
-	ErrRollbackFailed  = xerrors.New("rollback failed")
-	ErrRollbackSuccess = xerrors.New("rollback tx")
+	ErrNilTxBeginner   = fmt.Errorf("tx beginner is nil")
+	ErrNilTxOperator   = fmt.Errorf("tx operator is nil")
+	ErrBeginTx         = fmt.Errorf("begin tx")
+	ErrCommitFailed    = fmt.Errorf("commit failed")
+	ErrRollbackFailed  = fmt.Errorf("rollback failed")
+	ErrRollbackSuccess = fmt.Errorf("rollback tx")
 )
 
 type (
@@ -67,38 +66,48 @@ func (t *Transactor[B, T, O]) WithinTxWithOpts(ctx context.Context, fn func(ctx 
 		nilOperator СtxOperator[T] = nil
 	)
 	if t.beginner == nilBeginner {
-		return xerrors.Errorf("transactor - can't begin: %w", ErrNilTxBeginner)
+		return fmt.Errorf("transactor - can't begin: %w", ErrNilTxBeginner)
 	}
 
 	if t.operator == nilOperator {
-		return xerrors.Errorf("transactor - can't try extract transaction: %w", ErrNilTxOperator)
+		return fmt.Errorf("transactor - can't try extract transaction: %w", ErrNilTxOperator)
 	}
 
 	tx, ok := t.operator.Extract(ctx)
 	if !ok {
 		tx, err = t.beginner.BeginTx(ctx, opts...)
 		if err != nil {
-			return xerrors.Errorf("transactor - cannot begin: %w", errors.Join(err, ErrBeginTx))
+			return fmt.Errorf("transactor - cannot begin: %w", errors.Join(err, ErrBeginTx))
 		}
 	}
 
 	defer func() {
 		switch p := recover(); {
 		case p != nil:
-			if rbErr := tx.Rollback(ctx); rbErr != nil {
-				err = xerrors.Errorf("transactor - panic [%v]: %w", p, errors.Join(rbErr, ErrRollbackFailed))
+			if ok {
+				err = fmt.Errorf("transactor - panic [%v]", p)
 				return
 			}
-			err = xerrors.Errorf("transactor - panic [%v]: %w", p, ErrRollbackSuccess)
+			if rbErr := tx.Rollback(ctx); rbErr != nil {
+				err = fmt.Errorf("transactor - panic [%v]: %w", p, errors.Join(rbErr, ErrRollbackFailed))
+			} else {
+				err = fmt.Errorf("transactor - panic [%v]: %w", p, ErrRollbackSuccess)
+			}
 		case err != nil:
-			if rbErr := tx.Rollback(ctx); rbErr != nil {
-				err = xerrors.Errorf("transactor - call: %w", errors.Join(err, rbErr, ErrRollbackFailed))
+			if ok {
 				return
 			}
-			err = xerrors.Errorf("transactor - call: %w", errors.Join(err, ErrRollbackSuccess))
+			if rbErr := tx.Rollback(ctx); rbErr != nil {
+				err = fmt.Errorf("transactor - call: %w", errors.Join(err, rbErr, ErrRollbackFailed))
+			} else {
+				err = fmt.Errorf("transactor - call: %w", errors.Join(err, ErrRollbackSuccess))
+			}
 		default:
+			if ok {
+				return
+			}
 			if err = tx.Commit(ctx); err != nil {
-				err = xerrors.Errorf("transactor: %w", errors.Join(err, ErrCommitFailed))
+				err = fmt.Errorf("transactor: %w", errors.Join(err, ErrCommitFailed))
 			}
 		}
 	}()
