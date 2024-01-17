@@ -145,12 +145,14 @@ func Test_Transactor(t *testing.T) {
 		})
 		t.Run("failed_commit", func(t *testing.T) {
 			var (
+				expError = fmt.Errorf("some_commit_error")
+
 				ctx          = context.Background()
 				commitCalled bool
 				c            = committerMock{
 					commitFn: func(ctx context.Context) error {
 						commitCalled = true
-						return fmt.Errorf("some_commit_error")
+						return expError
 					},
 				}
 				b = &beginnerMock[*committerMock, any]{
@@ -169,10 +171,13 @@ func Test_Transactor(t *testing.T) {
 				return nil
 			})
 			assertTrue(t, errors.Is(err, ErrCommitFailed))
+			assertTrue(t, errors.Is(err, expError))
 			assertTrue(t, commitCalled)
 		})
 		t.Run("success_rollback", func(t *testing.T) {
 			var (
+				expError = fmt.Errorf("some_transactor_error")
+
 				ctx            = context.Background()
 				rollbackCalled bool
 				beginCalled    bool
@@ -196,19 +201,21 @@ func Test_Transactor(t *testing.T) {
 				tx, ok := o.Extract(ctx)
 				assertTrue(t, ok)
 				assertTrue(t, &c == tx)
-				return fmt.Errorf("some error")
+				return expError
 			})
 			assertTrue(t, errors.Is(err, ErrRollbackSuccess))
+			assertTrue(t, errors.Is(err, expError))
 			assertTrue(t, rollbackCalled)
 			assertTrue(t, beginCalled)
 		})
 		t.Run("failed_rollback", func(t *testing.T) {
 			var (
+				transactorError = fmt.Errorf("some_exec_error")
+				rollbackErr     = fmt.Errorf("some_rollbakc_error")
+
 				ctx            = context.Background()
 				rollbackCalled bool
 				beginCalled    bool
-				execError      = fmt.Errorf("some exec error")
-				rollbackErr    = fmt.Errorf("some rollbakc error")
 				c              = committerMock{
 					rollbackFn: func(ctx context.Context) error {
 						rollbackCalled = true
@@ -229,10 +236,10 @@ func Test_Transactor(t *testing.T) {
 				tx, ok := o.Extract(ctx)
 				assertTrue(t, ok)
 				assertTrue(t, &c == tx)
-				return execError
+				return transactorError
 			})
 			assertTrue(t, errors.Is(err, ErrRollbackFailed))
-			assertTrue(t, errors.Is(err, execError))
+			assertTrue(t, errors.Is(err, transactorError))
 			assertTrue(t, errors.Is(err, rollbackErr))
 			assertTrue(t, rollbackCalled)
 			assertTrue(t, beginCalled)
@@ -271,12 +278,15 @@ func Test_Transactor(t *testing.T) {
 			assertTrue(t, beginCalled)
 		})
 		t.Run("failed_panic_rollback", func(t *testing.T) {
+			const (
+				expPanicMsg = "some_problem"
+			)
 			var (
+				rollbackErr = fmt.Errorf("some_rollbakc_error")
+
 				ctx            = context.Background()
 				rollbackCalled bool
 				beginCalled    bool
-				rollbackErr    = fmt.Errorf("some rollbakc error")
-				expPanic       = "some_problem"
 				c              = committerMock{
 					rollbackFn: func(ctx context.Context) error {
 						rollbackCalled = true
@@ -297,23 +307,24 @@ func Test_Transactor(t *testing.T) {
 				tx, ok := o.Extract(ctx)
 				assertTrue(t, ok)
 				assertTrue(t, &c == tx)
-				panic(expPanic)
+				panic(expPanicMsg)
 			})
 			assertTrue(t, errors.Is(err, ErrRollbackFailed))
 			assertTrue(t, errors.Is(err, rollbackErr))
-			assertTrue(t, strings.Contains(err.Error(), expPanic))
+			assertTrue(t, strings.Contains(err.Error(), expPanicMsg))
 			assertTrue(t, rollbackCalled)
 			assertTrue(t, beginCalled)
 		})
 		t.Run("failed_begin_tx", func(t *testing.T) {
 			var (
+				expError = fmt.Errorf("some_begin_error")
+
 				ctx         = context.Background()
 				beginCalled bool
-				beginErr    = fmt.Errorf("some_begin_error")
 				b           = &beginnerMock[*committerMock, any]{
 					beginFn: func(ctx context.Context, opts ...Option[any]) (*committerMock, error) {
 						beginCalled = true
-						return nil, beginErr
+						return nil, expError
 					},
 				}
 				o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
@@ -325,6 +336,7 @@ func Test_Transactor(t *testing.T) {
 				return nil
 			})
 			assertTrue(t, errors.Is(err, ErrBeginTx))
+			assertTrue(t, errors.Is(err, expError))
 			assertTrue(t, beginCalled)
 		})
 		t.Run("error_when_beginner_is_nil", func(t *testing.T) {
@@ -358,118 +370,98 @@ func Test_Transactor(t *testing.T) {
 
 // nolint: dupl
 func Test_Transactor_recursive_call(t *testing.T) {
-	t.Run("success_commit", func(t *testing.T) {
-		var (
-			ctx            = context.Background()
-			commitCalled   bool
-			beginnerCalled bool
-			c              = committerMock{
-				commitFn: func(ctx context.Context) error {
-					commitCalled = true
-					return nil
-				},
-			}
-			b = &beginnerMock[*committerMock, any]{
-				beginFn: func(ctx context.Context, opts ...Option[any]) (*committerMock, error) {
-					beginnerCalled = true
-					assertTrue(t, opts == nil)
-					return &c, nil
-				},
-			}
-			o   = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
-			trA = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](b, o)
-			trB = trA
-		)
-		err := trA.WithinTx(ctx, func(ctx context.Context) error {
-			tx, ok := o.Extract(ctx)
-			assertTrue(t, ok)
-			assertTrue(t, &c == tx)
-			return trB.WithinTx(ctx, func(ctx context.Context) error {
-				tx, ok := o.Extract(ctx)
-				assertTrue(t, ok)
-				assertTrue(t, &c == tx)
-				return nil
+	const (
+		ctxValTopLvl    = "top_lvl"
+		ctxValSecondLvl = "second_lvl"
+		ctxValThirdLvl  = "third_lvl"
+	)
+	/*
+		functions to inject and check recursion level
+	*/
+	var (
+		ctxKey    struct{}
+		injectLvl = func(ctx context.Context, lvl string) context.Context {
+			t.Helper()
+			return context.WithValue(ctx, ctxKey, lvl)
+		}
 
-			})
-		})
-		assertTrue(t, err == nil)
-		assertTrue(t, beginnerCalled)
-		assertTrue(t, commitCalled)
-	})
+		isLvlEqual = func(ctx context.Context, required string) bool {
+			t.Helper()
+			lvl, ok := ctx.Value(ctxKey).(string)
+			if !ok {
+				return false
+			}
+			return strings.EqualFold(lvl, required)
+		}
+
+		assertTopLvl = func(ctx context.Context) {
+			// assert that rollback was called on the recursion "top" level.
+			assertTrue(t, isLvlEqual(ctx, ctxValTopLvl))
+			// assert that rollback call wasn't called on the "second" recursion level.
+			assertFalse(t, isLvlEqual(ctx, ctxValSecondLvl))
+			// assert that rollback call wasn't called on the "third" recursion level.
+			assertFalse(t, isLvlEqual(ctx, ctxValThirdLvl))
+		}
+	)
+
+	var (
+		commitCalled   int
+		rollbackCalled int
+		beginCalled    int
+
+		cleanup = func() {
+			commitCalled = 0
+			rollbackCalled = 0
+			beginCalled = 0
+		}
+	)
+
 	t.Run("success_rollback", func(t *testing.T) {
+		defer t.Cleanup(cleanup)
 		var (
-			ctx            = context.Background()
-			rollbackCalled bool
-			beginCalled    bool
-			c              = committerMock{
+			expError = fmt.Errorf("some_error")
+
+			ctx = context.Background()
+			c   = committerMock{
 				rollbackFn: func(ctx context.Context) error {
-					rollbackCalled = true
+					rollbackCalled++
 					return nil
 				},
 			}
 			b = &beginnerMock[*committerMock, any]{
 				beginFn: func(ctx context.Context, opts ...Option[any]) (*committerMock, error) {
-					beginCalled = true
+					beginCalled++
 					assertTrue(t, opts == nil)
 					return &c, nil
 				},
 			}
-			o   = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
-			trA = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](b, o)
-			trB = trA
+			o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
+			tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](b, o)
 		)
-		err := trA.WithinTx(ctx, func(ctx context.Context) error {
+		err := tr.WithinTx(ctx, func(ctx context.Context) error {
 			tx, ok := o.Extract(ctx)
 			assertTrue(t, ok)
 			assertTrue(t, &c == tx)
-			return trB.WithinTx(ctx, func(ctx context.Context) error {
+			return tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
 				assertTrue(t, ok)
 				assertTrue(t, &c == tx)
-				return fmt.Errorf("some error")
+				return expError
 			})
 		})
 		assertTrue(t, errors.Is(err, ErrRollbackSuccess))
-		assertTrue(t, rollbackCalled)
-		assertTrue(t, beginCalled)
+		assertTrue(t, errors.Is(err, expError))
+		assertTrue(t, rollbackCalled == 1)
+		assertTrue(t, beginCalled == 1)
 	})
 	t.Run("success_and_commit_on_top_lvl_func", func(t *testing.T) {
-		const (
-			ctxValTopLvl    = "top_lvl"
-			ctxValSecondLvl = "second_lvl"
-		)
-
-		/*
-			functions to inject and check recursion level
-		*/
+		defer t.Cleanup(cleanup)
 		var (
-			ctxKey    struct{}
-			injectLvl = func(ctx context.Context, lvl string) context.Context {
-				t.Helper()
-				return context.WithValue(ctx, ctxKey, lvl)
-			}
-
-			isLvlEqual = func(ctx context.Context, required string) bool {
-				t.Helper()
-				lvl, ok := ctx.Value(ctxKey).(string)
-				if !ok {
-					return false
-				}
-				return strings.EqualFold(lvl, required)
-			}
-		)
-
-		var (
-			ctx          = context.Background()
-			commitCalled int
-			beginCalled  int
-			c            = committerMock{
+			ctx = context.Background()
+			c   = committerMock{
 				commitFn: func(ctx context.Context) error {
 					commitCalled++
-					// assert that commit was called on the recursion "top" level.
-					assertTrue(t, isLvlEqual(ctx, ctxValTopLvl))
-					// assert that commit call wasn't called on the "second" recursion level.
-					assertFalse(t, isLvlEqual(ctx, ctxValSecondLvl))
+					assertTopLvl(ctx)
 					return nil
 				},
 			}
@@ -493,9 +485,9 @@ func Test_Transactor_recursive_call(t *testing.T) {
 			tx, ok := o.Extract(ctx)
 			assertTrue(t, ok)
 			assertTrue(t, &c == tx)
+
 			// inject "second" level variable in context.Context.
 			ctx = injectLvl(ctx, ctxValSecondLvl)
-
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
 				assertTrue(t, ok)
@@ -517,6 +509,206 @@ func Test_Transactor_recursive_call(t *testing.T) {
 		assertTrue(t, beginCalled == 1)
 		assertTrue(t, err == nil)
 		assertTrue(t, commitCalled == 1)
+	})
+	t.Run("error_and_rollback_on_high_lvl_when_panic_on_low_lvl_func", func(t *testing.T) {
+		defer t.Cleanup(cleanup)
+		const (
+			somePanicMsg = "some_panic"
+		)
+		var (
+			ctx = context.Background()
+			c   = committerMock{
+				commitFn: func(ctx context.Context) error {
+					commitCalled++
+					return nil
+				},
+				rollbackFn: func(ctx context.Context) error {
+					rollbackCalled++
+					assertTopLvl(ctx)
+					return nil
+				},
+			}
+			b = &beginnerMock[*committerMock, any]{
+				beginFn: func(ctx context.Context, opts ...Option[any]) (*committerMock, error) {
+					beginCalled++
+					assertTrue(t, opts == nil)
+					return &c, nil
+				},
+			}
+			o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
+			tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](b, o)
+		)
+
+		{
+			// inject "top" level variable in context.Context
+			ctx = injectLvl(ctx, ctxValTopLvl)
+		}
+
+		err := tr.WithinTx(ctx, func(ctx context.Context) error {
+			tx, ok := o.Extract(ctx)
+			assertTrue(t, ok)
+			assertTrue(t, &c == tx)
+
+			// inject "second" level variable in context.Context.
+			ctx = injectLvl(ctx, ctxValSecondLvl)
+			err := tr.WithinTx(ctx, func(ctx context.Context) error {
+				tx, ok := o.Extract(ctx)
+				assertTrue(t, ok)
+				assertTrue(t, &c == tx)
+
+				// inject "second" level variable in context.Context.
+				ctx = injectLvl(ctx, ctxValThirdLvl)
+				err := tr.WithinTx(ctx, func(ctx context.Context) error {
+					tx, ok := o.Extract(ctx)
+					assertTrue(t, ok)
+					assertTrue(t, &c == tx)
+					panic(somePanicMsg)
+				})
+				return err
+			})
+			assertTrue(t, err != nil)
+
+			return err
+		})
+		assertTrue(t, errors.Is(err, ErrRollbackSuccess))
+		assertTrue(t, strings.Contains(err.Error(), somePanicMsg))
+		assertTrue(t, beginCalled == 1)
+		assertTrue(t, commitCalled == 0)
+		assertTrue(t, rollbackCalled == 1)
+	})
+	t.Run("error_and_rollback_on_high_lvl_when_error_on_low_lvl_func", func(t *testing.T) {
+		defer t.Cleanup(cleanup)
+		var (
+			expError = fmt.Errorf("some_error")
+
+			ctx = context.Background()
+			c   = committerMock{
+				commitFn: func(ctx context.Context) error {
+					commitCalled++
+					return nil
+				},
+				rollbackFn: func(ctx context.Context) error {
+					rollbackCalled++
+					assertTopLvl(ctx)
+					return nil
+				},
+			}
+			b = &beginnerMock[*committerMock, any]{
+				beginFn: func(ctx context.Context, opts ...Option[any]) (*committerMock, error) {
+					beginCalled++
+					assertTrue(t, opts == nil)
+					return &c, nil
+				},
+			}
+			o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
+			tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](b, o)
+		)
+
+		{
+			// inject "top" level variable in context.Context
+			ctx = injectLvl(ctx, ctxValTopLvl)
+		}
+
+		err := tr.WithinTx(ctx, func(ctx context.Context) error {
+			tx, ok := o.Extract(ctx)
+			assertTrue(t, ok)
+			assertTrue(t, &c == tx)
+
+			// inject "second" level variable in context.Context.
+			ctx = injectLvl(ctx, ctxValSecondLvl)
+			err := tr.WithinTx(ctx, func(ctx context.Context) error {
+				tx, ok := o.Extract(ctx)
+				assertTrue(t, ok)
+				assertTrue(t, &c == tx)
+
+				// inject "third" level variable in context.Context.
+				ctx = injectLvl(ctx, ctxValThirdLvl)
+				err := tr.WithinTx(ctx, func(ctx context.Context) error {
+					tx, ok := o.Extract(ctx)
+					assertTrue(t, ok)
+					assertTrue(t, &c == tx)
+					return expError
+				})
+				return err
+			})
+			assertTrue(t, err != nil)
+
+			return err
+		})
+		assertTrue(t, errors.Is(err, ErrRollbackSuccess))
+		assertTrue(t, errors.Is(err, expError))
+		assertTrue(t, beginCalled == 1)
+		assertTrue(t, commitCalled == 0)
+		assertTrue(t, rollbackCalled == 1)
+	})
+	t.Run("error_and_rollback_on_high_lvl_when_panic_on_middle_lvl_override_low_lvl", func(t *testing.T) {
+		defer t.Cleanup(cleanup)
+		const (
+			lowLvlPanicMsg    = "some_low_panic"
+			middleLvlPanicMsg = "some_middle_panic"
+		)
+		var (
+			ctx = context.Background()
+			c   = committerMock{
+				commitFn: func(ctx context.Context) error {
+					commitCalled++
+					return nil
+				},
+				rollbackFn: func(ctx context.Context) error {
+					rollbackCalled++
+					assertTopLvl(ctx)
+					return nil
+				},
+			}
+			b = &beginnerMock[*committerMock, any]{
+				beginFn: func(ctx context.Context, opts ...Option[any]) (*committerMock, error) {
+					beginCalled++
+					assertTrue(t, opts == nil)
+					return &c, nil
+				},
+			}
+			o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
+			tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](b, o)
+		)
+
+		{
+			// inject "top" level variable in context.Context
+			ctx = injectLvl(ctx, ctxValTopLvl)
+		}
+
+		err := tr.WithinTx(ctx, func(ctx context.Context) error {
+			tx, ok := o.Extract(ctx)
+			assertTrue(t, ok)
+			assertTrue(t, &c == tx)
+
+			// inject "second" level variable in context.Context.
+			ctx = injectLvl(ctx, ctxValSecondLvl)
+			err := tr.WithinTx(ctx, func(ctx context.Context) error {
+				tx, ok := o.Extract(ctx)
+				assertTrue(t, ok)
+				assertTrue(t, &c == tx)
+
+				// inject "second" level variable in context.Context.
+				ctx = injectLvl(ctx, ctxValThirdLvl)
+				err := tr.WithinTx(ctx, func(ctx context.Context) error {
+					tx, ok := o.Extract(ctx)
+					assertTrue(t, ok)
+					assertTrue(t, &c == tx)
+					panic(lowLvlPanicMsg)
+				})
+				assertTrue(t, err != nil)
+				panic(middleLvlPanicMsg)
+			})
+			assertTrue(t, err != nil)
+
+			return err
+		})
+		assertTrue(t, errors.Is(err, ErrRollbackSuccess))
+		assertFalse(t, strings.Contains(err.Error(), lowLvlPanicMsg))
+		assertTrue(t, strings.Contains(err.Error(), middleLvlPanicMsg))
+		assertTrue(t, beginCalled == 1)
+		assertTrue(t, commitCalled == 0)
+		assertTrue(t, rollbackCalled == 1)
 	})
 }
 
