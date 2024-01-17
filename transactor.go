@@ -16,20 +16,24 @@ var (
 )
 
 type (
+	// TxBeginner is responsible for creating new Tx.
 	TxBeginner[T Tx, O any] interface {
 		comparable
 		BeginTx(ctx context.Context, opts ...Option[O]) (T, error)
 	}
 
+	// Tx represent transaction contract.
 	Tx interface {
 		Rollback(ctx context.Context) error
 		Commit(ctx context.Context) error
 	}
 
+	// Option applied to new Tx.
 	Option[TxOpt any] interface {
 		Apply(in TxOpt)
 	}
 
+	// СtxOperator is responsible for interaction with context.Context to store or extract Tx.
 	СtxOperator[T Tx] interface {
 		Inject(ctx context.Context, tx T) context.Context
 		Extract(ctx context.Context) (T, bool)
@@ -54,12 +58,49 @@ func NewTransactor[B TxBeginner[T, O], T Tx, O any](
 
 // WithinTx execute all queries with Tx.
 // The function create new Tx or reuse Tx obtained from context.Context.
+//
+// The behavior described on WithinTxWithOpts function's docs.
 func (t *Transactor[B, T, O]) WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error) {
 	return t.WithinTxWithOpts(ctx, fn)
 }
 
 // WithinTxWithOpts execute all queries with Tx and transaction Options.
 // The function create new Tx or reuse Tx obtained from context.Context.
+/*
+When WithinTxWithOpts call recursively, the highest level function responsible for creating transaction and applying commit or rollback of a transaction.
+
+		tr := NewTransactor[...](...)
+
+		// The highest level.
+		// A transaction (with options) creates and finishes (commit/rollback) on this level.
+		err := tr.WithinTxWithOpts(ctx, func(ctx context.Context) error {
+
+			// A middle level.
+			err := tr.WithinTx(ctx, func(ctx context.Context) error {
+				return nil
+			})
+
+			// A middle level.
+			err = tr.WithinTx(ctx, func(ctx context.Context) error {
+
+				// The lowest level.
+				err = tr.WithinTx(ctx, func(ctx context.Context) error {
+					return nil
+				})
+				return nil
+			})
+
+			return err
+		})
+
+NOTE:
+
++ a processed error returns to the highest level function for commit or rollback.
+
++ panics are transformed to errors with the same message.
+
++ higher level panics override lower level panic (that was transformed to an error) or an error.
+*/
 func (t *Transactor[B, T, O]) WithinTxWithOpts(ctx context.Context, fn func(ctx context.Context) error, opts ...Option[O]) (err error) {
 	var (
 		nilBeginner B
