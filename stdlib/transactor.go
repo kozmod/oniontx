@@ -19,11 +19,12 @@ type Executor interface {
 	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
 }
 
-// dbWrapper is sql.DB wrapper, implements oniontx.TxBeginner.
+// dbWrapper wraps sql.DB, implements oniontx.TxBeginner.
 type dbWrapper struct {
 	*sql.DB
 }
 
+// BeginTx starts a transaction.
 func (db *dbWrapper) BeginTx(ctx context.Context, opts ...oniontx.Option[*sql.TxOptions]) (*txWrapper, error) {
 	var txOptions sql.TxOptions
 	for _, opt := range opts {
@@ -33,15 +34,17 @@ func (db *dbWrapper) BeginTx(ctx context.Context, opts ...oniontx.Option[*sql.Tx
 	return &txWrapper{Tx: tx}, err
 }
 
-// txWrapper is sql.Tx wrapper, implements oniontx.Tx.
+// txWrapper wraps sql.Tx, implements oniontx.Tx.
 type txWrapper struct {
 	*sql.Tx
 }
 
+// Rollback aborts the transaction.
 func (t *txWrapper) Rollback(_ context.Context) error {
 	return t.Tx.Rollback()
 }
 
+// Commit commits the transaction.
 func (t *txWrapper) Commit(_ context.Context) error {
 	return t.Tx.Commit()
 }
