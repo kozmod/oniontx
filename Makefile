@@ -6,14 +6,22 @@ tools: ## Run tools (vet, gofmt, goimports, tidy, etc.)
 	go mod tidy
 	go vet ./...
 
+.PHONT: tools.update
+tools.update: ## Update or install tools
+	go install golang.org/x/tools/cmd/goimports@latest
+
 .PHONT: deps.update
 deps.update: ## Update dependencies versions
 	go get -u all
 	go mod tidy
 
 .PHONT: test
-test: ## Run tests
+test: ## Run tests with coverage
 	go test ./... -cover
+
+.PHONT: test.cover.all
+test.cover.all: ## Run tests with coverage (show all coverage)
+	go test -v ./... -cover -coverprofile cover.out  && go tool cover -func cover.out
 
 .PHONY: lint
 lint: ## Run `golangci-lint`
