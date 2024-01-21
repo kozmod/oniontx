@@ -17,3 +17,6 @@ changelog:
       - Merge pull request
       - Merge remote-tracking branch
       - Merge branch
+
+release:
+  mode: replace
