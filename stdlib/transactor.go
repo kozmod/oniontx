@@ -25,7 +25,7 @@ type dbWrapper struct {
 }
 
 // BeginTx starts a transaction.
-func (db *dbWrapper) BeginTx(ctx context.Context, opts ...oniontx.Option[*sql.TxOptions]) (*txWrapper, error) {
+func (db dbWrapper) BeginTx(ctx context.Context, opts ...oniontx.Option[*sql.TxOptions]) (*txWrapper, error) {
 	var txOptions sql.TxOptions
 	for _, opt := range opts {
 		opt.Apply(&txOptions)
@@ -58,12 +58,12 @@ type Transactor struct {
 // NewTransactor returns new Transactor.
 func NewTransactor(db *sql.DB) *Transactor {
 	var (
-		base       = &dbWrapper{DB: db}
+		base       = dbWrapper{DB: db}
 		operator   = oniontx.NewContextOperator[*dbWrapper, *txWrapper](&base)
 		transactor = Transactor{
 			operator: operator,
 			transactor: oniontx.NewTransactor[*dbWrapper, *txWrapper, *sql.TxOptions](
-				base,
+				&base,
 				operator,
 			),
 		}
