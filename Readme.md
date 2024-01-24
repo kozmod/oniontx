@@ -89,7 +89,7 @@ func (r *repoB) InsertInTx(ctx context.Context, val string) error {
 ---
 ##  <a name="custom"><a/>Custom realisation
 If it's required, `OnionTx` allowed opportunity to implement custom algorithms for maintaining transactions
-(it is convenient if the persistence to DB implements not standard library: [sqlx](https://github.com/jmoiron/sqlx), [pgx](https://github.com/jackc/pgx), etc.).
+(it is convenient if the persistence to DB implements not standard library: [sqlx](https://github.com/jmoiron/sqlx), [pgx](https://github.com/jackc/pgx), [gorm](https://github.com/go-gorm/gorm) etc. Look at the [integration's examples](#integration_examples)  section).
 
 #### `OnitonTx` interfaces implementation
 ```go 
@@ -509,3 +509,12 @@ func main() {
 	}
 }
 ```
+
+### <a name="integration_examples"><a/>Integration's examples
+
+[oniontx-examples](https://github.com/kozmod/oniontx-examples) repository contains useful examples for integrations:
+
+- [sqlx](https://github.com/kozmod/oniontx-examples/tree/master/internal/sqlx)
+- [pgx](https://github.com/kozmod/oniontx-examples/tree/master/internal/pgx)
+- [gorm](https://github.com/kozmod/oniontx-examples/tree/master/internal/gorm)
+- [stdlib](https://github.com/kozmod/oniontx-examples/tree/master/internal/stdlib)
