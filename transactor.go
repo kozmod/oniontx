@@ -57,7 +57,7 @@ func NewTransactor[B TxBeginner[T, O], T Tx, O any](
 }
 
 // WithinTx execute all queries with Tx.
-// The function create new Tx or reuse Tx obtained from context.Context.
+// The function create new Tx or reuse Tx obtained from [context.Context].
 //
 // The behavior described on WithinTxWithOpts function's docs.
 func (t *Transactor[B, T, O]) WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error) {
@@ -65,7 +65,7 @@ func (t *Transactor[B, T, O]) WithinTx(ctx context.Context, fn func(ctx context.
 }
 
 // WithinTxWithOpts execute all queries with Tx and transaction Options.
-// The function create new Tx or reuse Tx obtained from context.Context.
+// The function create new Tx or reuse Tx obtained from [context.Context].
 /*
 When WithinTxWithOpts call recursively, the highest level function responsible for creating transaction and applying commit or rollback of a transaction.
 
@@ -159,7 +159,7 @@ func (t *Transactor[B, T, O]) WithinTxWithOpts(ctx context.Context, fn func(ctx 
 	return fn(ctx)
 }
 
-// TryGetTx returns pointer of Tx and "true" from context.Context or return `false`.
+// TryGetTx returns pointer of Tx and "true" from [context.Context] or return `false`.
 func (t *Transactor[B, T, O]) TryGetTx(ctx context.Context) (T, bool) {
 	tx, ok := t.operator.Extract(ctx)
 	return tx, ok

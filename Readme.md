@@ -9,10 +9,10 @@
 
 `OnionTx` allows to move transferring transaction management from the `Persistence` (repository) layer to the `Application` (service) layer using owner defined contract.
 # <img src=".github/assets/clean_arch+uml.png" alt="drawing"  width="700" />
-**NOTE**: Transactor was developed to work with only the same instance of tha `*sql.DB`
+<span style="color:red">**NOTE**</span>**:** `Transactor` was designed to work with only the same instance of the "repository" (`*sql.DB`, etc.)
 ### The key features:
  - [**`stdlib` implementation out of the box**](#stdlib)
- - [**contract for implementing custom realisation**](#custom)
+ - [**custom implementation's contract**](#custom)
 
 ---
 ### <a name="stdlib"><a/>`stdlib` package
@@ -88,8 +88,9 @@ func (r *repoB) InsertInTx(ctx context.Context, val string) error {
 ```
 ---
 ##  <a name="custom"><a/>Custom realisation
-If it's required, `OnionTx` allowed opportunity to implement custom algorithms for maintaining transactions
-(it is convenient if the persistence to DB implements not standard library: [sqlx](https://github.com/jmoiron/sqlx), [pgx](https://github.com/jackc/pgx), [gorm](https://github.com/go-gorm/gorm) etc. Look at the [integration's examples](#integration_examples)  section).
+If it's required, `OnionTx` allowed opportunity to implements custom algorithms for maintaining transactions
+(it is convenient if the persistence to DB implements not standard library: [sqlx](https://github.com/jmoiron/sqlx), [pgx](https://github.com/jackc/pgx), [gorm](https://github.com/go-gorm/gorm) etc. 
+Look at the [integration's examples](#integration_examples)  section).
 
 #### `OnitonTx` interfaces implementation
 ```go 
@@ -123,7 +124,7 @@ type (
 ### Examples 
 ***All examples based on `stdlib`.***
 
-`TxBeginner` and `Tx` implementation
+`TxBeginner` and `Tx` implementations example:
 ```go
 // Prepared contracts for execution
 package db
@@ -167,7 +168,7 @@ func (t *Tx) Commit(_ context.Context) error {
 	return t.Tx.Commit()
 }
 ```
-Repositories
+`Repositories` implementation example:
 ```go
 package repoA
 
@@ -226,7 +227,7 @@ func (r RepositoryB) Insert(ctx context.Context, val int) error {
 	return nil
 }
 ```
-UseCase
+`UseCase` implementation example:
 ```go
 package usecase
 
@@ -270,7 +271,7 @@ func (s *UseCase) Exec(ctx context.Context, insert int) error {
 	return nil
 }
 ```
-Main
+Configuring example:
 ```go
 package main
 
