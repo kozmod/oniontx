@@ -9,10 +9,11 @@
 
 `OnionTx` allows to move transferring transaction management from the `Persistence` (repository) layer to the `Application` (service) layer using owner defined contract.
 # <img src=".github/assets/clean_arch+uml.png" alt="drawing"  width="700" />
-<span style="color:red">**NOTE**</span>**:** `Transactor` was designed to work with only the same instance of the "repository" (`*sql.DB`, etc.)
+🔴 **NOTE:** `Transactor` was designed to work with only the same instance of the "repository" (`*sql.DB`, etc.)
 ### The key features:
  - [**`stdlib` implementation out of the box**](#stdlib)
  - [**custom implementation's contract**](#custom)
+ - [**simple integration with popular libraries**](#integration_examples)
 
 ---
 ### <a name="stdlib"><a/>`stdlib` package
