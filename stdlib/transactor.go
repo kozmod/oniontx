@@ -19,7 +19,7 @@ type Executor interface {
 	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
 }
 
-// dbWrapper wraps sql.DB, implements oniontx.TxBeginner.
+// dbWrapper wraps sql.DB and  implements oniontx.TxBeginner.
 type dbWrapper struct {
 	*sql.DB
 }
@@ -34,7 +34,7 @@ func (db dbWrapper) BeginTx(ctx context.Context, opts ...oniontx.Option[*sql.TxO
 	return &txWrapper{Tx: tx}, err
 }
 
-// txWrapper wraps sql.Tx, implements oniontx.Tx.
+// txWrapper wraps sql.Tx and implements oniontx.Tx.
 type txWrapper struct {
 	*sql.Tx
 }
@@ -72,18 +72,20 @@ func NewTransactor(db *sql.DB) *Transactor {
 }
 
 // WithinTx execute all queries with sql.Tx.
-// The function create new sql.Tx or reuse sql.Tx obtained from context.Context.
+//
+// The function create new sql.Tx or reuse sql.Tx obtained from [context.Context].
 func (t *Transactor) WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error) {
 	return t.transactor.WithinTx(ctx, fn)
 }
 
 // WithinTxWithOpts execute all queries with sql.Tx and transaction sql.TxOptions.
-// The function create new sql.Tx or reuse sql.Tx obtained from context.Context.
+//
+// The function create new sql.Tx or reuse sql.Tx obtained from [context.Context].
 func (t *Transactor) WithinTxWithOpts(ctx context.Context, fn func(ctx context.Context) error, opts ...oniontx.Option[*sql.TxOptions]) (err error) {
 	return t.transactor.WithinTxWithOpts(ctx, fn, opts...)
 }
 
-// TryGetTx returns pointer of sql.Tx and "true" from context.Context or return `false`.
+// TryGetTx returns pointer of sql.Tx and "true" from [context.Context] or return `false`.
 func (t *Transactor) TryGetTx(ctx context.Context) (*sql.Tx, bool) {
 	wrapper, ok := t.transactor.TryGetTx(ctx)
 	if !ok || wrapper == nil || wrapper.Tx == nil {
