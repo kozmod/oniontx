@@ -1,4 +1,4 @@
-# OnionTx <img align="right" src=".github/assets/onion_1.png" alt="drawing"  width="90" />
+# oniontx <img align="right" src=".github/assets/onion_1.png" alt="drawing"  width="90" />
 [![test](https://github.com/kozmod/oniontx/actions/workflows/test.yml/badge.svg)](https://github.com/kozmod/oniontx/actions/workflows/test.yml)
 [![Release](https://github.com/kozmod/oniontx/actions/workflows/release.yml/badge.svg)](https://github.com/kozmod/oniontx/actions/workflows/release.yml)
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/kozmod/oniontx)
@@ -7,13 +7,14 @@
 ![GitHub last commit](https://img.shields.io/github/last-commit/kozmod/oniontx)
 [![GitHub MIT license](https://img.shields.io/github/license/kozmod/oniontx)](https://github.com/kozmod/oniontx/blob/dev/LICENSE)
 
-`OnionTx` allows to move transferring transaction management from the `Persistence` (repository) layer to the `Application` (service) layer using owner defined contract.
+`oniotx` allows to move transferring transaction management from the `Persistence` (repository) layer to the `Application` (service) layer using owner defined contract.
 # <img src=".github/assets/clean_arch+uml.png" alt="drawing"  width="700" />
 🔴 **NOTE:** `Transactor` was designed to work with only the same instance of the "repository" (`*sql.DB`, etc.)
 ### The key features:
- - [**`stdlib` implementation out of the box**](#stdlib)
+ - [**default implementation for `stdlib`**](#stdlib)
+ - [**default implementation for popular libraries**](#libs)
  - [**custom implementation's contract**](#custom)
- - [**simple integration with popular libraries**](#integration_examples)
+ - [**simple testing with testing frameworks**](#testing)
 
 ---
 ### <a name="stdlib"><a/>`stdlib` package
@@ -29,14 +30,14 @@ import (
 	"log"
 	"testing"
 
-	oniontx "github.com/kozmod/oniontx/stdlib"
+	ostdlib "github.com/kozmod/oniontx/stdlib"
 )
 
 func main() {
 	var (
 		db *sql.DB // database instance
 
-		tr = oniontx.NewTransactor(db)
+		tr = ostdlib.NewTransactor(db)
 		r1 = repoA{t: tr}
 		r2 = repoB{t: tr}
 	)
@@ -62,7 +63,7 @@ func main() {
 }
 
 type repoA struct {
-	t *oniontx.Transactor
+	t *ostdlib.Transactor
 }
 
 func (r *repoA) InsertInTx(ctx context.Context, val string) error {
@@ -75,7 +76,7 @@ func (r *repoA) InsertInTx(ctx context.Context, val string) error {
 }
 
 type repoB struct {
-	t *oniontx.Transactor
+	t *ostdlib.Transactor
 }
 
 func (r *repoB) InsertInTx(ctx context.Context, val string) error {
@@ -87,13 +88,27 @@ func (r *repoB) InsertInTx(ctx context.Context, val string) error {
 	return nil
 }
 ```
----
-##  <a name="custom"><a/>Custom realisation
-If it's required, `OnionTx` allowed opportunity to implements custom algorithms for maintaining transactions
-(it is convenient if the persistence to DB implements not standard library: [sqlx](https://github.com/jmoiron/sqlx), [pgx](https://github.com/jackc/pgx), [gorm](https://github.com/go-gorm/gorm) etc. 
-Look at the [integration's examples](#integration_examples)  section).
+[oniontx-examples](https://github.com/kozmod/oniontx-examples) contains more complicated 
+[example](https://github.com/kozmod/oniontx-examples/tree/master/internal/stdlib).
 
-#### `OnitonTx` interfaces implementation
+---
+### <a name="libs"><a/>Default implementation for database libs
+`oniontx` has default implementation (as submodules) for maintaining transactions for database libraries:
+[sqlx](https://github.com/jmoiron/sqlx), 
+[pgx](https://github.com/jackc/pgx), 
+[gorm](https://github.com/go-gorm/gorm).
+
+Examples:
+- [sqlx](https://github.com/kozmod/oniontx-examples/tree/master/internal/sqlx)
+- [pgx](https://github.com/kozmod/oniontx-examples/tree/master/internal/pgx)
+- [gorm](https://github.com/kozmod/oniontx-examples/tree/master/internal/gorm)
+
+---
+
+##  <a name="custom"><a/>Custom implementation
+If it's required, `oniontx` allowed opportunity to implements custom algorithms for maintaining transactions (examples).
+
+#### Interfaces:
 ```go 
 type (
 	// Mandatory
@@ -123,9 +138,9 @@ type (
 )
 ```
 ### Examples 
-***All examples based on `stdlib`.***
+`❗` ️***This examples based on `stdlib` pacakge.***
 
-`TxBeginner` and `Tx` implementations example:
+`TxBeginner` and `Tx` implementations:
 ```go
 // Prepared contracts for execution
 package db
@@ -169,7 +184,7 @@ func (t *Tx) Commit(_ context.Context) error {
 	return t.Tx.Commit()
 }
 ```
-`Repositories` implementation example:
+`Repositories` implementation:
 ```go
 package repoA
 
@@ -228,7 +243,7 @@ func (r RepositoryB) Insert(ctx context.Context, val int) error {
 	return nil
 }
 ```
-`UseCase` implementation example:
+`UseCase` implementation:
 ```go
 package usecase
 
@@ -272,7 +287,7 @@ func (s *UseCase) Exec(ctx context.Context, insert int) error {
 	return nil
 }
 ```
-Configuring example:
+Configuring:
 ```go
 package main
 
@@ -280,8 +295,8 @@ import (
 	"context"
 	"database/sql"
 	"os"
-	
-	"github.com/kozmod/oniontx"
+
+	oniontx "github.com/kozmod/oniontx"
 	
 	"github.com/user/some_project/internal/repoA"
 	"github.com/user/some_project/internal/repoB"
@@ -349,7 +364,7 @@ func WithIsolationLevel(level int) oniontx.Option[*sql.TxOptions] {
 }
 
 ```
-UsCase
+UsCase:
 ```go
 func (s *Usecase) Do(ctx context.Context) error {
 	err := s.Transactor.WithinTxWithOpts(ctx, func(ctx context.Context) error {
@@ -373,7 +388,7 @@ func (s *Usecase) Do(ctx context.Context) error {
 #### Execution transaction in the different use cases
 ***Execution the same transaction for different `usecases` with the same `oniontx.Transactor` instance***
 
-UseCases
+UseCases:
 ```go
 package a
 
@@ -465,7 +480,7 @@ func (s *UseCaseB) Exec(ctx context.Context, insertA string, insertB int, delete
 	return nil
 }
 ```
-Main
+Main:
 ```go
 package main
 
@@ -474,7 +489,7 @@ import (
 	"database/sql"
 	"os"
 
-	"github.com/kozmod/oniontx"
+	oniontx "github.com/kozmod/oniontx"
 
 	"github.com/user/some_project/internal/db"
 	"github.com/user/some_project/internal/repoA"
@@ -512,12 +527,8 @@ func main() {
 }
 ```
 
-### <a name="integration_examples"><a/>Integration's examples
+### <a name="testing"><a/>Testing
 
-[oniontx-examples](https://github.com/kozmod/oniontx-examples) repository contains useful examples for integrations:
+[oniontx-examples](https://github.com/kozmod/oniontx-examples) repository contains useful examples for creating unit test:
 
-- [sqlx](https://github.com/kozmod/oniontx-examples/tree/master/internal/sqlx)
-- [pgx](https://github.com/kozmod/oniontx-examples/tree/master/internal/pgx)
-- [gorm](https://github.com/kozmod/oniontx-examples/tree/master/internal/gorm)
-- [stdlib](https://github.com/kozmod/oniontx-examples/tree/master/internal/stdlib)
-- [mockery](https://github.com/kozmod/oniontx-examples/tree/master/internal/mock/mockery)
+- [vektra/mockery **+** stretchr/testify](https://github.com/kozmod/oniontx-examples/tree/master/internal/mock/mockery)

@@ -31,6 +31,12 @@ test: ## Run tests with coverage
 test.cover.all: ## Run tests with coverage (show all coverage)
 	@go test -v ./... -cover -coverprofile cover.out  && go tool cover -func cover.out
 
+.PHONY: lint
+lint: ## Run `golangci-lint`
+	@go version
+	@golangci-lint --version
+	@golangci-lint run .
+
 .PHONT: tags.add
 tags.add: ## Set root module and submodules tags (git)
 	@(val=$$(echo $(t)| tr -d ' ') && \
@@ -48,12 +54,6 @@ tags.del: ## Delete root module and submodules tags (git)
 .PHONT: tags.list
 tags.list: ## List all exists tags (git)
 	@(git for-each-ref refs/tags --sort=-taggerdate --format='%(refname)')
-
-.PHONY: lint
-lint: ## Run `golangci-lint`
-	@go version
-	@golangci-lint --version
-	@golangci-lint run .
 
 .PHONY: help
 help: ## List all make targets with description
