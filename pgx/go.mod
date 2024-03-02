@@ -1,6 +1,6 @@
 module github.com/kozmod/oniontx/pgx
 
-go 1.21.0
+go 1.22
 
 replace github.com/kozmod/oniontx => ../
 
