@@ -2,4 +2,4 @@
 
 Default implementation of the `Transactor` for `pgx` integration.
 
-[Examples](https://github.com/kozmod/oniontx-examples/tree/master/internal/pgx)
+[Examples](https://github.com/kozmod/oniontx/tree/main/pgx)
