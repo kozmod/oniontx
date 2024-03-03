@@ -88,7 +88,7 @@ func (r *repoB) InsertInTx(ctx context.Context, val string) error {
 	return nil
 }
 ```
-[test/integration](https://github.com/kozmod/oniontx/tree/master/test]) package contains more complicated 
+[test/integration](https://github.com/kozmod/oniontx/tree/master/test) package contains more complicated 
 [example](https://github.com/kozmod/oniontx/tree/master/test/integration).
 
 ---
