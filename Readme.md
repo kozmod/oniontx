@@ -88,8 +88,8 @@ func (r *repoB) InsertInTx(ctx context.Context, val string) error {
 	return nil
 }
 ```
-[test/integration](https://github.com/kozmod/oniont/tree/master/test]) package contains more complicated 
-[example](https://github.com/kozmod/oniont/tree/master/test/integration).
+[test/integration](https://github.com/kozmod/oniontx/tree/master/test]) package contains more complicated 
+[example](https://github.com/kozmod/oniontx/tree/master/test/integration).
 
 ---
 ### <a name="libs"><a/>Default implementation for database libs
@@ -531,4 +531,4 @@ func main() {
 
 [test](https://github.com/kozmod/oniontx/tree/master/test) package contains useful examples for creating unit test:
 
-- [vektra/mockery **+** stretchr/testify](https://github.com/kozmod/oniontx/tree/master/test/internal/integration/mock/mockery)
+- [vektra/mockery **+** stretchr/testify](https://github.com/kozmod/oniontx/tree/main/test/integration/internal/mock/mockery)
