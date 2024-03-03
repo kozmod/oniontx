@@ -7,7 +7,7 @@
 ![GitHub last commit](https://img.shields.io/github/last-commit/kozmod/oniontx)
 [![GitHub MIT license](https://img.shields.io/github/license/kozmod/oniontx)](https://github.com/kozmod/oniontx/blob/dev/LICENSE)
 
-`oniotx` allows to move transferring transaction management from the `Persistence` (repository) layer to the `Application` (service) layer using owner defined contract.
+`oniontx` allows to move transferring transaction management from the `Persistence` (repository) layer to the `Application` (service) layer using owner defined contract.
 # <img src=".github/assets/clean_arch+uml.png" alt="drawing"  width="700" />
 🔴 **NOTE:** `Transactor` was designed to work with only the same instance of the "repository" (`*sql.DB`, etc.)
 ### The key features:
@@ -88,8 +88,8 @@ func (r *repoB) InsertInTx(ctx context.Context, val string) error {
 	return nil
 }
 ```
-[oniontx-examples](https://github.com/kozmod/oniontx-examples) contains more complicated 
-[example](https://github.com/kozmod/oniontx-examples/tree/master/internal/stdlib).
+[test/integration](https://github.com/kozmod/oniont/tree/master/test]) package contains more complicated 
+[example](https://github.com/kozmod/oniont/tree/master/test/integration).
 
 ---
 ### <a name="libs"><a/>Default implementation for database libs
@@ -99,9 +99,9 @@ func (r *repoB) InsertInTx(ctx context.Context, val string) error {
 [gorm](https://github.com/go-gorm/gorm).
 
 Examples:
-- [sqlx](https://github.com/kozmod/oniontx-examples/tree/master/internal/sqlx)
-- [pgx](https://github.com/kozmod/oniontx-examples/tree/master/internal/pgx)
-- [gorm](https://github.com/kozmod/oniontx-examples/tree/master/internal/gorm)
+- [sqlx](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/sqlx)
+- [pgx](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/pgx)
+- [gorm](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/gorm)
 
 ---
 
@@ -529,6 +529,6 @@ func main() {
 
 ### <a name="testing"><a/>Testing
 
-[oniontx-examples](https://github.com/kozmod/oniontx-examples) repository contains useful examples for creating unit test:
+[test](https://github.com/kozmod/oniontx/tree/master/test) package contains useful examples for creating unit test:
 
-- [vektra/mockery **+** stretchr/testify](https://github.com/kozmod/oniontx-examples/tree/master/internal/mock/mockery)
+- [vektra/mockery **+** stretchr/testify](https://github.com/kozmod/oniontx/tree/master/test/internal/integration/mock/mockery)

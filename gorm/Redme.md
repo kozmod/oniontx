@@ -1,4 +1,4 @@
-## gorm/oniontx
+## oniontx/gorm
 
 Default implementation `gorm` of the `Transactor`.
 

@@ -1,4 +1,4 @@
-## stdlib/oniontx
+## oniontx/stdlib
 
 Default implementation of the `Transactor` for `stdlib` integration.
 

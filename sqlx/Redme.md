@@ -1,4 +1,4 @@
-## sqlx/oniontx
+## oniontx/sqlx
 
 Default implementation of the `Transactor` for `sqlx` integration.
 
