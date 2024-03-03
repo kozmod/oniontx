@@ -1,4 +1,4 @@
-## pgx/oniontx
+## oniontx/pgx
 
 Default implementation of the `Transactor` for `pgx` integration.
 

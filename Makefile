@@ -15,9 +15,10 @@ tools.update: ## Update or install tools
 
 .PHONT: deps.update
 deps.update: ## Update dependencies versions (root and sub modules)
-	@go get -u all
+	@GOTOOLCHAIN=local go get -u all
 	@go mod tidy
 	@for d in */ ; do pushd "$$d" && go get -u all && go mod tidy && popd; done
+	@go work sync
 
 .PHONT: go.sync
 go.sync: ## Sync modules

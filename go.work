@@ -6,4 +6,6 @@ use (
 	pgx
 	sqlx
 	stdlib
+	test
+	test/integration/migration
 )

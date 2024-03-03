@@ -1,0 +1,41 @@
+name: Integration test
+
+on: [push]
+
+jobs:
+  integration:
+    services:
+      postgres:
+        image: postgres:14.5-alpine3.16
+        env:
+          POSTGRES_DB: test
+          POSTGRES_PASSWORD: passwd
+          POSTGRES_USER: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.22.0
+
+      - name: Run migrations
+        run: |
+          go version
+
+      - name: Run migrations
+        run: |
+          cd test/integration/migration
+          go run . -cmd up -url "postgresql://test:passwd@localhost:5432/test?sslmode=disable"
+      - name: Run integration tests
+        run: |
+          cd test
+          go test ./...

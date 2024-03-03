@@ -5,7 +5,7 @@ go 1.22
 replace github.com/kozmod/oniontx => ../
 
 require (
-	github.com/kozmod/oniontx v0.0.0
+	github.com/kozmod/oniontx v0.3.1
 	gorm.io/gorm v1.25.7
 )
 

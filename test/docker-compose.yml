@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  postgres:
+    container_name: postgres-oniontx
+    image: postgres:14.5-alpine3.16
+    shm_size: '256m'
+    environment:
+      - POSTGRES_DB=test
+      - POSTGRES_PASSWORD=passwd
+      - POSTGRES_USER=test
+    expose:
+      - "5432"
+    ports:
+      - "5432:5432"
+
+  migration:
+    container_name: migration-oniontx
+    build:
+      context: integration/migration
+    depends_on:
+      - postgres
+    entrypoint:
+      - "/bin/sh"
+      - "-ecx"
+      - "./migration -cmd up -url postgresql://test:passwd@postgres-oniontx:5432/test?sslmode=disable"
