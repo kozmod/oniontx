@@ -2,147 +2,79 @@ package pgx
 
 import (
 	"context"
-	"testing"
-
-	opgx "github.com/kozmod/oniontx/pgx"
-	"github.com/stretchr/testify/assert"
-
-	"github.com/kozmod/oniontx/test/integration/internal/entity"
+	"fmt"
 )
 
-const (
-	textRecord = "text_A"
+type (
+	repository interface {
+		Insert(ctx context.Context, val string) error
+	}
+
+	useCase interface {
+		CreateTextRecords(ctx context.Context, text string) error
+	}
+
+	transactor interface {
+		WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error)
+	}
 )
 
-func Test_UseCase_CreateTextRecords(t *testing.T) {
-	var (
-		globalCtx = context.Background()
-		db        = ConnectDB(globalCtx, t)
-	)
-	defer func() {
-		err := db.Close(globalCtx)
-		assert.NoError(t, err)
-	}()
+type UseCases struct {
+	useCaseA useCase
+	useCaseB useCase
 
-	err := ClearDB(globalCtx, db)
-	assert.NoError(t, err)
+	transactor transactor
+}
 
-	t.Run("success_create", func(t *testing.T) {
-		var (
-			ctx         = context.Background()
-			transactor  = opgx.NewTransactor(db)
-			repositoryA = NewTextRepository(transactor, false)
-			repositoryB = NewTextRepository(transactor, false)
-			useCase     = NewUseCase(repositoryA, repositoryB, transactor)
-		)
+func NewUseCases(useCaseA useCase, useCaseB useCase, transactor transactor) *UseCases {
+	return &UseCases{
+		useCaseA:   useCaseA,
+		useCaseB:   useCaseB,
+		transactor: transactor,
+	}
+}
 
-		err := useCase.CreateTextRecords(ctx, textRecord)
-		assert.NoError(t, err)
-
-		{
-			records, err := GetTextRecords(globalCtx, db)
-			assert.NoError(t, err)
-			assert.Len(t, records, 2)
-			for _, record := range records {
-				assert.Equal(t, textRecord, record)
-			}
+func (u *UseCases) CreateTextRecords(ctx context.Context, text string) error {
+	return u.transactor.WithinTx(ctx, func(ctx context.Context) error {
+		err := u.useCaseA.CreateTextRecords(ctx, text)
+		if err != nil {
+			return fmt.Errorf("text usecase A: %w", err)
 		}
 
-		err = ClearDB(globalCtx, db)
-		assert.NoError(t, err)
-	})
-	t.Run("error_and_rollback", func(t *testing.T) {
-		var (
-			ctx         = context.Background()
-			transactor  = opgx.NewTransactor(db)
-			repositoryA = NewTextRepository(transactor, false)
-			repositoryB = NewTextRepository(transactor, true)
-			useCase     = NewUseCase(repositoryA, repositoryB, transactor)
-		)
-
-		err := useCase.CreateTextRecords(ctx, textRecord)
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, entity.ErrExpected)
-
-		{
-			records, err := GetTextRecords(globalCtx, db)
-			assert.NoError(t, err)
-			assert.Len(t, records, 0)
-
+		err = u.useCaseA.CreateTextRecords(ctx, text)
+		if err != nil {
+			return fmt.Errorf("text usecase B: %w", err)
 		}
-
-		err = ClearDB(globalCtx, db)
-		assert.NoError(t, err)
+		return nil
 	})
 }
 
-func Test_UseCases(t *testing.T) {
-	var (
-		globalCtx = context.Background()
-		db        = ConnectDB(globalCtx, t)
-	)
-	defer func() {
-		err := db.Close(globalCtx)
-		assert.NoError(t, err)
-	}()
+type UseCase struct {
+	textRepoA repository
+	textRepoB repository
 
-	err := ClearDB(globalCtx, db)
-	assert.NoError(t, err)
+	transactor transactor
+}
 
-	t.Run("single_repository", func(t *testing.T) {
-		t.Run("success_create", func(t *testing.T) {
-			var (
-				ctx         = context.Background()
-				transactor  = opgx.NewTransactor(db)
-				repositoryA = NewTextRepository(transactor, false)
-				repositoryB = NewTextRepository(transactor, false)
-				useCases    = NewUseCases(
-					NewUseCase(repositoryA, repositoryB, transactor),
-					NewUseCase(repositoryA, repositoryB, transactor),
-					transactor,
-				)
-			)
+func NewUseCase(textRepoA repository, textRepoB repository, transactor transactor) *UseCase {
+	return &UseCase{
+		textRepoA:  textRepoA,
+		textRepoB:  textRepoB,
+		transactor: transactor,
+	}
+}
 
-			err := useCases.CreateTextRecords(ctx, textRecord)
-			assert.NoError(t, err)
+func (u *UseCase) CreateTextRecords(ctx context.Context, text string) error {
+	return u.transactor.WithinTx(ctx, func(ctx context.Context) error {
+		err := u.textRepoA.Insert(ctx, text)
+		if err != nil {
+			return fmt.Errorf("text repo A: %w", err)
+		}
 
-			{
-				records, err := GetTextRecords(globalCtx, db)
-				assert.NoError(t, err)
-				assert.Len(t, records, 4)
-				for _, record := range records {
-					assert.Equal(t, textRecord, record)
-				}
-			}
-
-			err = ClearDB(globalCtx, db)
-			assert.NoError(t, err)
-		})
-		t.Run("error_and_rollback", func(t *testing.T) {
-			var (
-				ctx         = context.Background()
-				transactor  = opgx.NewTransactor(db)
-				repositoryA = NewTextRepository(transactor, false)
-				repositoryB = NewTextRepository(transactor, true)
-				useCases    = NewUseCases(
-					NewUseCase(repositoryA, repositoryB, transactor),
-					NewUseCase(repositoryA, repositoryB, transactor),
-					transactor,
-				)
-			)
-
-			err := useCases.CreateTextRecords(ctx, textRecord)
-			assert.Error(t, err)
-			assert.ErrorIs(t, err, entity.ErrExpected)
-
-			{
-				records, err := GetTextRecords(globalCtx, db)
-				assert.NoError(t, err)
-				assert.Len(t, records, 0)
-			}
-
-			err = ClearDB(globalCtx, db)
-			assert.NoError(t, err)
-		})
+		err = u.textRepoB.Insert(ctx, text)
+		if err != nil {
+			return fmt.Errorf("text repo B: %w", err)
+		}
+		return nil
 	})
 }
