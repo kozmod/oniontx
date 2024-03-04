@@ -1,6 +1,7 @@
-TAG_REGEXP:= ^[v][0-9]+[.][0-9]+[.][0-9]([-]{0}|[-]{1}[0-9a-zA-Z]+[.]?[0-9a-zA-Z]+)+$$
+TAG_REGEXP=^[v][0-9]+[.][0-9]+[.][0-9]([-]{0}|[-]{1}[0-9a-zA-Z]+[.]?[0-9a-zA-Z]+)+$$
+SUBMODULES=stdlib pgx sqlx gorm
 
-PHONT: tools
+.PHONT: tools
 tools: ## Run tools (vet, gofmt, goimports, tidy, etc.)
 	@go version
 	gofmt -w .
@@ -39,22 +40,44 @@ lint: ## Run `golangci-lint`
 	@golangci-lint run .
 
 .PHONT: tags.add
-tags.add: ## Set root module and submodules tags (git)
+tags.add: ## Add root module and submodules tags (args: t=<v*.*.*-*.*>)(git)
 	@(val=$$(echo $(t)| tr -d ' ') && \
+	branch=$$(git rev-parse --abbrev-ref HEAD) && \
 	if [[ ! $$val =~ ${TAG_REGEXP} ]] ; then echo "not semantic version tag [$$val]" && exit 2; fi && \
-	git tag "$$val" && echo "set root module's tag [$$val]" && \
-	for d in */ ; do git tag "$$d$$val" && echo "set submodule's tag [$$d$$val]"; done)
+	git tag "$$val" && echo "add root module's tag [$$val] on branch [$$branch]" && \
+	for sub in ${SUBMODULES} ; do \
+		git tag "$$sub/$$val" && echo "add submodule's tag [$$sub/$$val] on branch [$$branch]"; \
+	done)
 
 .PHONT: tags.del
-tags.del: ## Delete root module and submodules tags (git)
+tags.del: ## Delete root module and submodules tags (args: t=<v*.*.*-*.*>)(git)
 	@(val=$$(echo $(t)| tr -d ' ') && \
 	if [[ ! $$val =~ ${TAG_REGEXP} ]] ; then echo "not semantic version tag [$$val]" && exit 2; fi && \
-	git tag --delete "$$val" && echo "delete root module's tag [$$val]" && \
-	for d in */ ; do git tag --delete "$$d$$val" && echo "delete submodule's tag [$$d$$val]"; done)
+	git tag --delete "$$val" && \
+	for sub in ${SUBMODULES} ; do \
+    	git tag --delete "$$sub/$$val"; \
+    done)
+
+.PHONT: tags.add.last
+tags.add.last: ## Add tags for submodules based on last tag (matches v*.*.*) which point to last commit (git)
+	@( \
+	git fetch --tags --force && \
+	last_tag=$$(git tag | grep -E '^[v][0-9]+[.][0-9]+[.][0-9]+$$' | sort -t "." -k1,1n -k2,2n -k3,3n | tail -1) &&\
+	last_tag_hash=$$(git rev-list -n 1 "$$last_tag") && \
+	last_commit_hash=$$(git rev-parse HEAD) && \
+	branch=$$(git rev-parse --abbrev-ref HEAD) && \
+	if [[ $$last_tag_hash == $$last_commit_hash ]]; then \
+		for sub in ${SUBMODULES} ; do \
+			git tag "$$sub/$$last_tag" && echo "add submodule's tag [$$sub/$$last_tag] on branch [$$branch]"; \
+		done; \
+	else \
+		echo "last tag [$$last_tag] hash [$$last_tag_hash] and last commit hash [$$last_commit_hash] are different" ; \
+	fi \
+	)
 
 .PHONT: tags.list
 tags.list: ## List all exists tags (git)
-	@(git for-each-ref refs/tags --sort=-taggerdate --format='%(refname)')
+	@(git tag | sort -rt "." -k1,1n -k2,2n -k3,3n | tail -r)
 
 .PHONY: help
 help: ## List all make targets with description
