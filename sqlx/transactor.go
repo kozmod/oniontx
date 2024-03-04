@@ -3,6 +3,7 @@ package sqlx
 import (
 	"context"
 	"database/sql"
+
 	_ "github.com/lib/pq"
 
 	"github.com/jmoiron/sqlx"

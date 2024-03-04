@@ -1,4 +1,4 @@
-TAG_TEMPLATE:= ^[v][0-9]+[.][0-9]+[.][0-9]([-]{0}|[-]{1}[0-9a-zA-Z]+[.]?[0-9a-zA-Z]+)+$$
+TAG_REGEXP:= ^[v][0-9]+[.][0-9]+[.][0-9]([-]{0}|[-]{1}[0-9a-zA-Z]+[.]?[0-9a-zA-Z]+)+$$
 
 PHONT: tools
 tools: ## Run tools (vet, gofmt, goimports, tidy, etc.)
@@ -41,14 +41,14 @@ lint: ## Run `golangci-lint`
 .PHONT: tags.add
 tags.add: ## Set root module and submodules tags (git)
 	@(val=$$(echo $(t)| tr -d ' ') && \
-	if [[ ! $$val =~ ${TAG_TEMPLATE} ]] ; then echo "not semantic version tag [$$val]" && exit 2; fi && \
+	if [[ ! $$val =~ ${TAG_REGEXP} ]] ; then echo "not semantic version tag [$$val]" && exit 2; fi && \
 	git tag "$$val" && echo "set root module's tag [$$val]" && \
 	for d in */ ; do git tag "$$d$$val" && echo "set submodule's tag [$$d$$val]"; done)
 
 .PHONT: tags.del
 tags.del: ## Delete root module and submodules tags (git)
 	@(val=$$(echo $(t)| tr -d ' ') && \
-	if [[ ! $$val =~ ${TAG_TEMPLATE} ]] ; then echo "not semantic version tag [$$val]" && exit 2; fi && \
+	if [[ ! $$val =~ ${TAG_REGEXP} ]] ; then echo "not semantic version tag [$$val]" && exit 2; fi && \
 	git tag --delete "$$val" && echo "delete root module's tag [$$val]" && \
 	for d in */ ; do git tag --delete "$$d$$val" && echo "delete submodule's tag [$$d$$val]"; done)
 
