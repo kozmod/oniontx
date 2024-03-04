@@ -1,8 +1,8 @@
 name: Release
 
 on:
-  create:
-    branch:
+  push:
+    branches:
       - main
     tags:
       - "v*.*.*"
