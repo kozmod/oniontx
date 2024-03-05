@@ -29,12 +29,9 @@ jobs:
 
       - name: Run migrations
         run: |
-          go version
-
-      - name: Run migrations
-        run: |
           cd test/integration/migration
           go run . -cmd up -url "postgresql://test:passwd@localhost:5432/test?sslmode=disable"
+
       - name: Run integration tests
         run: |
           cd test
