@@ -11,7 +11,7 @@ replace (
 )
 
 require (
-	github.com/jackc/pgx/v5 v5.5.3
+	github.com/jackc/pgx/v5 v5.5.4
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/kozmod/oniontx/gorm v0.3.1
 	github.com/kozmod/oniontx/pgx v0.3.1
