@@ -5,7 +5,7 @@ go 1.22
 replace github.com/kozmod/oniontx => ../
 
 require (
-	github.com/jackc/pgx/v5 v5.5.3
+	github.com/jackc/pgx/v5 v5.5.4
 	github.com/kozmod/oniontx v0.3.1
 )
 
