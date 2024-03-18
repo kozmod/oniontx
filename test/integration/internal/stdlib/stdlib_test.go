@@ -77,7 +77,7 @@ func Test_UseCase(t *testing.T) {
 			ctx, cancel = context.WithCancel(context.Background())
 			transactor  = ostdlib.NewTransactor(db)
 			repositoryA = NewTextRepository(transactor, false)
-			repositoryB = NewTextRepository(transactor, true)
+			repositoryB = NewTextRepository(transactor, false)
 			useCase     = NewUseCase(repositoryA, repositoryB, transactor)
 		)
 

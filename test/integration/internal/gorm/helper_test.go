@@ -2,6 +2,7 @@ package gorm
 
 import (
 	"fmt"
+	"gorm.io/gorm/logger"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,7 +13,9 @@ import (
 )
 
 func ConnectDB(t *testing.T) *gorm.DB {
-	db, err := gorm.Open(postgres.Open(entity.ConnectionString), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(entity.ConnectionString), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
 	assert.NoError(t, err)
 	return db
 }
