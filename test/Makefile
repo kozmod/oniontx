@@ -22,7 +22,7 @@ test: ## Run all tests
 
 .PHONY: down
 down:
-	docker compose down -f docker-compose.yml
+	docker compose -f docker-compose.yml down
 
 .PHONY: up
 up: ## Up dest database
