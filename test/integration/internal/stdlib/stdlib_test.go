@@ -72,6 +72,29 @@ func Test_UseCase(t *testing.T) {
 		err = ClearDB(db)
 		assert.NoError(t, err)
 	})
+	t.Run("ctx_canceled_error_and_rollback", func(t *testing.T) {
+		var (
+			ctx, cancel = context.WithCancel(context.Background())
+			transactor  = ostdlib.NewTransactor(db)
+			repositoryA = NewTextRepository(transactor, false)
+			repositoryB = NewTextRepository(transactor, true)
+			useCase     = NewUseCase(repositoryA, repositoryB, transactor)
+		)
+
+		cancel()
+		err := useCase.CreateTextRecords(ctx, textRecord)
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, context.Canceled)
+
+		{
+			records, err := GetTextRecords(db)
+			assert.NoError(t, err)
+			assert.Len(t, records, 0)
+		}
+
+		err = ClearDB(db)
+		assert.NoError(t, err)
+	})
 }
 
 func Test_UseCases(t *testing.T) {

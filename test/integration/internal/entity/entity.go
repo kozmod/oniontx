@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	ConnectionString = "postgresql://test:passwd@localhost:5432/test?sslmode=disable"
+	ConnectionString = "postgresql://test:passwd@localhost:6432/test?sslmode=disable"
 )
 
 var (
