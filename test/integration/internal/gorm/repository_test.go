@@ -40,7 +40,7 @@ func (r *TextRepository) RawInsert(ctx context.Context, val string) error {
 		return entity.ErrExpected
 	}
 	ex := r.transactor.GetExecutor(ctx)
-	ex = ex.Exec(`INSERT INTO gorm (val) VALUES ($1)`, val)
+	ex = ex.WithContext(ctx).Exec(`INSERT INTO gorm (val) VALUES ($1)`, val)
 	if ex.Error != nil {
 		return fmt.Errorf("gorm repository - raw insert: %w", ex.Error)
 	}
@@ -52,7 +52,7 @@ func (r *TextRepository) Insert(ctx context.Context, text Text) error {
 		return entity.ErrExpected
 	}
 	ex := r.transactor.GetExecutor(ctx)
-	ex = ex.Create(text)
+	ex = ex.WithContext(ctx).Create(text)
 	if ex.Error != nil {
 		return fmt.Errorf("gorm repository - raw insert: %w", ex.Error)
 	}

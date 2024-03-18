@@ -29,6 +29,14 @@ func ClearDB(ctx context.Context, db *pgx.Conn) error {
 }
 
 func GetTextRecords(ctx context.Context, db *pgx.Conn) ([]string, error) {
+	if db.IsClosed() {
+		conn, err := pgx.Connect(ctx, entity.ConnectionString)
+		if err != nil {
+			return nil, fmt.Errorf("new cannection: %w", err)
+		}
+		*db = *conn
+	}
+
 	row, err := db.Query(ctx, "SELECT val FROM pgx;")
 	if err != nil {
 		return nil, fmt.Errorf("get `text` records: %w", err)
