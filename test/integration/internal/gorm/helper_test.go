@@ -2,8 +2,9 @@ package gorm
 
 import (
 	"fmt"
-	"gorm.io/gorm/logger"
 	"testing"
+
+	"gorm.io/gorm/logger"
 
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/postgres"
