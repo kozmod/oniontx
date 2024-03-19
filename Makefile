@@ -1,5 +1,6 @@
 TAG_REGEXP=^[v][0-9]+[.][0-9]+[.][0-9]([-]{0}|[-]{1}[0-9a-zA-Z]+[.]?[0-9a-zA-Z]+)+$$
-SUBMODULES=stdlib pgx sqlx gorm
+TAG_SUBMODULES=stdlib pgx sqlx gorm
+SUBMODULES=${TAG_SUBMODULES} test
 
 .PHONT: tools
 tools: ## Run tools (vet, gofmt, goimports, tidy, etc.)
@@ -17,8 +18,11 @@ tools.update: ## Update or install tools
 .PHONT: deps.update
 deps.update: ## Update dependencies versions (root and sub modules)
 	@GOTOOLCHAIN=local go get -u all
+	@(for sub in ${SUBMODULES} ; do \
+		pushd "$$sub" && go get -u all && go mod tidy && go mod download && popd; \
+	done)
 	@go mod tidy
-	@for d in */ ; do pushd "$$d" && go get -u all && go mod tidy && popd; done
+	@go mod download
 	@go work sync
 
 .PHONT: go.sync
@@ -45,7 +49,7 @@ tags.add: ## Add root module and submodules tags (args: t=<v*.*.*-*.*>)(git)
 	branch=$$(git rev-parse --abbrev-ref HEAD) && \
 	if [[ ! $$val =~ ${TAG_REGEXP} ]] ; then echo "not semantic version tag [$$val]" && exit 2; fi && \
 	git tag "$$val" && echo "add root module's tag [$$val] on branch [$$branch]" && \
-	for sub in ${SUBMODULES} ; do \
+	for sub in ${TAG_SUBMODULES} ; do \
 		git tag "$$sub/$$val" && echo "add submodule's tag [$$sub/$$val] on branch [$$branch]"; \
 	done)
 
@@ -54,7 +58,7 @@ tags.del: ## Delete root module and submodules tags (args: t=<v*.*.*-*.*>)(git)
 	@(val=$$(echo $(t)| tr -d ' ') && \
 	if [[ ! $$val =~ ${TAG_REGEXP} ]] ; then echo "not semantic version tag [$$val]" && exit 2; fi && \
 	git tag --delete "$$val" && \
-	for sub in ${SUBMODULES} ; do \
+	for sub in ${TAG_SUBMODULES} ; do \
     	git tag --delete "$$sub/$$val"; \
     done)
 
@@ -67,7 +71,7 @@ tags.add.last: ## Add tags for submodules based on last tag (matches v*.*.*) whi
 	last_commit_hash=$$(git rev-parse HEAD) && \
 	branch=$$(git rev-parse --abbrev-ref HEAD) && \
 	if [[ $$last_tag_hash == $$last_commit_hash ]]; then \
-		for sub in ${SUBMODULES} ; do \
+		for sub in ${TAG_SUBMODULES} ; do \
 			git tag "$$sub/$$last_tag" && echo "add submodule's tag [$$sub/$$last_tag] on branch [$$branch]"; \
 		done; \
 	else \

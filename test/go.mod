@@ -19,7 +19,7 @@ require (
 	github.com/kozmod/oniontx/stdlib v0.3.1
 	github.com/stretchr/testify v1.9.0
 	gorm.io/driver/postgres v1.5.7
-	gorm.io/gorm v1.25.7
+	gorm.io/gorm v1.25.8
 )
 
 require (

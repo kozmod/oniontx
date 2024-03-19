@@ -6,7 +6,7 @@ replace github.com/kozmod/oniontx => ../
 
 require (
 	github.com/kozmod/oniontx v0.3.1
-	gorm.io/gorm v1.25.7
+	gorm.io/gorm v1.25.8
 )
 
 require (
