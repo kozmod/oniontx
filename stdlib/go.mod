@@ -4,4 +4,4 @@ go 1.20
 
 replace github.com/kozmod/oniontx => ../
 
-require github.com/kozmod/oniontx v0.3.1
+require github.com/kozmod/oniontx v0.3.10

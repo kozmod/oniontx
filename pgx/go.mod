@@ -6,7 +6,7 @@ replace github.com/kozmod/oniontx => ../
 
 require (
 	github.com/jackc/pgx/v5 v5.5.5
-	github.com/kozmod/oniontx v0.3.1
+	github.com/kozmod/oniontx v0.3.10
 )
 
 require (

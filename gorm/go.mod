@@ -5,7 +5,7 @@ go 1.20
 replace github.com/kozmod/oniontx => ../
 
 require (
-	github.com/kozmod/oniontx v0.3.1
+	github.com/kozmod/oniontx v0.3.10
 	gorm.io/gorm v1.25.8
 )
 
