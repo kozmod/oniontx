@@ -1,6 +1,6 @@
 module github.com/kozmod/oniontx/gorm
 
-go 1.22
+go 1.20
 
 replace github.com/kozmod/oniontx => ../
 
