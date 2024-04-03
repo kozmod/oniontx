@@ -1,7 +1,7 @@
 package mockery
 
-//go:generate mockery --dir=. --name=repository --outpkg=mockery --output=.  --filename=mock_repository_test.go --structname=repositoryMock
-//go:generate mockery --dir=. --name=transactor --outpkg=mockery --output=.  --filename=mock_transactor_test.go --structname=transactorMock
+//go:generate mockery --inpackage --all  --outpkg=mockery --dir=. --outpkg=profile --output=.
+//go:generate sh ./scripts.sh update_mocks .
 //go:generate git add .
 
 import (
