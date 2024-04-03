@@ -19,7 +19,7 @@ const (
 func Test_mockery(t *testing.T) {
 	t.Run("assert_success", func(t *testing.T) {
 		ctx := context.Background()
-		transactorMock := new(transactorMock)
+		transactorMock := new(mockTransactor)
 		transactorMock.On(transactorMethodWithinTx,
 			ctx,
 			mock.MatchedBy(func(i any) bool {
@@ -28,10 +28,10 @@ func Test_mockery(t *testing.T) {
 				return assert.NoError(t, fn(ctx))
 			})).Return(nil)
 
-		repositoryMockA := new(repositoryMock)
+		repositoryMockA := new(mockRepository)
 		repositoryMockA.On(repositoryMethodInsert, ctx, textValue).Return(nil)
 
-		repositoryMockB := new(repositoryMock)
+		repositoryMockB := new(mockRepository)
 		repositoryMockB.On(repositoryMethodInsert, ctx, textValue).Return(nil)
 
 		useCase := UseCase{
@@ -51,7 +51,7 @@ func Test_mockery(t *testing.T) {
 			trsnsactorErr = fmt.Errorf("transactor_error")
 		)
 
-		transactorMock := new(transactorMock)
+		transactorMock := new(mockTransactor)
 		transactorMock.On(transactorMethodWithinTx,
 			ctx,
 			mock.MatchedBy(func(i any) bool {
@@ -61,10 +61,10 @@ func Test_mockery(t *testing.T) {
 			}),
 		).Return(trsnsactorErr)
 
-		repositoryMockA := new(repositoryMock)
+		repositoryMockA := new(mockRepository)
 		repositoryMockA.On(repositoryMethodInsert, ctx, textValue).Return(nil)
 
-		repositoryMockB := new(repositoryMock)
+		repositoryMockB := new(mockRepository)
 		repositoryMockB.On(repositoryMethodInsert, ctx, textValue).Return(expError)
 
 		useCase := UseCase{
