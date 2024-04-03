@@ -5,10 +5,11 @@ SUBMODULES=${TAG_SUBMODULES} test
 .PHONT: tools
 tools: ## Run tools (vet, gofmt, goimports, tidy, etc.)
 	@go version
-	gofmt -w .
-	goimports -w .
-	go mod tidy
-	go vet ./...
+	@(for sub in ${SUBMODULES} ; do \
+		pushd "$$sub" && gofmt -w . && goimports -w . && go mod tidy && go mod download && popd; \
+	done)
+	@go mod tidy
+	@go mod download
 
 .PHONT: tools.update
 tools.update: ## Update or install tools
