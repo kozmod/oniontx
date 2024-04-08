@@ -71,15 +71,15 @@ func Test_Transactor(t *testing.T) {
 					return nil
 				},
 			}
-			b = beginnerMock[*committerMock, any]{
-				beginFn: func(ctx context.Context, opts ...Option[any]) (*committerMock, error) {
+			b = beginnerMock[*committerMock, txOptionMock]{
+				beginFn: func(ctx context.Context, opts ...txOptionMock) (*committerMock, error) {
 					beginnerCalled = true
 					assertTrue(t, opts == nil)
 					return &c, nil
 				},
 			}
-			o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
-			tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](&b, o)
+			o  = NewContextOperator[*beginnerMock[*committerMock, txOptionMock], *committerMock](&b)
+			tr = NewTransactor[*beginnerMock[*committerMock, txOptionMock], *committerMock](&b, o)
 		)
 		err := tr.WithinTx(ctx, func(ctx context.Context) error {
 			tx, ok := tr.TryGetTx(ctx)
@@ -102,15 +102,15 @@ func Test_Transactor(t *testing.T) {
 					return nil
 				},
 			}
-			b = beginnerMock[*committerMock, any]{
-				beginFn: func(ctx context.Context, opts ...Option[any]) (*committerMock, error) {
+			b = beginnerMock[*committerMock, txOptionMock]{
+				beginFn: func(ctx context.Context, opts ...txOptionMock) (*committerMock, error) {
 					beginnerCalled = true
 					assertTrue(t, opts == nil)
 					return &c, nil
 				},
 			}
-			o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
-			tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](&b, o)
+			o  = NewContextOperator[*beginnerMock[*committerMock, txOptionMock], *committerMock](&b)
+			tr = NewTransactor[*beginnerMock[*committerMock, txOptionMock], *committerMock](&b, o)
 		)
 		err := tr.WithinTx(ctx, func(ctx context.Context) error {
 			beginner := tr.TxBeginner()
@@ -134,15 +134,15 @@ func Test_Transactor(t *testing.T) {
 						return nil
 					},
 				}
-				b = beginnerMock[*committerMock, any]{
-					beginFn: func(ctx context.Context, opts ...Option[any]) (*committerMock, error) {
+				b = beginnerMock[*committerMock, txOptionMock]{
+					beginFn: func(ctx context.Context, opts ...txOptionMock) (*committerMock, error) {
 						beginnerCalled = true
 						assertTrue(t, opts == nil)
 						return &c, nil
 					},
 				}
-				o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
-				tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](&b, o)
+				o  = NewContextOperator[*beginnerMock[*committerMock, txOptionMock], *committerMock](&b)
+				tr = NewTransactor[*beginnerMock[*committerMock, txOptionMock], *committerMock](&b, o)
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
@@ -164,9 +164,9 @@ func Test_Transactor(t *testing.T) {
 						return nil
 					},
 				}
-				b  = beginnerMock[*committerMock, any]{}
-				o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
-				tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](&b, o)
+				b  = beginnerMock[*committerMock, txOptionMock]{}
+				o  = NewContextOperator[*beginnerMock[*committerMock, txOptionMock], *committerMock](&b)
+				tr = NewTransactor[*beginnerMock[*committerMock, txOptionMock], *committerMock](&b, o)
 			)
 			ctx = o.Inject(ctx, &c)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
@@ -190,14 +190,14 @@ func Test_Transactor(t *testing.T) {
 						return expError
 					},
 				}
-				b = beginnerMock[*committerMock, any]{
-					beginFn: func(ctx context.Context, opts ...Option[any]) (*committerMock, error) {
+				b = beginnerMock[*committerMock, txOptionMock]{
+					beginFn: func(ctx context.Context, opts ...txOptionMock) (*committerMock, error) {
 						assertTrue(t, opts == nil)
 						return &c, nil
 					},
 				}
-				o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
-				tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](&b, o)
+				o  = NewContextOperator[*beginnerMock[*committerMock, txOptionMock], *committerMock](&b)
+				tr = NewTransactor[*beginnerMock[*committerMock, txOptionMock], *committerMock](&b, o)
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
@@ -222,15 +222,15 @@ func Test_Transactor(t *testing.T) {
 						return nil
 					},
 				}
-				b = beginnerMock[*committerMock, any]{
-					beginFn: func(ctx context.Context, opts ...Option[any]) (*committerMock, error) {
+				b = beginnerMock[*committerMock, txOptionMock]{
+					beginFn: func(ctx context.Context, opts ...txOptionMock) (*committerMock, error) {
 						beginCalled = true
 						assertTrue(t, opts == nil)
 						return &c, nil
 					},
 				}
-				o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
-				tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](&b, o)
+				o  = NewContextOperator[*beginnerMock[*committerMock, txOptionMock], *committerMock](&b)
+				tr = NewTransactor[*beginnerMock[*committerMock, txOptionMock], *committerMock](&b, o)
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
@@ -257,15 +257,15 @@ func Test_Transactor(t *testing.T) {
 						return rollbackErr
 					},
 				}
-				b = beginnerMock[*committerMock, any]{
-					beginFn: func(ctx context.Context, opts ...Option[any]) (*committerMock, error) {
+				b = beginnerMock[*committerMock, txOptionMock]{
+					beginFn: func(ctx context.Context, opts ...txOptionMock) (*committerMock, error) {
 						beginCalled = true
 						assertTrue(t, opts == nil)
 						return &c, nil
 					},
 				}
-				o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
-				tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](&b, o)
+				o  = NewContextOperator[*beginnerMock[*committerMock, txOptionMock], *committerMock](&b)
+				tr = NewTransactor[*beginnerMock[*committerMock, txOptionMock], *committerMock, txOptionMock](&b, o)
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
@@ -291,15 +291,15 @@ func Test_Transactor(t *testing.T) {
 						return nil
 					},
 				}
-				b = beginnerMock[*committerMock, any]{
-					beginFn: func(ctx context.Context, opts ...Option[any]) (*committerMock, error) {
+				b = beginnerMock[*committerMock, txOptionMock]{
+					beginFn: func(ctx context.Context, opts ...txOptionMock) (*committerMock, error) {
 						beginCalled = true
 						assertTrue(t, opts == nil)
 						return &c, nil
 					},
 				}
-				o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](&b)
-				tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](&b, o)
+				o  = NewContextOperator[*beginnerMock[*committerMock, txOptionMock], *committerMock](&b)
+				tr = NewTransactor[*beginnerMock[*committerMock, txOptionMock], *committerMock](&b, o)
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
@@ -328,15 +328,15 @@ func Test_Transactor(t *testing.T) {
 						return rollbackErr
 					},
 				}
-				b = &beginnerMock[*committerMock, any]{
-					beginFn: func(ctx context.Context, opts ...Option[any]) (*committerMock, error) {
+				b = &beginnerMock[*committerMock, txOptionMock]{
+					beginFn: func(ctx context.Context, opts ...txOptionMock) (*committerMock, error) {
 						beginCalled = true
 						assertTrue(t, opts == nil)
 						return &c, nil
 					},
 				}
-				o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](b)
-				tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](b, o)
+				o  = NewContextOperator[*beginnerMock[*committerMock, txOptionMock], *committerMock](b)
+				tr = NewTransactor[*beginnerMock[*committerMock, txOptionMock], *committerMock](b, o)
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
@@ -356,14 +356,14 @@ func Test_Transactor(t *testing.T) {
 
 				ctx         = context.Background()
 				beginCalled bool
-				b           = &beginnerMock[*committerMock, any]{
-					beginFn: func(ctx context.Context, opts ...Option[any]) (*committerMock, error) {
+				b           = &beginnerMock[*committerMock, txOptionMock]{
+					beginFn: func(ctx context.Context, opts ...txOptionMock) (*committerMock, error) {
 						beginCalled = true
 						return nil, expError
 					},
 				}
-				o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](b)
-				tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](b, o)
+				o  = NewContextOperator[*beginnerMock[*committerMock, txOptionMock], *committerMock](b)
+				tr = NewTransactor[*beginnerMock[*committerMock, txOptionMock], *committerMock](b, o)
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				_, ok := o.Extract(ctx)
@@ -377,8 +377,8 @@ func Test_Transactor(t *testing.T) {
 		t.Run("error_when_beginner_is_nil", func(t *testing.T) {
 			var (
 				ctx = context.Background()
-				o   = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](nil)
-				tr  = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](nil, o)
+				o   = NewContextOperator[*beginnerMock[*committerMock, txOptionMock], *committerMock](nil)
+				tr  = NewTransactor[*beginnerMock[*committerMock, txOptionMock], *committerMock](nil, o)
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				return nil
@@ -388,12 +388,12 @@ func Test_Transactor(t *testing.T) {
 		t.Run("error_when_operator_is_nil", func(t *testing.T) {
 			var (
 				ctx = context.Background()
-				b   = &beginnerMock[*committerMock, any]{
-					beginFn: func(ctx context.Context, opts ...Option[any]) (*committerMock, error) {
+				b   = &beginnerMock[*committerMock, txOptionMock]{
+					beginFn: func(ctx context.Context, opts ...txOptionMock) (*committerMock, error) {
 						return nil, nil
 					},
 				}
-				tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](b, nil)
+				tr = NewTransactor[*beginnerMock[*committerMock, txOptionMock], *committerMock](b, nil)
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				return nil
@@ -450,8 +450,8 @@ func Test_Transactor_recursive_call(t *testing.T) {
 	var (
 		newInstance = func(ctx context.Context) (
 			*committerMock,
-			*ContextOperator[*beginnerMock[*committerMock, any], *committerMock],
-			*Transactor[*beginnerMock[*committerMock, any], *committerMock, any]) {
+			*ContextOperator[*beginnerMock[*committerMock, txOptionMock], *committerMock],
+			*Transactor[*beginnerMock[*committerMock, txOptionMock], *committerMock, txOptionMock, any]) {
 			var (
 				c = committerMock{
 					commitFn: func(ctx context.Context) error {
@@ -464,15 +464,15 @@ func Test_Transactor_recursive_call(t *testing.T) {
 						return nil
 					},
 				}
-				b = &beginnerMock[*committerMock, any]{
-					beginFn: func(ctx context.Context, opts ...Option[any]) (*committerMock, error) {
+				b = &beginnerMock[*committerMock, txOptionMock]{
+					beginFn: func(ctx context.Context, opts ...txOptionMock) (*committerMock, error) {
 						beginCalled++
 						assertTrue(t, opts == nil)
 						return &c, nil
 					},
 				}
-				o  = NewContextOperator[*beginnerMock[*committerMock, any], *committerMock](b)
-				tr = NewTransactor[*beginnerMock[*committerMock, any], *committerMock, any](b, o)
+				o  = NewContextOperator[*beginnerMock[*committerMock, txOptionMock], *committerMock](b)
+				tr = NewTransactor[*beginnerMock[*committerMock, txOptionMock], *committerMock](b, o)
 			)
 			return &c, o, tr
 		}
@@ -700,12 +700,19 @@ func Test_Transactor_recursive_call(t *testing.T) {
 	})
 }
 
-// beginnerMock was added to avoid to use external dependencies for mocking (pointer receiver).
-type beginnerMock[T Tx, O any] struct {
-	beginFn func(ctx context.Context, opts ...Option[O]) (T, error)
+// txOptionMock was added to avoid to use external dependencies for mocking.
+type txOptionMock func(opt any)
+
+func (o txOptionMock) Apply(opt any) {
+	o(opt)
 }
 
-func (b *beginnerMock[T, O]) BeginTx(ctx context.Context, opts ...Option[O]) (T, error) {
+// beginnerMock was added to avoid to use external dependencies for mocking (pointer receiver).
+type beginnerMock[T Tx, O any] struct {
+	beginFn func(ctx context.Context, opts ...txOptionMock) (T, error)
+}
+
+func (b *beginnerMock[T, O]) BeginTx(ctx context.Context, opts ...txOptionMock) (T, error) {
 	return b.beginFn(ctx, opts...)
 }
 
@@ -728,7 +735,7 @@ type beginnerValueMock[T Tx, O any] struct {
 	beginner *beginnerMock[T, O]
 }
 
-func (b beginnerValueMock[T, O]) BeginTx(ctx context.Context, opts ...Option[O]) (T, error) {
+func (b beginnerValueMock[T, O]) BeginTx(ctx context.Context, opts ...txOptionMock) (T, error) {
 	return b.beginner.beginFn(ctx, opts...)
 }
 

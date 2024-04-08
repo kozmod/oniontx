@@ -25,7 +25,7 @@ type dbWrapper struct {
 }
 
 // BeginTx starts a transaction.
-func (db dbWrapper) BeginTx(ctx context.Context, opts ...oniontx.Option[*sql.TxOptions]) (*txWrapper, error) {
+func (db dbWrapper) BeginTx(ctx context.Context, opts ...TxOption) (*txWrapper, error) {
 	var txOptions sql.TxOptions
 	for _, opt := range opts {
 		opt.Apply(&txOptions)
@@ -51,7 +51,7 @@ func (t *txWrapper) Commit(_ context.Context) error {
 
 // Transactor manage a transaction for single [sql.DB] instance.
 type Transactor struct {
-	*oniontx.Transactor[*dbWrapper, *txWrapper, *sql.TxOptions]
+	*oniontx.Transactor[*dbWrapper, *txWrapper, TxOption, *sql.TxOptions]
 }
 
 // NewTransactor returns new [Transactor].
@@ -60,7 +60,7 @@ func NewTransactor(db *sql.DB) *Transactor {
 		base       = dbWrapper{DB: db}
 		operator   = oniontx.NewContextOperator[*dbWrapper, *txWrapper](&base)
 		transactor = Transactor{
-			Transactor: oniontx.NewTransactor[*dbWrapper, *txWrapper, *sql.TxOptions](&base, operator),
+			Transactor: oniontx.NewTransactor[*dbWrapper, *txWrapper](&base, operator),
 		}
 	)
 	return &transactor
@@ -76,7 +76,7 @@ func (t *Transactor) WithinTx(ctx context.Context, fn func(ctx context.Context) 
 // WithinTxWithOpts execute all queries with [sql.Tx] and transaction [sql.TxOptions].
 //
 // Creates new [sql.Tx] or reuse [sql.Tx] obtained from [context.Context].
-func (t *Transactor) WithinTxWithOpts(ctx context.Context, fn func(ctx context.Context) error, opts ...oniontx.Option[*sql.TxOptions]) (err error) {
+func (t *Transactor) WithinTxWithOpts(ctx context.Context, fn func(ctx context.Context) error, opts ...TxOption) (err error) {
 	return t.Transactor.WithinTxWithOpts(ctx, fn, opts...)
 }
 

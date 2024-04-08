@@ -6,6 +6,7 @@ package mockery
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 )
 
@@ -16,6 +17,7 @@ type (
 
 	transactor interface {
 		WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error)
+		WithinTxWithOpts(ctx context.Context, fn func(ctx context.Context) error, opts ...dbOptSetter) (err error)
 	}
 )
 
@@ -39,4 +41,24 @@ func (u *UseCase) CreateTextRecords(ctx context.Context, text string) error {
 		}
 		return nil
 	})
+}
+
+type dbOptSetter func(opt *sql.TxOptions)
+
+func (o dbOptSetter) Apply(opt *sql.TxOptions) {
+	o(opt)
+}
+
+//goland:noinspection GoExportedFuncWithUnexportedType
+func WithIsolationLevel(level int) dbOptSetter {
+	return func(opt *sql.TxOptions) {
+		opt.Isolation = sql.IsolationLevel(level)
+	}
+}
+
+//goland:noinspection GoExportedFuncWithUnexportedType
+func WithReadOnly(readonly bool) dbOptSetter {
+	return func(opt *sql.TxOptions) {
+		opt.ReadOnly = readonly
+	}
 }

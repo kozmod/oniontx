@@ -3,6 +3,8 @@ package stdlib
 import (
 	"context"
 	"fmt"
+
+	oniontx "github.com/kozmod/oniontx/stdlib"
 )
 
 type (
@@ -16,6 +18,7 @@ type (
 
 	transactor interface {
 		WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error)
+		WithinTxWithOpts(ctx context.Context, fn func(ctx context.Context) error, opts ...oniontx.TxOption) (err error)
 	}
 )
 
@@ -35,7 +38,7 @@ func NewUseCases(useCaseA useCase, useCaseB useCase, transactor transactor) *Use
 }
 
 func (u *UseCases) CreateTextRecords(ctx context.Context, text string) error {
-	return u.transactor.WithinTx(ctx, func(ctx context.Context) error {
+	return u.transactor.WithinTxWithOpts(ctx, func(ctx context.Context) error {
 		err := u.useCaseA.CreateTextRecords(ctx, text)
 		if err != nil {
 			return fmt.Errorf("text usecase A: %w", err)
@@ -46,7 +49,7 @@ func (u *UseCases) CreateTextRecords(ctx context.Context, text string) error {
 			return fmt.Errorf("text usecase B: %w", err)
 		}
 		return nil
-	})
+	}, oniontx.WithIsolationLevel(6))
 }
 
 type UseCase struct {

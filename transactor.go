@@ -17,9 +17,9 @@ var (
 
 type (
 	// TxBeginner is responsible for creating new Tx.
-	TxBeginner[T Tx, O any] interface {
+	TxBeginner[T Tx, F Option[O], O any] interface {
 		comparable
-		BeginTx(ctx context.Context, opts ...Option[O]) (T, error)
+		BeginTx(ctx context.Context, opts ...F) (T, error)
 	}
 
 	// Tx represent transaction contract.
@@ -41,16 +41,17 @@ type (
 )
 
 // Transactor manage a transaction for single TxBeginner instance.
-type Transactor[B TxBeginner[T, O], T Tx, O any] struct {
+type Transactor[B TxBeginner[T, F, O], T Tx, F Option[O], O any] struct {
 	beginner B
 	operator СtxOperator[T]
 }
 
 // NewTransactor returns new Transactor.
-func NewTransactor[B TxBeginner[T, O], T Tx, O any](
+func NewTransactor[B TxBeginner[T, F, O], T Tx, F Option[O], O any](
 	beginner B,
-	operator СtxOperator[T]) *Transactor[B, T, O] {
-	return &Transactor[B, T, O]{
+	operator СtxOperator[T],
+) *Transactor[B, T, F, O] {
+	return &Transactor[B, T, F, O]{
 		beginner: beginner,
 		operator: operator,
 	}
@@ -60,7 +61,7 @@ func NewTransactor[B TxBeginner[T, O], T Tx, O any](
 // The function create new Tx or reuse Tx obtained from [context.Context].
 //
 // The behavior described on WithinTxWithOpts function's docs.
-func (t *Transactor[B, T, O]) WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error) {
+func (t *Transactor[B, T, F, O]) WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error) {
 	return t.WithinTxWithOpts(ctx, fn)
 }
 
@@ -101,7 +102,7 @@ NOTE:
 
 + higher level panics override lower level panic (that was transformed to an error) or an error.
 */
-func (t *Transactor[B, T, O]) WithinTxWithOpts(ctx context.Context, fn func(ctx context.Context) error, opts ...Option[O]) (err error) {
+func (t *Transactor[B, T, F, O]) WithinTxWithOpts(ctx context.Context, fn func(ctx context.Context) error, opts ...F) (err error) {
 	var (
 		nilBeginner B
 		nilOperator СtxOperator[T] = nil
@@ -160,12 +161,12 @@ func (t *Transactor[B, T, O]) WithinTxWithOpts(ctx context.Context, fn func(ctx 
 }
 
 // TryGetTx returns pointer of Tx and "true" from [context.Context] or return `false`.
-func (t *Transactor[B, T, O]) TryGetTx(ctx context.Context) (T, bool) {
+func (t *Transactor[B, T, F, O]) TryGetTx(ctx context.Context) (T, bool) {
 	tx, ok := t.operator.Extract(ctx)
 	return tx, ok
 }
 
 // TxBeginner returns pointer of TxBeginner which using in Transactor.
-func (t *Transactor[B, T, O]) TxBeginner() B {
+func (t *Transactor[B, T, F, O]) TxBeginner() B {
 	return t.beginner
 }

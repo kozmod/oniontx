@@ -11,16 +11,13 @@ import (
 
 const (
 	textValue = "some_text"
-
-	repositoryMethodInsert   = "Insert"
-	transactorMethodWithinTx = "WithinTx"
 )
 
 func Test_mockery(t *testing.T) {
 	t.Run("assert_success", func(t *testing.T) {
 		ctx := context.Background()
 		transactorMock := new(mockTransactor)
-		transactorMock.On(transactorMethodWithinTx,
+		transactorMock.On(FN(t, transactor.WithinTx),
 			ctx,
 			mock.MatchedBy(func(i any) bool {
 				fn, ok := i.(func(context.Context) error)
@@ -29,10 +26,10 @@ func Test_mockery(t *testing.T) {
 			})).Return(nil)
 
 		repositoryMockA := new(mockRepository)
-		repositoryMockA.On(repositoryMethodInsert, ctx, textValue).Return(nil)
+		repositoryMockA.On(FN(t, repository.Insert), ctx, textValue).Return(nil)
 
 		repositoryMockB := new(mockRepository)
-		repositoryMockB.On(repositoryMethodInsert, ctx, textValue).Return(nil)
+		repositoryMockB.On(FN(t, repository.Insert), ctx, textValue).Return(nil)
 
 		useCase := UseCase{
 			transactor: transactorMock,
@@ -52,7 +49,7 @@ func Test_mockery(t *testing.T) {
 		)
 
 		transactorMock := new(mockTransactor)
-		transactorMock.On(transactorMethodWithinTx,
+		transactorMock.On(FN(t, transactor.WithinTx),
 			ctx,
 			mock.MatchedBy(func(i any) bool {
 				fn, ok := i.(func(context.Context) error)
@@ -62,10 +59,10 @@ func Test_mockery(t *testing.T) {
 		).Return(trsnsactorErr)
 
 		repositoryMockA := new(mockRepository)
-		repositoryMockA.On(repositoryMethodInsert, ctx, textValue).Return(nil)
+		repositoryMockA.On(FN(t, repository.Insert), ctx, textValue).Return(nil)
 
 		repositoryMockB := new(mockRepository)
-		repositoryMockB.On(repositoryMethodInsert, ctx, textValue).Return(expError)
+		repositoryMockB.On(FN(t, repository.Insert), ctx, textValue).Return(expError)
 
 		useCase := UseCase{
 			transactor: transactorMock,
@@ -77,4 +74,33 @@ func Test_mockery(t *testing.T) {
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, trsnsactorErr)
 	})
+}
+
+func Test(t *testing.T) {
+	var (
+		ctx = context.Background()
+		tr  transactor
+	)
+
+	transactorMock := new(mockTransactor)
+	transactorMock.On(FN(t, transactor.WithinTxWithOpts),
+		ctx,
+		mock.MatchedBy(func(i any) bool {
+			fn, ok := i.(func(context.Context) error)
+			assert.True(t, ok)
+			return assert.NoError(t, fn(ctx))
+		}),
+		mock.MatchedBy(func(i any) bool {
+			_, ok := i.(dbOptSetter)
+			assert.True(t, ok)
+			return true
+		}),
+	).Return(nil)
+
+	tr = transactorMock
+
+	err := tr.WithinTxWithOpts(ctx, func(ctx context.Context) error {
+		return nil
+	}, WithIsolationLevel(1))
+	assert.NoError(t, err)
 }

@@ -15,7 +15,7 @@ type dbWrapper struct {
 }
 
 // BeginTx starts a transaction.
-func (w *dbWrapper) BeginTx(_ context.Context, opts ...oniontx.Option[*sql.TxOptions]) (*dbWrapper, error) {
+func (w *dbWrapper) BeginTx(_ context.Context, opts ...TxOption) (*dbWrapper, error) {
 	var txOptions sql.TxOptions
 	for _, opt := range opts {
 		opt.Apply(&txOptions)
@@ -40,7 +40,7 @@ func (w *dbWrapper) Commit(_ context.Context) error {
 
 // Transactor manage a transaction for single [gorm.DB] instance.
 type Transactor struct {
-	*oniontx.Transactor[*dbWrapper, *dbWrapper, *sql.TxOptions]
+	*oniontx.Transactor[*dbWrapper, *dbWrapper, TxOption, *sql.TxOptions]
 }
 
 // NewTransactor returns new [Transactor] ([gorm] implementation).
@@ -48,7 +48,7 @@ func NewTransactor(db *gorm.DB) *Transactor {
 	var (
 		base       = dbWrapper{DB: db}
 		operator   = oniontx.NewContextOperator[*dbWrapper, *dbWrapper](&base)
-		transactor = oniontx.NewTransactor[*dbWrapper, *dbWrapper, *sql.TxOptions](&base, operator)
+		transactor = oniontx.NewTransactor[*dbWrapper, *dbWrapper](&base, operator)
 	)
 	return &Transactor{
 		Transactor: transactor,
