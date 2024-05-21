@@ -88,8 +88,8 @@ func (r *repoB) InsertInTx(ctx context.Context, val string) error {
 	return nil
 }
 ```
-[test/integration](https://github.com/kozmod/oniontx/tree/master/test) package contains more complicated 
-[example](https://github.com/kozmod/oniontx/tree/master/test/integration).
+[test/integration](https://github.com/kozmod/oniontx/tree/master/test) module contains more complicated 
+[example](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/stdlib).
 
 ---
 ### <a name="libs"><a/>Default implementation for database libs
