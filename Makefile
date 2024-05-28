@@ -1,4 +1,4 @@
-TAG_REGEXP=^[v][0-9]+[.][0-9]+[.][0-9]([-]{0}|[-]{1}[0-9a-zA-Z]+[.]?[0-9a-zA-Z]+)+$$
+TAG_REGEXP=^[v][0-9]+[.][0-9]+[.][0-9]+([-]{0}|[-]{1}[0-9a-zA-Z]+[.]?[0-9a-zA-Z]+)+$$
 TAG_SUBMODULES=stdlib pgx sqlx gorm
 SUBMODULES=${TAG_SUBMODULES} test
 
@@ -83,6 +83,20 @@ tags.add.last: ## Add tags for submodules based on last tag (matches v*.*.*) whi
 .PHONT: tags.list
 tags.list: ## List all exists tags (git)
 	@(git tag | sort -rt "." -k1,1n -k2,2n -k3,3n | tail -r)
+
+.PHONT: change.sub.lib.version
+change.sub.lib.version: ## Change submodules `oniontx` deps version (args: t=<v*.*.*-*.*>)
+	@(val=$$(echo $(t)| tr -d ' ') && \
+	if [[ ! $$val =~ ${TAG_REGEXP} ]]; then \
+		echo "version (tag) of the oniontx is not semantic version tag [$$val]" && exit 2; \
+	else \
+		for sub in ${TAG_SUBMODULES} ; do \
+			pushd $$sub && \
+			echo "change go mod version(tag) of the oniontx to [$$val]" && \
+			sed -i '' "s/github.com\/kozmod\/oniontx v.*/github.com\/kozmod\/oniontx $${val}/g" go.mod && \
+			popd; \
+		done; \
+	fi)
 
 .PHONY: help
 help: ## List all make targets with description
