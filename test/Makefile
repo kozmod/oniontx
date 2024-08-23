@@ -21,16 +21,16 @@ test: ## Run all tests
 	go test ./...
 
 .PHONY: down
-down:
-	docker compose -f docker-compose.yml down
+down: ## Down dest database
+	docker compose -f docker compose.yml down
 
 .PHONY: up
 up: ## Up dest database
-	COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker-compose -f docker-compose.yml up --build --force-recreate
+	COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker compose -f docker-compose.yml up --build --force-recreate
 
 .PHONY: up.d
 up.d: ## Up dest database (detached)
-	COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker-compose -f docker-compose.yml up -d --build --force-recreate
+	COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker compose -f docker-compose.yml up -d --build --force-recreate
 
 .PHONY: help
 help: ## List all make targets with description
