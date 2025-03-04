@@ -23,10 +23,16 @@ func Test_UseCase_CreateTextRecords(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	err := ClearDB(globalCtx, db)
-	assert.NoError(t, err)
+	cleanupFn := func() {
+		err := ClearDB(globalCtx, db)
+		assert.NoError(t, err)
+	}
+
+	cleanupFn()
 
 	t.Run("success_create", func(t *testing.T) {
+		t.Cleanup(cleanupFn)
+
 		var (
 			ctx         = context.Background()
 			transactor  = NewTransactor(db)
@@ -46,11 +52,10 @@ func Test_UseCase_CreateTextRecords(t *testing.T) {
 				assert.Equal(t, textRecord, record)
 			}
 		}
-
-		err = ClearDB(globalCtx, db)
-		assert.NoError(t, err)
 	})
 	t.Run("error_and_rollback", func(t *testing.T) {
+		t.Cleanup(cleanupFn)
+
 		var (
 			ctx         = context.Background()
 			transactor  = NewTransactor(db)
@@ -69,11 +74,10 @@ func Test_UseCase_CreateTextRecords(t *testing.T) {
 			assert.Len(t, records, 0)
 
 		}
-
-		err = ClearDB(globalCtx, db)
-		assert.NoError(t, err)
 	})
 	t.Run("ctx_canceled_error_and_rollback", func(t *testing.T) {
+		t.Cleanup(cleanupFn)
+
 		var (
 			ctx, cancel = context.WithCancel(context.Background())
 			transactor  = NewTransactor(db)
@@ -92,9 +96,6 @@ func Test_UseCase_CreateTextRecords(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Len(t, records, 0)
 		}
-
-		err = ClearDB(globalCtx, db)
-		assert.NoError(t, err)
 	})
 }
 
@@ -108,11 +109,17 @@ func Test_UseCases(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	err := ClearDB(globalCtx, db)
-	assert.NoError(t, err)
+	cleanupFn := func() {
+		err := ClearDB(globalCtx, db)
+		assert.NoError(t, err)
+	}
+
+	cleanupFn()
 
 	t.Run("single_repository", func(t *testing.T) {
 		t.Run("success_create", func(t *testing.T) {
+			t.Cleanup(cleanupFn)
+
 			var (
 				ctx         = context.Background()
 				transactor  = NewTransactor(db)
@@ -136,11 +143,10 @@ func Test_UseCases(t *testing.T) {
 					assert.Equal(t, textRecord, record)
 				}
 			}
-
-			err = ClearDB(globalCtx, db)
-			assert.NoError(t, err)
 		})
 		t.Run("error_and_rollback", func(t *testing.T) {
+			t.Cleanup(cleanupFn)
+
 			var (
 				ctx         = context.Background()
 				transactor  = NewTransactor(db)
@@ -162,9 +168,6 @@ func Test_UseCases(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Len(t, records, 0)
 			}
-
-			err = ClearDB(globalCtx, db)
-			assert.NoError(t, err)
 		})
 	})
 }
