@@ -92,13 +92,8 @@ func (r *repoB) InsertInTx(ctx context.Context, val string) error {
 [example](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/stdlib).
 
 ---
-### <a name="libs"><a/>Default implementation for database libs
-`oniontx` has default implementation (as submodules) for maintaining transactions for database libraries:
-[sqlx](https://github.com/jmoiron/sqlx), 
-[pgx](https://github.com/jackc/pgx), 
-[gorm](https://github.com/go-gorm/gorm).
-
-Examples:
+### <a name="libs"><a/>Default implementation examples for database libs
+Examples of default implementation of `Transactor` (sqlx, pgx, gorm):
 - [sqlx](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/sqlx)
 - [pgx](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/pgx)
 - [gorm](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/gorm)
