@@ -1,6 +1,5 @@
 TAG_REGEXP=^[v][0-9]+[.][0-9]+[.][0-9]+([-]{0}|[-]{1}[0-9a-zA-Z]+[.]?[0-9a-zA-Z]+)+$$
-TAG_SUBMODULES=stdlib pgx sqlx gorm
-SUBMODULES=${TAG_SUBMODULES} test
+SUBMODULES=test
 
 .PHONT: tools
 tools: ## Run tools (vet, gofmt, goimports, tidy, etc.)
@@ -49,54 +48,17 @@ tags.add: ## Add root module and submodules tags (args: t=<v*.*.*-*.*>)(git)
 	@(val=$$(echo $(t)| tr -d ' ') && \
 	branch=$$(git rev-parse --abbrev-ref HEAD) && \
 	if [[ ! $$val =~ ${TAG_REGEXP} ]] ; then echo "not semantic version tag [$$val]" && exit 2; fi && \
-	git tag "$$val" && echo "add root module's tag [$$val] on branch [$$branch]" && \
-	for sub in ${TAG_SUBMODULES} ; do \
-		git tag "$$sub/$$val" && echo "add submodule's tag [$$sub/$$val] on branch [$$branch]"; \
-	done)
+	git tag "$$val" && echo "add root module's tag [$$val] on branch [$$branch]"
 
 .PHONT: tags.del
 tags.del: ## Delete root module and submodules tags (args: t=<v*.*.*-*.*>)(git)
 	@(val=$$(echo $(t)| tr -d ' ') && \
 	if [[ ! $$val =~ ${TAG_REGEXP} ]] ; then echo "not semantic version tag [$$val]" && exit 2; fi && \
-	git tag --delete "$$val" && \
-	for sub in ${TAG_SUBMODULES} ; do \
-    	git tag --delete "$$sub/$$val"; \
-    done)
-
-.PHONT: tags.add.last
-tags.add.last: ## Add tags for submodules based on last tag (matches v*.*.*) which point to last commit (git)
-	@( \
-	git fetch --tags --force && \
-	last_tag=$$(git tag | grep -E '^[v][0-9]+[.][0-9]+[.][0-9]+$$' | sort -t "." -k1,1n -k2,2n -k3,3n | tail -1) &&\
-	last_tag_hash=$$(git rev-list -n 1 "$$last_tag") && \
-	last_commit_hash=$$(git rev-parse HEAD) && \
-	branch=$$(git rev-parse --abbrev-ref HEAD) && \
-	if [[ $$last_tag_hash == $$last_commit_hash ]]; then \
-		for sub in ${TAG_SUBMODULES} ; do \
-			git tag "$$sub/$$last_tag" && echo "add submodule's tag [$$sub/$$last_tag] on branch [$$branch]"; \
-		done; \
-	else \
-		echo "last tag [$$last_tag] hash [$$last_tag_hash] and last commit hash [$$last_commit_hash] are different" ; \
-	fi \
-	)
+	git tag --delete "$$val"
 
 .PHONT: tags.list
 tags.list: ## List all exists tags (git)
 	@(git tag | sort -rt "." -k1,1n -k2,2n -k3,3n | tail -r)
-
-.PHONT: change.sub.lib.version
-change.sub.lib.version: ## Change submodules `oniontx` deps version (args: t=<v*.*.*-*.*>)
-	@(val=$$(echo $(t)| tr -d ' ') && \
-	if [[ ! $$val =~ ${TAG_REGEXP} ]]; then \
-		echo "version (tag) of the oniontx is not semantic version tag [$$val]" && exit 2; \
-	else \
-		for sub in ${TAG_SUBMODULES} ; do \
-			pushd $$sub && \
-			echo "change go mod version(tag) of the oniontx to [$$val]" && \
-			sed -i '' "s/github.com\/kozmod\/oniontx v.*/github.com\/kozmod\/oniontx $${val}/g" go.mod && \
-			popd; \
-		done; \
-	fi)
 
 .PHONY: help
 help: ## List all make targets with description
