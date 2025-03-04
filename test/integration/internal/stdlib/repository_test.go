@@ -4,14 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	ostdlib "github.com/kozmod/oniontx/stdlib"
-
 	"github.com/kozmod/oniontx/test/integration/internal/entity"
 )
 
 type (
 	repoTransactor interface {
-		GetExecutor(ctx context.Context) ostdlib.Executor
+		GetExecutor(ctx context.Context) Executor
 	}
 )
 

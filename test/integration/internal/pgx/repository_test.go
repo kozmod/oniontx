@@ -4,14 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	oniontx "github.com/kozmod/oniontx/pgx"
-
 	"github.com/kozmod/oniontx/test/integration/internal/entity"
 )
 
 type (
 	repoTransactor interface {
-		GetExecutor(ctx context.Context) oniontx.Executor
+		GetExecutor(ctx context.Context) Executor
 	}
 )
 

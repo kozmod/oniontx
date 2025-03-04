@@ -4,14 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	osqlx "github.com/kozmod/oniontx/sqlx"
-
 	"github.com/kozmod/oniontx/test/integration/internal/entity"
 )
 
 type (
 	repoTransactor interface {
-		GetExecutor(ctx context.Context) osqlx.Executor
+		GetExecutor(ctx context.Context) Executor
 	}
 )
 

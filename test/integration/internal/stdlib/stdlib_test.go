@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	ostdlib "github.com/kozmod/oniontx/stdlib"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/kozmod/oniontx/test/integration/internal/entity"
@@ -29,7 +28,7 @@ func Test_UseCase(t *testing.T) {
 	t.Run("success_create", func(t *testing.T) {
 		var (
 			ctx         = context.Background()
-			transactor  = ostdlib.NewTransactor(db)
+			transactor  = NewTransactor(db)
 			repositoryA = NewTextRepository(transactor, false)
 			repositoryB = NewTextRepository(transactor, false)
 			useCase     = NewUseCase(repositoryA, repositoryB, transactor)
@@ -53,7 +52,7 @@ func Test_UseCase(t *testing.T) {
 	t.Run("error_and_rollback", func(t *testing.T) {
 		var (
 			ctx         = context.Background()
-			transactor  = ostdlib.NewTransactor(db)
+			transactor  = NewTransactor(db)
 			repositoryA = NewTextRepository(transactor, false)
 			repositoryB = NewTextRepository(transactor, true)
 			useCase     = NewUseCase(repositoryA, repositoryB, transactor)
@@ -75,7 +74,7 @@ func Test_UseCase(t *testing.T) {
 	t.Run("ctx_canceled_error_and_rollback", func(t *testing.T) {
 		var (
 			ctx, cancel = context.WithCancel(context.Background())
-			transactor  = ostdlib.NewTransactor(db)
+			transactor  = NewTransactor(db)
 			repositoryA = NewTextRepository(transactor, false)
 			repositoryB = NewTextRepository(transactor, false)
 			useCase     = NewUseCase(repositoryA, repositoryB, transactor)
@@ -113,7 +112,7 @@ func Test_UseCases(t *testing.T) {
 		t.Run("success_create", func(t *testing.T) {
 			var (
 				ctx         = context.Background()
-				transactor  = ostdlib.NewTransactor(db)
+				transactor  = NewTransactor(db)
 				repositoryA = NewTextRepository(transactor, false)
 				repositoryB = NewTextRepository(transactor, false)
 				useCases    = NewUseCases(
@@ -141,7 +140,7 @@ func Test_UseCases(t *testing.T) {
 		t.Run("error_and_rollback", func(t *testing.T) {
 			var (
 				ctx         = context.Background()
-				transactor  = ostdlib.NewTransactor(db)
+				transactor  = NewTransactor(db)
 				repositoryA = NewTextRepository(transactor, false)
 				repositoryB = NewTextRepository(transactor, true)
 				useCases    = NewUseCases(

@@ -2,10 +2,6 @@ go 1.20
 
 use (
 	.
-	gorm
-	pgx
-	sqlx
-	stdlib
 	test
 	test/integration/migration
 )
