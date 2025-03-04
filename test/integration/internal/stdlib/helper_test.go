@@ -13,7 +13,9 @@ import (
 )
 
 func ConnectDB(t *testing.T) *sql.DB {
-	connConfig, err := pgx.ParseConfig(entity.ConnectionString)
+	t.Helper()
+
+	connConfig, err := pgx.ParseConfig(entity.PostgresConnectionString)
 	assert.NoError(t, err)
 
 	connStr := stdlib.RegisterConnConfig(connConfig)

@@ -4,17 +4,18 @@ import (
 	"fmt"
 	"testing"
 
-	"gorm.io/gorm/logger"
-
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 
 	"github.com/kozmod/oniontx/test/integration/internal/entity"
 )
 
 func ConnectDB(t *testing.T) *gorm.DB {
-	db, err := gorm.Open(postgres.Open(entity.ConnectionString), &gorm.Config{
+	t.Helper()
+
+	db, err := gorm.Open(postgres.Open(entity.PostgresConnectionString), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	assert.NoError(t, err)

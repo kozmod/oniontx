@@ -12,7 +12,7 @@ import (
 )
 
 func ConnectDB(t *testing.T) *sqlx.DB {
-	db, err := sqlx.Connect("postgres", entity.ConnectionString)
+	db, err := sqlx.Connect("postgres", entity.PostgresConnectionString)
 	assert.NoError(t, err)
 
 	err = db.Ping()

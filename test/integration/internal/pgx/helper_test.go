@@ -12,7 +12,9 @@ import (
 )
 
 func ConnectDB(ctx context.Context, t *testing.T) *pgx.Conn {
-	conn, err := pgx.Connect(ctx, entity.ConnectionString)
+	t.Helper()
+
+	conn, err := pgx.Connect(ctx, entity.PostgresConnectionString)
 	assert.NoError(t, err)
 
 	err = conn.Ping(ctx)
@@ -30,7 +32,7 @@ func ClearDB(ctx context.Context, db *pgx.Conn) error {
 
 func GetTextRecords(ctx context.Context, db *pgx.Conn) ([]string, error) {
 	if db.IsClosed() {
-		conn, err := pgx.Connect(ctx, entity.ConnectionString)
+		conn, err := pgx.Connect(ctx, entity.PostgresConnectionString)
 		if err != nil {
 			return nil, fmt.Errorf("new cannection: %w", err)
 		}
