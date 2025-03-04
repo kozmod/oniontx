@@ -1,4 +1,4 @@
-.PHONT: tools
+.PHONY: tools
 tools: ## Run tools (vet, gofmt, goimports, tidy, etc.)
 	@go version
 	gofmt -w .
@@ -6,7 +6,7 @@ tools: ## Run tools (vet, gofmt, goimports, tidy, etc.)
 	go mod tidy
 	go vet ./...
 
-.PHONT: deps.update
+.PHONY: deps.update
 deps.update: ## Update dependencies versions
 	go get -u all
 	go mod tidy
