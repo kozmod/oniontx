@@ -1,7 +1,7 @@
 TAG_REGEXP=^[v][0-9]+[.][0-9]+[.][0-9]+([-]{0}|[-]{1}[0-9a-zA-Z]+[.]?[0-9a-zA-Z]+)+$$
 SUBMODULES=test
 
-.PHONT: tools
+.PHONY: tools
 tools: ## Run tools (vet, gofmt, goimports, tidy, etc.)
 	@go version
 	@(for sub in ${SUBMODULES} ; do \
@@ -10,12 +10,12 @@ tools: ## Run tools (vet, gofmt, goimports, tidy, etc.)
 	@go mod tidy
 	@go mod download
 
-.PHONT: tools.update
+.PHONY: tools.update
 tools.update: ## Update or install tools
 	go install golang.org/x/tools/cmd/goimports@latest
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
-.PHONT: deps.update
+.PHONY: deps.update
 deps.update: ## Update dependencies versions (root and sub modules)
 	@GOTOOLCHAIN=local go get -u all
 	@(for sub in ${SUBMODULES} ; do \
@@ -25,15 +25,15 @@ deps.update: ## Update dependencies versions (root and sub modules)
 	@go mod download
 	@go work sync
 
-.PHONT: go.sync
+.PHONY: go.sync
 go.sync: ## Sync modules
 	@go work sync
 
-.PHONT: test
+.PHONY: test
 test: ## Run tests with coverage
 	@go test ./... -cover
 
-.PHONT: test.cover.all
+.PHONY: test.cover.all
 test.cover.all: ## Run tests with coverage (show all coverage)
 	@go test -v ./... -cover -coverprofile cover.out  && go tool cover -func cover.out
 
@@ -43,20 +43,20 @@ lint: ## Run `golangci-lint`
 	@golangci-lint --version
 	@golangci-lint run .
 
-.PHONT: tags.add
+.PHONY: tags.add
 tags.add: ## Add root module and submodules tags (args: t=<v*.*.*-*.*>)(git)
 	@(val=$$(echo $(t)| tr -d ' ') && \
 	branch=$$(git rev-parse --abbrev-ref HEAD) && \
 	if [[ ! $$val =~ ${TAG_REGEXP} ]] ; then echo "not semantic version tag [$$val]" && exit 2; fi && \
 	git tag "$$val" && echo "add root module's tag [$$val] on branch [$$branch]"
 
-.PHONT: tags.del
+.PHONY: tags.del
 tags.del: ## Delete root module and submodules tags (args: t=<v*.*.*-*.*>)(git)
 	@(val=$$(echo $(t)| tr -d ' ') && \
 	if [[ ! $$val =~ ${TAG_REGEXP} ]] ; then echo "not semantic version tag [$$val]" && exit 2; fi && \
 	git tag --delete "$$val"
 
-.PHONT: tags.list
+.PHONY: tags.list
 tags.list: ## List all exists tags (git)
 	@(git tag | sort -rt "." -k1,1n -k2,2n -k3,3n | tail -r)
 
