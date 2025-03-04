@@ -41,7 +41,7 @@ func (u *UseCases) CreateTextRecords(ctx context.Context, text string) error {
 			return fmt.Errorf("text usecase A: %w", err)
 		}
 
-		err = u.useCaseA.CreateTextRecords(ctx, text)
+		err = u.useCaseB.CreateTextRecords(ctx, text)
 		if err != nil {
 			return fmt.Errorf("text usecase B: %w", err)
 		}
