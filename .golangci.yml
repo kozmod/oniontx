@@ -4,22 +4,17 @@ run:
   timeout: 5m
   issues-exit-code: 1
   tests: true
-  skip-dirs:
-    - bin
-    - vendor
-    - var
-    - tmp
-    - .github
   go: '1.20'
 
 output:
-  format: colored-line-number
+  formats:
+    - format: colored-line-number
   print-issued-lines: true
   print-linter-name: true
 
 linters-settings:
   govet:
-    check-shadowing: true
+    shadow: true
   dupl:
     threshold: 100
   goconst:
@@ -60,13 +55,21 @@ linters:
     - gosec
     - govet
     - ineffassign
-    - megacheck
+    - gosimple
+    - staticcheck
+    - unused
     # - revive # comment check
     - typecheck
     - unused # will be used insted of varcheck + deadcode + structcheck. More info https://github.com/golangci/golangci-lint/issues/1841
 
 issues:
   exclude-use-default: false
+  exclude-dirs:
+    - bin
+    - vendor
+    - var
+    - tmp
+    - .github
   exclude:
     # _ instead of err checks
     - G104
