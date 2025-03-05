@@ -8,11 +8,13 @@ import (
 )
 
 type (
+	// redisTransactor is a contract of the custom [Transactor].
 	redisTransactor interface {
 		GetExecutor(ctx context.Context) Pipeliner
 	}
 )
 
+// Client is the Redis client wrapper.
 type Client struct {
 	transactor redisTransactor
 

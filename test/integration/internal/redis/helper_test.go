@@ -12,12 +12,9 @@ import (
 
 func Connect(t *testing.T, ctx context.Context) *redis.Client {
 	t.Helper()
-
 	client := redis.NewClient(&redis.Options{
-		Addr:     entity.RedisHostPort,
-		Username: entity.RedisUser,
-		Password: entity.RedisUserPassword,
-		DB:       0, // use default DB
+		Addr: entity.RedisAddr,
+		DB:   0, // use default DB
 	})
 	err := client.Ping(ctx).Err()
 	assert.NoError(t, err)
