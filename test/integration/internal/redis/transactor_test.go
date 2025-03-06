@@ -8,7 +8,7 @@ import (
 	"github.com/kozmod/oniontx"
 )
 
-// Pipliner represents common methods of [redis.Client] and [redis.Pipeliner].
+// Pipeliner represents common methods of [redis.Client] and [redis.Pipeliner].
 type Pipeliner interface {
 	Process(ctx context.Context, cmd redis.Cmder) error
 	redis.StringCmdable
