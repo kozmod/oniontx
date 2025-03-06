@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-// connection credentials (oniontx/test/.env)
+// connection credentials
 const (
 	PostgresConnectionString = "postgresql://test:passwd@localhost:6432/test?sslmode=disable"
 
