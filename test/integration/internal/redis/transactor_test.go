@@ -34,7 +34,7 @@ type pipelinerWrapper struct {
 
 // Rollback aborts the transaction.
 func (t *pipelinerWrapper) Rollback(_ context.Context) error {
-	//t.Discard()
+	t.Discard()
 	return nil
 }
 
