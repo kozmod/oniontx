@@ -10,8 +10,27 @@ import (
 	"github.com/kozmod/oniontx"
 )
 
-// mongoTxOpt is the alias for list of Mongo transaction options.
-type mongoTxOpt = []options.Lister[options.TransactionOptions]
+// MongoTxOpt transaction and session options.
+type SessionAndTxOpts struct {
+	SessionOptions     *[]options.Lister[options.SessionOptions]
+	TransactionOptions *[]options.Lister[options.TransactionOptions]
+}
+
+// GetSessionOptions return all [options.SessionOptions].
+func (o SessionAndTxOpts) GetSessionOptions() []options.Lister[options.SessionOptions] {
+	if o.SessionOptions == nil {
+		return nil
+	}
+	return *o.SessionOptions
+}
+
+// GetTransactionOptions return all [options.TransactionOptions]].
+func (o SessionAndTxOpts) GetTransactionOptions() []options.Lister[options.TransactionOptions] {
+	if o.TransactionOptions == nil {
+		return nil
+	}
+	return *o.TransactionOptions
+}
 
 // mongoClientWrapper wraps [mongo.Client] and implements [oniontx.TxBeginner].
 type mongoClientWrapper struct {
@@ -19,18 +38,21 @@ type mongoClientWrapper struct {
 }
 
 // BeginTx starts a transaction.
-func (c mongoClientWrapper) BeginTx(ctx context.Context, opts ...oniontx.Option[mongoTxOpt]) (*sessionWrapper, error) {
+func (c mongoClientWrapper) BeginTx(ctx context.Context, opts ...oniontx.Option[*SessionAndTxOpts]) (*sessionWrapper, error) {
 	// need to init options
-	var mongoTxOptions []options.Lister[options.TransactionOptions]
+	mongoOptions := SessionAndTxOpts{
+		SessionOptions:     new([]options.Lister[options.SessionOptions]),
+		TransactionOptions: new([]options.Lister[options.TransactionOptions]),
+	}
 	for _, opt := range opts {
-		opt.Apply(mongoTxOptions)
+		opt.Apply(&mongoOptions)
 	}
 
-	session, err := c.Client.StartSession()
+	session, err := c.Client.StartSession(mongoOptions.GetSessionOptions()...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start mongo session: %w", err)
 	}
-	if err = session.StartTransaction(mongoTxOptions...); err != nil {
+	if err = session.StartTransaction(mongoOptions.GetTransactionOptions()...); err != nil {
 		defer session.EndSession(ctx)
 		return nil, fmt.Errorf("failed to start mongo transaction: %w", err)
 	}
@@ -58,7 +80,7 @@ func (t *sessionWrapper) Commit(ctx context.Context) error {
 
 // Transactor manage a transaction for single [redis.Client] instance.
 type Transactor struct {
-	*oniontx.Transactor[*mongoClientWrapper, *sessionWrapper, mongoTxOpt]
+	*oniontx.Transactor[*mongoClientWrapper, *sessionWrapper, *SessionAndTxOpts]
 }
 
 // NewTransactor returns new [Transactor].
@@ -67,7 +89,7 @@ func NewTransactor(client *mongo.Client) *Transactor {
 		base       = mongoClientWrapper{Client: client}
 		operator   = oniontx.NewContextOperator[*mongoClientWrapper, *sessionWrapper](&base)
 		transactor = Transactor{
-			Transactor: oniontx.NewTransactor[*mongoClientWrapper, *sessionWrapper, mongoTxOpt](&base, operator),
+			Transactor: oniontx.NewTransactor[*mongoClientWrapper, *sessionWrapper, *SessionAndTxOpts](&base, operator),
 		}
 	)
 	return &transactor
@@ -78,6 +100,13 @@ func NewTransactor(client *mongo.Client) *Transactor {
 // Creates new [mongo.Session] or reuse [mongo.Session] obtained from [context.Context].
 func (t *Transactor) WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error) {
 	return t.Transactor.WithinTx(ctx, fn)
+}
+
+// WithinTxWithOpts execute all queries with [mongo.Session](set [options.SessionOptions] and [options.TransactionOptions].
+//
+// Creates new [mongo.Session] or reuse [mongo.Session] obtained from [context.Context].
+func (t *Transactor) WithinTxWithOpts(ctx context.Context, fn func(ctx context.Context) error, opts ...oniontx.Option[*SessionAndTxOpts]) (err error) {
+	return t.Transactor.WithinTxWithOpts(ctx, fn, opts...)
 }
 
 // Session returns pointer of [mongo.Session].
