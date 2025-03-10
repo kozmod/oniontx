@@ -2,6 +2,7 @@ package mongo
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -150,6 +151,62 @@ func Test(t *testing.T) {
 			assert.Equal(t, dummyData, data)
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "mongo: no documents in result")
+		})
+	})
+	t.Run("with_options", func(t *testing.T) {
+		t.Run("success__journaled", func(t *testing.T) {
+			t.Cleanup(cleanupFn)
+
+			var (
+				ctx        = context.Background()
+				transactor = NewTransactor(client)
+				repoA      = NewRepository(collectionA, transactor, false)
+				repoB      = NewRepository(collectionA, transactor, false)
+			)
+
+			err := transactor.WithinTxWithOpts(ctx, func(ctx context.Context) error {
+				err := repoA.Save(ctx, testDataValA)
+				assert.NoError(t, err)
+				err = repoB.Save(ctx, testDataChange)
+				assert.NoError(t, err)
+				return err
+			},
+				Journaled(true),
+			)
+			assert.NoError(t, err)
+
+			data, err := GetDataByID(ctx, t, collectionA, testID)
+			assert.NoError(t, err)
+			assert.Equal(t, testDataChange, data)
+		})
+		t.Run("error_start_when_snapshot_session_was_set", func(t *testing.T) {
+			t.Cleanup(cleanupFn)
+
+			var (
+				ctx        = context.Background()
+				transactor = NewTransactor(client)
+				repoA      = NewRepository(collectionA, transactor, false)
+				repoB      = NewRepository(collectionA, transactor, false)
+			)
+
+			err := transactor.WithinTxWithOpts(ctx, func(ctx context.Context) error {
+				if err := repoA.Save(ctx, testDataValA); err != nil {
+					return fmt.Errorf("fist call in tx: %w", err)
+				}
+				if err := repoB.Save(ctx, testDataChange); err != nil {
+					return fmt.Errorf("second call in tx: %w", err)
+				}
+				return nil
+			},
+				SetSessionSnapshot(true), // error: transactions are not supported in snapshot sessions
+				Journaled(true),
+			)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "transactions are not supported in snapshot sessions")
+
+			data, err := GetDataByID(ctx, t, collectionA, testID)
+			assert.Error(t, err)
+			assert.Equal(t, dummyData, data)
 		})
 	})
 }
