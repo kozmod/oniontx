@@ -14,7 +14,9 @@ type (
 )
 
 type TextRepository struct {
-	transactor    repoTransactor
+	transactor repoTransactor
+
+	// errorExpected - need to emulate error
 	errorExpected bool
 }
 
