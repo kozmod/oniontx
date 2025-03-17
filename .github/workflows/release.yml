@@ -5,7 +5,20 @@ on:
     tags:
       - 'v[0-9].[0-9]+.[0-9]+'
 
+permissions:
+  contents: read
+
 jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+    secrets: inherit
+  integration_test:
+    uses: ./.github/workflows/integration_test.yml
+    secrets: inherit
+  lint:
+    uses: ./.github/workflows/lint.yml
+    secrets: inherit
+
   release:
     runs-on: ubuntu-latest
     steps:
