@@ -410,11 +410,15 @@ func Test_Transactor_recursive_call(t *testing.T) {
 		ctxValSecondLvl = "second_lvl"
 		ctxValThirdLvl  = "third_lvl"
 	)
+	type (
+		Key struct{}
+	)
+
 	/*
 		functions to inject and check recursion level
 	*/
 	var (
-		ctxKey    struct{}
+		ctxKey    Key
 		injectLvl = func(ctx context.Context, lvl string) context.Context {
 			t.Helper()
 			return context.WithValue(ctx, ctxKey, lvl)

@@ -16,12 +16,12 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.22.0
+          go-version: 1.23.1
 
       - name: Test
         run: go test -v ./... -cover -coverprofile cover.out  && go tool cover -func cover.out
