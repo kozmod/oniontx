@@ -1,8 +1,13 @@
 name: Integration test
 
 on:
-  - push
-  - workflow_call
+  push:
+    tags-ignore:
+      - '**'
+    branches:
+      - '**'
+  pull_request:
+  workflow_call:
 
 permissions:
   contents: read

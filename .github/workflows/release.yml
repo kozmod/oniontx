@@ -21,6 +21,10 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
+    needs:
+      - test
+      - integration_test
+      - lint
     steps:
       - name: Print tag
         run: |
