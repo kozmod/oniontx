@@ -1,6 +1,6 @@
 module github.com/kozmod/oniontx-examples/migration
 
-go 1.20
+go 1.23.1
 
 require (
 	github.com/jackc/pgx/v5 v5.5.5
@@ -16,8 +16,8 @@ require (
 	github.com/sethvargo/go-retry v0.2.4 // indirect
 	github.com/stretchr/testify v1.9.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.33.0 // indirect
-	golang.org/x/net v0.33.0 // indirect
+	golang.org/x/crypto v0.35.0 // indirect
+	golang.org/x/net v0.36.0 // indirect
 	golang.org/x/sync v0.11.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
 )
