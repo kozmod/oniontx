@@ -7,7 +7,7 @@ require (
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/kozmod/oniontx v0.3.10
 	github.com/lib/pq v1.10.9
-	github.com/redis/go-redis/v9 v9.7.1
+	github.com/redis/go-redis/v9 v9.7.3
 	github.com/stretchr/testify v1.9.0
 	go.mongodb.org/mongo-driver/v2 v2.1.0
 	gorm.io/driver/postgres v1.5.7
