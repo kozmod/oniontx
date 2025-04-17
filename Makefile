@@ -1,6 +1,11 @@
 TAG_REGEXP=^[v][0-9]+[.][0-9]+[.][0-9]+([-]{0}|[-]{1}[0-9a-zA-Z]+[.]?[0-9a-zA-Z]+)+$$
 SUBMODULES=test
 
+.PHONY: godoc
+godoc: ## Install and run godoc
+	go install golang.org/x/tools/cmd/godoc@latest
+	godoc -http=:6060
+
 .PHONY: tools
 tools: ## Run tools (vet, gofmt, goimports, tidy, etc.)
 	@go version
