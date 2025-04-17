@@ -1,11 +1,11 @@
-name: golangci-lint
+name: Lint
+
 on:
   push:
     tags-ignore:
       - '**'
     branches:
       - '**'
-  pull_request:
   workflow_call:
 
 permissions:
