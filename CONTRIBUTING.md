@@ -10,7 +10,7 @@
 
 + Open your pull request against `dev` branch.
 
-  a) The pull request name format should correspond to format
+  **a)** The pull request name format should correspond to format
     ```
     [#<issue reference>] <pull request name>
     ```
@@ -18,7 +18,7 @@
     ```
     [#61] add `CONTRIBUTING.md`
     ```
-  b) The pull request branch should contains tag (`bugfix`, `feature`, etc.) and correspond to format
+  **b)** The pull request branch should contains tag (`bugfix`, `feature`, etc.) and correspond to format
     ```
     <tag>/<issue reference>_<additional description if required>
     ```
@@ -26,7 +26,7 @@
     ```
     feature/61_contributing_info
     ```
-  c) The commit message should correspond to format
+  **c)** The commit message should correspond to format
     ```
     [#<issue reference>] <commit message>
     ```
@@ -34,6 +34,11 @@
     ```
     [#61] add contributing info
     ```
+  **Note**:
+
+  `[#0]` uses for `technical` commit messages
+
+
 + Pull request should have no more than **one** commits, if not you should squash them.
 + It should pass all tests in the available continuous integration systems such as GitHub Actions.
 + Pull request should contain tests (added/modified) to cover your proposed code changes.
