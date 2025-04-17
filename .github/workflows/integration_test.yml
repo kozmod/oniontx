@@ -31,6 +31,14 @@ jobs:
         run: |
           docker ps -a
 
+      - name: Show all containers logs
+        run: |
+          cd test
+          echo "[ CONTAINERS ]"
+          docker compose ls -a
+          echo "[ LOGS ]"
+          docker compose logs
+
       - name: Run integration tests
         run: |
           cd test
