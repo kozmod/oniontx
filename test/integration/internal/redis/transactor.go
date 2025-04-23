@@ -21,7 +21,7 @@ type redisClientWrapper struct {
 }
 
 // BeginTx starts a transaction.
-func (rdb redisClientWrapper) BeginTx(_ context.Context, _ ...oniontx.Option[any]) (*pipelinerWrapper, error) {
+func (rdb redisClientWrapper) BeginTx(_ context.Context) (*pipelinerWrapper, error) {
 	return &pipelinerWrapper{
 		Pipeliner: rdb.TxPipeline(),
 	}, nil
@@ -48,7 +48,7 @@ func (t *pipelinerWrapper) Commit(ctx context.Context) error {
 // Transactor manage a transaction for single [redis.Client] instance.
 type Transactor struct {
 	client *redis.Client
-	*oniontx.Transactor[*redisClientWrapper, *pipelinerWrapper, any]
+	*oniontx.Transactor[*redisClientWrapper, *pipelinerWrapper]
 }
 
 // NewTransactor returns new [Transactor].
@@ -58,7 +58,7 @@ func NewTransactor(client *redis.Client) *Transactor {
 		operator   = oniontx.NewContextOperator[*redisClientWrapper, *pipelinerWrapper](&base)
 		transactor = Transactor{
 			client:     client,
-			Transactor: oniontx.NewTransactor[*redisClientWrapper, *pipelinerWrapper, any](&base, operator),
+			Transactor: oniontx.NewTransactor[*redisClientWrapper, *pipelinerWrapper](&base, operator),
 		}
 	)
 	return &transactor

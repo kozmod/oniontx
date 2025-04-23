@@ -2,6 +2,9 @@ package gorm
 
 import (
 	"context"
+	"database/sql"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/pkg/errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,8 +31,10 @@ func Test_UseCase_CreateTextRecords(t *testing.T) {
 		t.Cleanup(cleanupFn)
 
 		var (
-			ctx         = context.Background()
-			transactor  = NewTransactor(db)
+			ctx        = context.Background()
+			transactor = NewTransactor(
+				NewDB(db, sql.TxOptions{}),
+			)
 			repositoryA = NewTextRepository(transactor, false)
 			repositoryB = NewTextRepository(transactor, false)
 			useCase     = NewUseCase(repositoryA, repositoryB, transactor)
@@ -51,8 +56,10 @@ func Test_UseCase_CreateTextRecords(t *testing.T) {
 		t.Cleanup(cleanupFn)
 
 		var (
-			ctx         = context.Background()
-			transactor  = NewTransactor(db)
+			ctx        = context.Background()
+			transactor = NewTransactor(
+				NewDB(db, sql.TxOptions{}),
+			)
 			repositoryA = NewTextRepository(transactor, false)
 			repositoryB = NewTextRepository(transactor, true)
 			useCase     = NewUseCase(repositoryA, repositoryB, transactor)
@@ -69,12 +76,34 @@ func Test_UseCase_CreateTextRecords(t *testing.T) {
 
 		}
 	})
+	t.Run("error_and_rollback_when_ReadOnly_is_true", func(t *testing.T) {
+		t.Cleanup(cleanupFn)
+
+		var (
+			ctx        = context.Background()
+			transactor = NewTransactor(
+				NewDB(db, sql.TxOptions{ReadOnly: true}),
+			)
+			repositoryA = NewTextRepository(transactor, false)
+			repositoryB = NewTextRepository(transactor, false)
+			useCase     = NewUseCase(repositoryA, repositoryB, transactor)
+		)
+
+		err := useCase.CreateTextRecords(ctx, textRecord)
+		assert.Error(t, err)
+
+		var pgErr *pgconn.PgError
+		assert.True(t, errors.As(err, &pgErr))
+		assert.Equal(t, `25006`, pgErr.Code)
+	})
 	t.Run("ctx_canceled_error_and_rollback", func(t *testing.T) {
 		t.Cleanup(cleanupFn)
 
 		var (
 			ctx, cancel = context.WithCancel(context.Background())
-			transactor  = NewTransactor(db)
+			transactor  = NewTransactor(
+				NewDB(db, sql.TxOptions{}),
+			)
 			repositoryA = NewTextRepository(transactor, false)
 			repositoryB = NewTextRepository(transactor, false)
 			useCase     = NewUseCase(repositoryA, repositoryB, transactor)
@@ -112,8 +141,10 @@ func Test_UseCase_CreateText(t *testing.T) {
 		t.Cleanup(cleanupFn)
 
 		var (
-			ctx         = context.Background()
-			transactor  = NewTransactor(db)
+			ctx        = context.Background()
+			transactor = NewTransactor(
+				NewDB(db, sql.TxOptions{}),
+			)
 			repositoryA = NewTextRepository(transactor, false)
 			repositoryB = NewTextRepository(transactor, false)
 			useCase     = NewUseCase(repositoryA, repositoryB, transactor)
@@ -135,8 +166,10 @@ func Test_UseCase_CreateText(t *testing.T) {
 		t.Cleanup(cleanupFn)
 
 		var (
-			ctx         = context.Background()
-			transactor  = NewTransactor(db)
+			ctx        = context.Background()
+			transactor = NewTransactor(
+				NewDB(db, sql.TxOptions{}),
+			)
 			repositoryA = NewTextRepository(transactor, false)
 			repositoryB = NewTextRepository(transactor, true)
 			useCase     = NewUseCase(repositoryA, repositoryB, transactor)
@@ -171,8 +204,10 @@ func Test_UseCases(t *testing.T) {
 			t.Cleanup(cleanupFn)
 
 			var (
-				ctx         = context.Background()
-				transactor  = NewTransactor(db)
+				ctx        = context.Background()
+				transactor = NewTransactor(
+					NewDB(db, sql.TxOptions{}),
+				)
 				repositoryA = NewTextRepository(transactor, false)
 				repositoryB = NewTextRepository(transactor, false)
 				useCases    = NewUseCases(
@@ -198,8 +233,10 @@ func Test_UseCases(t *testing.T) {
 			t.Cleanup(cleanupFn)
 
 			var (
-				ctx         = context.Background()
-				transactor  = NewTransactor(db)
+				ctx        = context.Background()
+				transactor = NewTransactor(
+					NewDB(db, sql.TxOptions{}),
+				)
 				repositoryA = NewTextRepository(transactor, false)
 				repositoryB = NewTextRepository(transactor, true)
 				useCases    = NewUseCases(

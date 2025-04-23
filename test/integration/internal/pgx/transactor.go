@@ -17,47 +17,44 @@ type Executor interface {
 	Prepare(ctx context.Context, name, sql string) (sd *pgconn.StatementDescription, err error)
 }
 
-// dbWrapper wraps [pgx.Conn] and implements [oniontx.TxBeginner].
-type dbWrapper struct {
+// Wrapper wraps [pgx.Conn] and implements [oniontx.TxBeginner].
+type Wrapper struct {
 	*pgx.Conn
 }
 
 // BeginTx starts a transaction.
-func (w *dbWrapper) BeginTx(ctx context.Context, opts ...oniontx.Option[*pgx.TxOptions]) (*txWrapper, error) {
+func (w *Wrapper) BeginTx(ctx context.Context) (*TxWrapper, error) {
 	var txOptions pgx.TxOptions
-	for _, opt := range opts {
-		opt.Apply(&txOptions)
-	}
 	tx, err := w.Conn.BeginTx(ctx, txOptions)
-	return &txWrapper{Tx: tx}, err
+	return &TxWrapper{Tx: tx}, err
 }
 
-// txWrapper wraps [pgx.Tx] and implements [oniontx.Tx]
-type txWrapper struct {
+// TxWrapper wraps [pgx.Tx] and implements [oniontx.Tx]
+type TxWrapper struct {
 	pgx.Tx
 }
 
 // Rollback aborts the transaction.
-func (t *txWrapper) Rollback(ctx context.Context) error {
+func (t *TxWrapper) Rollback(ctx context.Context) error {
 	return t.Tx.Rollback(ctx)
 }
 
 // Commit commits the transaction.
-func (t *txWrapper) Commit(ctx context.Context) error {
+func (t *TxWrapper) Commit(ctx context.Context) error {
 	return t.Tx.Commit(ctx)
 }
 
 // Transactor manage a transaction for single [pgx.Conn] instance.
 type Transactor struct {
-	*oniontx.Transactor[*dbWrapper, *txWrapper, *pgx.TxOptions]
+	*oniontx.Transactor[*Wrapper, *TxWrapper]
 }
 
 // NewTransactor returns new Transactor ([pgx] implementation).
 func NewTransactor(conn *pgx.Conn) *Transactor {
 	var (
-		base       = dbWrapper{Conn: conn}
-		operator   = oniontx.NewContextOperator[*dbWrapper, *txWrapper](&base)
-		transactor = oniontx.NewTransactor[*dbWrapper, *txWrapper, *pgx.TxOptions](&base, operator)
+		base       = Wrapper{Conn: conn}
+		operator   = oniontx.NewContextOperator[*Wrapper, *TxWrapper](&base)
+		transactor = oniontx.NewTransactor[*Wrapper, *TxWrapper](&base, operator)
 	)
 	return &Transactor{
 		Transactor: transactor,

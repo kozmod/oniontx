@@ -22,47 +22,44 @@ type Executor interface {
 	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
 }
 
-// dbWrapper wraps [sqlx.DB] and implements [oniontx.TxBeginner].
-type dbWrapper struct {
+// Wrapper wraps [sqlx.DB] and implements [oniontx.TxBeginner].
+type Wrapper struct {
 	*sqlx.DB
 }
 
 // BeginTx starts a transaction.
-func (w *dbWrapper) BeginTx(ctx context.Context, opts ...oniontx.Option[*sql.TxOptions]) (*txWrapper, error) {
+func (w *Wrapper) BeginTx(ctx context.Context) (*TxWrapper, error) {
 	var txOptions sql.TxOptions
-	for _, opt := range opts {
-		opt.Apply(&txOptions)
-	}
 	tx, err := w.DB.BeginTxx(ctx, &txOptions)
-	return &txWrapper{Tx: tx}, err
+	return &TxWrapper{Tx: tx}, err
 }
 
-// txWrapper wraps [sqlx.Tx] and implements [oniontx.Tx]
-type txWrapper struct {
+// TxWrapper wraps [sqlx.Tx] and implements [oniontx.Tx]
+type TxWrapper struct {
 	*sqlx.Tx
 }
 
 // Rollback aborts the transaction.
-func (t *txWrapper) Rollback(_ context.Context) error {
+func (t *TxWrapper) Rollback(_ context.Context) error {
 	return t.Tx.Rollback()
 }
 
 // Commit commits the transaction.
-func (t *txWrapper) Commit(_ context.Context) error {
+func (t *TxWrapper) Commit(_ context.Context) error {
 	return t.Tx.Commit()
 }
 
 // Transactor manage a transaction for single [pgx.Conn] instance.
 type Transactor struct {
-	*oniontx.Transactor[*dbWrapper, *txWrapper, *sql.TxOptions]
+	*oniontx.Transactor[*Wrapper, *TxWrapper]
 }
 
 // NewTransactor returns new Transactor ([sqlx] implementation).
 func NewTransactor(db *sqlx.DB) *Transactor {
 	var (
-		base       = dbWrapper{DB: db}
-		operator   = oniontx.NewContextOperator[*dbWrapper, *txWrapper](&base)
-		transactor = oniontx.NewTransactor[*dbWrapper, *txWrapper, *sql.TxOptions](&base, operator)
+		base       = Wrapper{DB: db}
+		operator   = oniontx.NewContextOperator[*Wrapper, *TxWrapper](&base)
+		transactor = oniontx.NewTransactor[*Wrapper, *TxWrapper](&base, operator)
 	)
 	return &Transactor{
 		Transactor: transactor,

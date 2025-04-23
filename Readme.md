@@ -330,58 +330,6 @@ func main() {
 }
 ```
 ---
-#### Execution with transaction with options
-`Option` implementation:
-```go
-package db
-
-// ... other contracts and abstraction implementations
-
-
-// TxOption implements oniontx.Option.
-type TxOption func(opt *sql.TxOptions)
-
-// Apply the TxOption to sql.TxOptions.
-func (r TxOption) Apply(opt *sql.TxOptions) {
-	r(opt)
-}
-
-// WithReadOnly set `ReadOnly` sql.TxOptions option.
-func WithReadOnly(readonly bool) oniontx.Option[*sql.TxOptions] {
-	return TxOption(func(opt *sql.TxOptions) {
-		opt.ReadOnly = readonly
-	})
-}
-
-// WithIsolationLevel set sql.TxOptions isolation level.
-func WithIsolationLevel(level int) oniontx.Option[*sql.TxOptions] {
-	return TxOption(func(opt *sql.TxOptions) {
-		opt.Isolation = sql.IsolationLevel(level)
-	})
-}
-
-```
-UsCase:
-```go
-func (s *Usecase) Do(ctx context.Context) error {
-	err := s.Transactor.WithinTxWithOpts(ctx, func(ctx context.Context) error {
-		if err := s.RepositoryA.Do(ctx); err != nil {
-			return fmt.Errorf("call repositoryA: %+v", err)
-		}
-		if err := s.RepositoryB.Do(ctx); err != nil {
-			return fmt.Errorf("call repositoryB: %+v", err)
-		}
-		return nil
-	},
-		db.WithReadOnly(true),
-		db.WithIsolationLevel(6))
-	if err != nil {
-		return fmt.Errorf("execute: %v", err)
-	}
-	return nil
-}
-```
----
 #### Execution transaction in the different use cases
 ***Execution the same transaction for different `usecases` with the same `oniontx.Transactor` instance***
 
