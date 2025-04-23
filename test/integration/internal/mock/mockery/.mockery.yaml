@@ -1,0 +1,5 @@
+with-expecter: True
+inpackage: True
+all: True
+output: .
+outpkg: mockery

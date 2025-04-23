@@ -113,17 +113,11 @@ type (
 		comparable
 		BeginTx(ctx context.Context, opts ...Option[O]) (C, error)
 	}
-
- 
+	
 	// Mandatory
 	Tx interface {
 		Rollback(ctx context.Context) error
 		Commit(ctx context.Context) error
-	}
-
-	// Optional - if need to use options for transactions
-	Option[TxOpt any] interface {
-		Apply(in TxOpt)
 	}
 
 	// Optional - using to putting/getting transaction from `context.Context` 
@@ -159,7 +153,7 @@ type DB struct {
 	*sql.DB
 }
 
-func (db *DB) BeginTx(ctx context.Context, opts ...oniontx.Option[*sql.TxOptions]) (*Tx, error) {
+func (db *DB) BeginTx(ctx context.Context) (*Tx, error) {
 	var txOptions sql.TxOptions
 	for _, opt := range opts {
 		opt.Apply(&txOptions)
