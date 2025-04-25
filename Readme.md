@@ -28,7 +28,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"testing"
 
 	ostdlib "github.com/kozmod/oniontx/stdlib"
 )
@@ -42,19 +41,17 @@ func main() {
 		r2 = repoB{t: tr}
 	)
 
-	err := tr.WithinTxWithOpts(context.Background(), func(ctx context.Context) error {
-		err := r1.InsertInTx(ctx, "repoA")
+	err := tr.WithinTx(context.Background(), func(ctx context.Context) error {
+		err := r1.Insert(ctx, "repoA")
 		if err != nil {
 			return err
 		}
-		err = r2.InsertInTx(ctx, "repoB")
+		err = r2.Insert(ctx, "repoB")
 		if err != nil {
 			return err
 		}
 		return nil
-	},
-		oniontx.WithReadOnly(true),
-	)
+	})
 
 	if err != nil {
 		log.Fatal(err)
@@ -66,11 +63,11 @@ type repoA struct {
 	t *ostdlib.Transactor
 }
 
-func (r *repoA) InsertInTx(ctx context.Context, val string) error {
+func (r *repoA) Insert(ctx context.Context, val string) error {
 	ex := r.t.GetExecutor(ctx)
 	_, err := ex.ExecContext(ctx, `INSERT INTO tx (text) VALUES ($1)`, val)
 	if err != nil {
-		return fmt.Errorf("repoA.InsertInTx: %w", err)
+		return fmt.Errorf("repoA.Insert: %w", err)
 	}
 	return nil
 }
@@ -79,11 +76,11 @@ type repoB struct {
 	t *ostdlib.Transactor
 }
 
-func (r *repoB) InsertInTx(ctx context.Context, val string) error {
+func (r *repoB) Insert(ctx context.Context, val string) error {
 	ex := r.t.GetExecutor(ctx)
 	_, err := ex.ExecContext(ctx, `INSERT INTO tx (text) VALUES ($1)`, val)
 	if err != nil {
-		return fmt.Errorf("repoB.InsertInTx: %w", err)
+		return fmt.Errorf("repoB.Insert: %w", err)
 	}
 	return nil
 }
@@ -109,9 +106,9 @@ If it's required, `oniontx` allowed opportunity to implements custom algorithms 
 ```go 
 type (
 	// Mandatory
-	TxBeginner[C Tx, O any] interface {
+	TxBeginner[T Tx] interface {
 		comparable
-		BeginTx(ctx context.Context, opts ...Option[O]) (C, error)
+		BeginTx(ctx context.Context) (T, error)
 	}
 	
 	// Mandatory
@@ -122,9 +119,9 @@ type (
 
 	// Optional - using to putting/getting transaction from `context.Context` 
 	// (library contains default `СtxOperator` implementation)
-	СtxOperator[C Tx] interface {
-		Inject(ctx context.Context, c C) context.Context
-		Extract(ctx context.Context) (C, bool)
+	СtxOperator[T Tx] interface {
+		Inject(ctx context.Context, tx T) context.Context
+		Extract(ctx context.Context) (T, bool)
 	}
 )
 ```
@@ -189,7 +186,7 @@ import (
 )
 
 type RepositoryA struct {
-	Transactor *oniontx.Transactor[*db.DB, *db.Tx, *sql.TxOptions]
+	Transactor *oniontx.Transactor[*db.DB, *db.Tx]
 }
 
 func (r RepositoryA) Insert(ctx context.Context, val int) error {
@@ -218,7 +215,7 @@ import (
 )
 
 type RepositoryB struct {
-	Transactor *oniontx.Transactor[*db.DB, *db.Tx, *sql.TxOptions]
+	Transactor *oniontx.Transactor[*db.DB, *db.Tx]
 }
 
 func (r RepositoryB) Insert(ctx context.Context, val int) error {
@@ -301,7 +298,7 @@ func main() {
 
 		wrapper    = &db.DB{DB: database}
 		operator   = oniontx.NewContextOperator[*db.DB, *db.Tx](&wrapper)
-		transactor = oniontx.NewTransactor[*db.DB, *db.Tx, *sql.TxOptions](wrapper, operator)
+		transactor = oniontx.NewTransactor[*db.DB, *db.Tx](wrapper, operator)
 
 		repositoryA = repoA.RepositoryA{
 			Transactor: transactor,
@@ -443,7 +440,7 @@ func main() {
 
 		wrapper    = &db.DB{DB: database}
 		operator   = oniontx.NewContextOperator[*db.DB, *db.Tx](&wrapper)
-		transactor = oniontx.NewTransactor[*db.DB, *db.Tx, *sql.TxOptions](wrapper, operator)
+		transactor = oniontx.NewTransactor[*db.DB, *db.Tx](wrapper, operator)
 
 		useCaseA = a.UseCaseA{
 			Repo: repoA.RepositoryA{
