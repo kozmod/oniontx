@@ -1,6 +1,6 @@
 package mockery
 
-//go:generate mockery --inpackage --all  --outpkg=mockery --dir=. --outpkg=profile --output=.
+//go:generate mockery
 //go:generate sh ./scripts.sh update_mocks .
 //go:generate git add .
 

@@ -2,7 +2,7 @@
 
 
 mock_pattern=mock_*.go
-mock_merge_file=mocks_test.go
+mock_merge_file=mocks.go
 
 function update_mocks() {
 		path=${1:-.}

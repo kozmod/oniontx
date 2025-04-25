@@ -9,30 +9,37 @@ import (
 	"github.com/kozmod/oniontx"
 )
 
-// dbWrapper wraps [gorm.DB] and implements [oniontx.TxBeginner].
-type dbWrapper struct {
+// Wrapper wraps [gorm.DB] and implements [oniontx.TxBeginner].
+type Wrapper struct {
 	*gorm.DB
+
+	// txOptions is options for gorm transactions begin.
+	txOptions sql.TxOptions
+}
+
+// NewDB returns [gorm.DB] wrapper with transaction's options.
+func NewDB(db *gorm.DB, options sql.TxOptions) *Wrapper {
+	return &Wrapper{
+		DB:        db,
+		txOptions: options,
+	}
 }
 
 // BeginTx starts a transaction.
-func (w *dbWrapper) BeginTx(_ context.Context, opts ...oniontx.Option[*sql.TxOptions]) (*dbWrapper, error) {
-	var txOptions sql.TxOptions
-	for _, opt := range opts {
-		opt.Apply(&txOptions)
-	}
-	tx := w.Begin(&txOptions)
-	return &dbWrapper{DB: tx}, nil
+func (w *Wrapper) BeginTx(_ context.Context) (*Wrapper, error) {
+	tx := w.Begin(&w.txOptions)
+	return &Wrapper{DB: tx}, nil
 }
 
 // Rollback aborts the transaction.
-func (w *dbWrapper) Rollback(_ context.Context) error {
+func (w *Wrapper) Rollback(_ context.Context) error {
 	tx := w.DB
 	tx.Rollback()
 	return nil
 }
 
 // Commit commits the transaction.
-func (w *dbWrapper) Commit(_ context.Context) error {
+func (w *Wrapper) Commit(_ context.Context) error {
 	tx := w.DB
 	tx.Commit()
 	return nil
@@ -40,15 +47,14 @@ func (w *dbWrapper) Commit(_ context.Context) error {
 
 // Transactor manage a transaction for single [gorm.DB] instance.
 type Transactor struct {
-	*oniontx.Transactor[*dbWrapper, *dbWrapper, *sql.TxOptions]
+	*oniontx.Transactor[*Wrapper, *Wrapper]
 }
 
 // NewTransactor returns new [Transactor] ([gorm] implementation).
-func NewTransactor(db *gorm.DB) *Transactor {
+func NewTransactor(db *Wrapper) *Transactor {
 	var (
-		base       = dbWrapper{DB: db}
-		operator   = oniontx.NewContextOperator[*dbWrapper, *dbWrapper](&base)
-		transactor = oniontx.NewTransactor[*dbWrapper, *dbWrapper, *sql.TxOptions](&base, operator)
+		operator   = oniontx.NewContextOperator[*Wrapper, *Wrapper](db)
+		transactor = oniontx.NewTransactor[*Wrapper, *Wrapper](db, operator)
 	)
 	return &Transactor{
 		Transactor: transactor,

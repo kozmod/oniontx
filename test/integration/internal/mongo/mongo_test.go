@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/mongo/writeconcern"
 )
 
 func Test(t *testing.T) {
@@ -57,7 +59,7 @@ func Test(t *testing.T) {
 
 			var (
 				ctx        = context.Background()
-				transactor = NewTransactor(client)
+				transactor = NewTransactor(NewMongo(client))
 				repoA      = NewRepository(collectionA, transactor, false)
 				repoB      = NewRepository(collectionA, transactor, false)
 			)
@@ -80,7 +82,7 @@ func Test(t *testing.T) {
 
 			var (
 				ctx        = context.Background()
-				transactor = NewTransactor(client)
+				transactor = NewTransactor(NewMongo(client))
 				repoA      = NewRepository(collectionA, transactor, false)
 				repoB      = NewRepository(collectionA, transactor, true)
 			)
@@ -106,7 +108,7 @@ func Test(t *testing.T) {
 
 			var (
 				ctx        = context.Background()
-				transactor = NewTransactor(client)
+				transactor = NewTransactor(NewMongo(client))
 				repoA      = NewRepository(collectionA, transactor, false)
 				repoB      = NewRepository(collectionB, transactor, false)
 			)
@@ -133,7 +135,7 @@ func Test(t *testing.T) {
 
 			var (
 				ctx        = context.Background()
-				transactor = NewTransactor(client)
+				transactor = NewTransactor(NewMongo(client))
 				repoA      = NewRepository(collectionA, transactor, false)
 				repoB      = NewRepository(collectionA, transactor, true)
 			)
@@ -159,20 +161,25 @@ func Test(t *testing.T) {
 
 			var (
 				ctx        = context.Background()
-				transactor = NewTransactor(client)
-				repoA      = NewRepository(collectionA, transactor, false)
-				repoB      = NewRepository(collectionA, transactor, false)
+				transactor = NewTransactor(
+					NewMongo(client).
+						WithTransactionOptions(
+							options.Transaction().SetWriteConcern(
+								writeconcern.Journaled(),
+							),
+						),
+				)
+				repoA = NewRepository(collectionA, transactor, false)
+				repoB = NewRepository(collectionA, transactor, false)
 			)
 
-			err := transactor.WithinTxWithOpts(ctx, func(ctx context.Context) error {
+			err := transactor.WithinTx(ctx, func(ctx context.Context) error {
 				err := repoA.Save(ctx, testDataValA)
 				assert.NoError(t, err)
 				err = repoB.Save(ctx, testDataChange)
 				assert.NoError(t, err)
 				return err
-			},
-				Journaled(true),
-			)
+			})
 			assert.NoError(t, err)
 
 			data, err := GetDataByID(ctx, t, collectionA, testID)
@@ -184,12 +191,23 @@ func Test(t *testing.T) {
 
 			var (
 				ctx        = context.Background()
-				transactor = NewTransactor(client)
-				repoA      = NewRepository(collectionA, transactor, false)
-				repoB      = NewRepository(collectionA, transactor, false)
+				transactor = NewTransactor(
+					NewMongo(client).
+						WithTransactionOptions(
+							options.Transaction().SetWriteConcern(
+								writeconcern.Journaled(),
+							),
+						).
+						WithSessionOptions(
+							// error: transactions are not supported in snapshot sessions
+							options.Session().SetSnapshot(true),
+						),
+				)
+				repoA = NewRepository(collectionA, transactor, false)
+				repoB = NewRepository(collectionA, transactor, false)
 			)
 
-			err := transactor.WithinTxWithOpts(ctx, func(ctx context.Context) error {
+			err := transactor.WithinTx(ctx, func(ctx context.Context) error {
 				if err := repoA.Save(ctx, testDataValA); err != nil {
 					return fmt.Errorf("fist call in tx: %w", err)
 				}
@@ -197,10 +215,7 @@ func Test(t *testing.T) {
 					return fmt.Errorf("second call in tx: %w", err)
 				}
 				return nil
-			},
-				SetSessionSnapshot(true), // error: transactions are not supported in snapshot sessions
-				Journaled(true),
-			)
+			})
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "transactions are not supported in snapshot sessions")
 
