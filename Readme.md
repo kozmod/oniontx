@@ -468,3 +468,4 @@ func main() {
 [test](https://github.com/kozmod/oniontx/tree/master/test) package contains useful examples for creating unit test:
 
 - [vektra/mockery **+** stretchr/testify](https://github.com/kozmod/oniontx/tree/main/test/integration/internal/mock/mockery)
+- [go.uber.org/mock/gomock **+** stretchr/testify](https://github.com/kozmod/oniontx/tree/main/test/integration/internal/mock/gomock)

@@ -7,9 +7,11 @@ require (
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/kozmod/oniontx v0.3.10
 	github.com/lib/pq v1.10.9
+	github.com/pkg/errors v0.9.1
 	github.com/redis/go-redis/v9 v9.7.3
 	github.com/stretchr/testify v1.10.0
 	go.mongodb.org/mongo-driver/v2 v2.2.0
+	go.uber.org/mock v0.5.2
 	gorm.io/driver/postgres v1.5.11
 	gorm.io/gorm v1.25.12
 )
