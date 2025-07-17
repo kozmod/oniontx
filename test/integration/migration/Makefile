@@ -6,6 +6,10 @@ tools: ## Run tools (vet, gofmt, goimports, tidy, etc.)
 	go mod tidy
 	go vet ./...
 
+.PHONY: tools.install
+tools.install: ## Install tool for tests
+	go install go.uber.org/mock/mockgen@latest
+
 .PHONY: deps.update
 deps.update: ## Update dependencies versions
 	go get -u all
