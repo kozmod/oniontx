@@ -1,12 +1,12 @@
-# Script to merge mockery (v2) generated mocks.
+# Script to merge generated mocks.
 
 
 mock_pattern=mock_*.go
 mock_merge_file=mocks.go
 
 function update_mocks() {
-		path=${1:-.}
-	  find ${path} -name "${mock_merge_file}" -delete
+    path=${1:-.}
+    find ${path} -name "${mock_merge_file}" -delete
 
     echo "merge mocks: ${path}"
     $(merge_mocks $path)
