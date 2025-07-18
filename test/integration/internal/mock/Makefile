@@ -6,10 +6,20 @@ tools: ## Run tools (vet, gofmt, goimports, tidy, etc.)
 	go mod tidy
 	go vet ./...
 
+.PHONY: tools.install
+tools.install: ## Install tool for tests
+	go install go.uber.org/mock/mockgen@latest
+	go install github.com/gojuno/minimock/v3/cmd/minimock@latest
+	go install github.com/vektra/mockery/v3@v3.5.1
+
 .PHONY: deps.update
 deps.update: ## Update dependencies versions
 	go get -u all
 	go mod tidy
+
+.PHONY: generate
+generate: ## Run `go generate`
+	@go generate ./...
 
 .PHONY: help
 help: ## List all make targets with description
