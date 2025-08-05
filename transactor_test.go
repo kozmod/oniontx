@@ -59,7 +59,7 @@ func Test_CtxOperator(t *testing.T) {
 }
 
 // nolint: dupl
-func Test_Transactor(t *testing.T) {
+func Test_Transactor(t *testing.T) { //nolint: dupl
 	t.Run("TryGetTx", func(t *testing.T) {
 		var (
 			ctx            = context.Background()
@@ -395,8 +395,8 @@ func Test_Transactor(t *testing.T) {
 	})
 }
 
-// nolint: dupl
-func Test_Transactor_recursive_call(t *testing.T) {
+// Test_Transactor_recursive_call - testing recursive [oniontx.Transactor] calls.
+func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 	const (
 		ctxValTopLvl    = "top_lvl"
 		ctxValSecondLvl = "second_lvl"

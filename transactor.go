@@ -87,6 +87,10 @@ NOTE:
 + panics are transformed to errors with the same message.
 
 + higher level panics override lower level panic (that was transformed to an error) or an error.
+
+Examples:
+
+[oniontx.Test_Transactor_recursive_call]
 */
 func (t *Transactor[B, T]) WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error) {
 	var (
