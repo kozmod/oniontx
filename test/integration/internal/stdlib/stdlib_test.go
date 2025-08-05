@@ -96,7 +96,7 @@ func Test_UseCase(t *testing.T) {
 	})
 }
 
-func Test_UseCases(t *testing.T) {
+func Test_UseCasesFacade(t *testing.T) {
 	var (
 		db        = ConnectDB(t)
 		cleanupFn = func() {
@@ -116,18 +116,18 @@ func Test_UseCases(t *testing.T) {
 			t.Cleanup(cleanupFn)
 
 			var (
-				ctx         = context.Background()
-				transactor  = NewTransactor(db)
-				repositoryA = NewTextRepository(transactor, false)
-				repositoryB = NewTextRepository(transactor, false)
-				useCases    = NewUseCases(
+				ctx            = context.Background()
+				transactor     = NewTransactor(db)
+				repositoryA    = NewTextRepository(transactor, false)
+				repositoryB    = NewTextRepository(transactor, false)
+				useCasesFacade = NewUseCasesFacade(
 					NewUseCase(repositoryA, repositoryB, transactor),
 					NewUseCase(repositoryA, repositoryB, transactor),
 					transactor,
 				)
 			)
 
-			err := useCases.CreateTextRecords(ctx, textRecord)
+			err := useCasesFacade.CreateTextRecords(ctx, textRecord)
 			assert.NoError(t, err)
 
 			{
@@ -143,18 +143,18 @@ func Test_UseCases(t *testing.T) {
 			t.Cleanup(cleanupFn)
 
 			var (
-				ctx         = context.Background()
-				transactor  = NewTransactor(db)
-				repositoryA = NewTextRepository(transactor, false)
-				repositoryB = NewTextRepository(transactor, true)
-				useCases    = NewUseCases(
+				ctx            = context.Background()
+				transactor     = NewTransactor(db)
+				repositoryA    = NewTextRepository(transactor, false)
+				repositoryB    = NewTextRepository(transactor, true)
+				useCasesFacade = NewUseCasesFacade(
 					NewUseCase(repositoryA, repositoryB, transactor),
 					NewUseCase(repositoryA, repositoryB, transactor),
 					transactor,
 				)
 			)
 
-			err := useCases.CreateTextRecords(ctx, textRecord)
+			err := useCasesFacade.CreateTextRecords(ctx, textRecord)
 			assert.Error(t, err)
 			assert.ErrorIs(t, err, entity.ErrExpected)
 

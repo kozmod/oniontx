@@ -90,7 +90,8 @@ NOTE:
 
 Examples:
 
-[oniontx.Test_Transactor_recursive_call]
+1 - [oniontx.Test_Transactor_recursive_call]
+2 - [test/integration/internal/stdlib/stdlib_test.go]
 */
 func (t *Transactor[B, T]) WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error) {
 	var (

@@ -19,22 +19,22 @@ type (
 	}
 )
 
-type UseCases struct {
+type UseCasesFacade struct {
 	useCaseA useCase
 	useCaseB useCase
 
 	transactor transactor
 }
 
-func NewUseCases(useCaseA useCase, useCaseB useCase, transactor transactor) *UseCases {
-	return &UseCases{
+func NewUseCasesFacade(useCaseA useCase, useCaseB useCase, transactor transactor) *UseCasesFacade {
+	return &UseCasesFacade{
 		useCaseA:   useCaseA,
 		useCaseB:   useCaseB,
 		transactor: transactor,
 	}
 }
 
-func (u *UseCases) CreateTextRecords(ctx context.Context, text string) error {
+func (u *UseCasesFacade) CreateTextRecords(ctx context.Context, text string) error {
 	return u.transactor.WithinTx(ctx, func(ctx context.Context) error {
 		err := u.useCaseA.CreateTextRecords(ctx, text)
 		if err != nil {
