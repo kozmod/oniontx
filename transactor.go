@@ -148,7 +148,9 @@ func (t *Transactor[B, T]) WithinTx(ctx context.Context, fn func(ctx context.Con
 	if !ok {
 		ctx = t.operator.Inject(ctx, tx)
 	}
-	return fn(ctx)
+
+	err = fn(ctx)
+	return err
 }
 
 // TryGetTx returns [Tx] and "true" from [context.Context] or return `false`.
