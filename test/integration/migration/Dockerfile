@@ -1,4 +1,4 @@
-FROM golang:1.24-alpine
+FROM golang:1.25-alpine
 
 RUN --mount=type=cache,target=/var/cache/apk apk --update --upgrade add ca-certificates gcc libc-dev
 
@@ -8,4 +8,6 @@ ENV GOOS linux
 
 WORKDIR /go/migration
 ADD . /go/migration
+RUN go mod download
+RUN go mod tidy
 RUN go build -o migration .
