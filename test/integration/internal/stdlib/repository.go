@@ -34,7 +34,16 @@ func (r *TextRepository) Insert(ctx context.Context, val string) error {
 	ex := r.transactor.GetExecutor(ctx)
 	_, err := ex.ExecContext(ctx, `INSERT INTO stdlib (val) VALUES ($1)`, val)
 	if err != nil {
-		return fmt.Errorf("stdlib repository: %w", err)
+		return fmt.Errorf("stdlib repository insert: %w", err)
+	}
+	return nil
+}
+
+func (r *TextRepository) Delete(ctx context.Context, val string) error {
+	ex := r.transactor.GetExecutor(ctx)
+	_, err := ex.ExecContext(ctx, `DELETE FROM stdlib WHERE val = $1`, val)
+	if err != nil {
+		return fmt.Errorf("stdlib repository delete: %w", err)
 	}
 	return nil
 }

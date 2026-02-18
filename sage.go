@@ -7,8 +7,9 @@ import (
 )
 
 var (
-	ErrSagaAction       = fmt.Errorf("action failed")
-	ErrSagaCompensation = fmt.Errorf("compensation failed")
+	ErrSagaActionFailed        = fmt.Errorf("action failed")
+	ErrSagaCompensationFailed  = fmt.Errorf("compensation failed")
+	ErrSagaCompensationSuccess = fmt.Errorf("compensation executed")
 )
 
 // Step of the [Sage].
@@ -54,7 +55,7 @@ func (s *Sage) Execute(ctx context.Context) error {
 		case step.Transactor == nil:
 			err = step.Action(ctx)
 			if err != nil {
-				return fmt.Errorf("step failed [%d:%s]: %w", i, step.Name, err)
+				err = fmt.Errorf("step failed [%d:%s]: %w", i, step.Name, err)
 			}
 		default:
 			err = step.Transactor.WithinTx(ctx, func(txCtx context.Context) error {
@@ -95,11 +96,11 @@ func (s *Sage) compensate(ctx context.Context, completedSteps []Step, originalEr
 	}
 
 	if len(compensationErrors) > 0 {
+		compensationErrors = append(compensationErrors, ErrSagaCompensationFailed)
 		return errors.Join(
 			fmt.Errorf("original error: %w,  compensation errors: %w", originalErr, errors.Join(compensationErrors...)),
-			ErrSagaCompensation,
 		)
 	}
 
-	return errors.Join(originalErr, ErrSagaAction)
+	return errors.Join(originalErr, ErrSagaCompensationSuccess, ErrSagaActionFailed)
 }
