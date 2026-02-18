@@ -13,6 +13,10 @@ import (
 	"github.com/kozmod/oniontx/test/integration/internal/entity"
 )
 
+const (
+	ErrTextNoDocResult = "mongo: no documents in result"
+)
+
 func Connect(ctx context.Context, t *testing.T) *mongo.Client {
 	t.Helper()
 	client, err := mongo.Connect(

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/kozmod/oniontx"
+	"github.com/kozmod/oniontx/test/integration/internal/entity"
 	"github.com/kozmod/oniontx/test/integration/internal/stdlib"
 
 	"github.com/stretchr/testify/assert"
@@ -29,7 +30,7 @@ func Test_Saga_stdlib_Facade(t *testing.T) {
 
 	cleanupFn()
 
-	t.Run("success_exec_compensation_on_step3", func(t *testing.T) {
+	t.Run("success_exec_compensation_on_step2", func(t *testing.T) {
 		t.Cleanup(cleanupFn)
 
 		var (
@@ -40,7 +41,7 @@ func Test_Saga_stdlib_Facade(t *testing.T) {
 		)
 		err := oniontx.NewSaga([]oniontx.Step{
 			{
-				Name:       "step0",
+				Name:       "step_0",
 				Transactor: transactor,
 				Action: func(ctx context.Context) error {
 					err := repoA.Insert(ctx, textRecord)
@@ -49,11 +50,12 @@ func Test_Saga_stdlib_Facade(t *testing.T) {
 				},
 				Compensation: func(ctx context.Context) error {
 					err := repoA.Delete(ctx, textRecord)
+					assert.NoError(t, err)
 					return err
 				},
 			},
 			{
-				Name: "step1",
+				Name: "step_1",
 				Action: func(ctx context.Context) error {
 					records, err := stdlib.GetTextRecords(db)
 					assert.NoError(t, err)
@@ -64,25 +66,29 @@ func Test_Saga_stdlib_Facade(t *testing.T) {
 				},
 			},
 			{
-				Name:       "step2",
+				Name:       "step_2",
 				Transactor: transactor,
 				Action: func(ctx context.Context) error {
 					err := repoA.Insert(ctx, textRecord)
 					if err != nil {
-						return fmt.Errorf("step3 - repoA error: %w", err)
+						return fmt.Errorf("step_2 - repoA error: %w", err)
 					}
-					err = repoB.Insert(ctx, textRecord)
+					err = repoB.Insert(ctx, textRecord) // will fail (entity.ErrExpected)
 					if err != nil {
-						return fmt.Errorf("step3 - repoB error: %w", err)
+						assert.Error(t, err)
+						assert.ErrorIs(t, err, entity.ErrExpected)
+						return fmt.Errorf("step_2 - repoB error: %w", err)
 					}
 					return nil
 				},
 			},
 		}).Execute(ctx)
 
-		t.Logf("test error \n{\n%v\n}", err)
-
 		assert.Error(t, err)
+
+		t.Logf("test error output: \n{\n%v\n}", err)
+
+		assert.ErrorIs(t, err, entity.ErrExpected)
 		assert.ErrorIs(t, err, oniontx.ErrSagaActionFailed)
 		assert.ErrorIs(t, err, oniontx.ErrRollbackSuccess)
 		assert.ErrorIs(t, err, oniontx.ErrSagaCompensationSuccess)

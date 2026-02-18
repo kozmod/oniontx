@@ -19,6 +19,7 @@ type Step struct {
 
 	// Transactor - a local transactor for a specific storage.
 	// It should implement an interface similar to [oniontx.Transactor].
+	// This [Transactor] is optional and uses as others Transactors wrapper.
 	Transactor interface {
 		WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error)
 	}
@@ -55,13 +56,13 @@ func (s *Sage) Execute(ctx context.Context) error {
 		case step.Transactor == nil:
 			err = step.Action(ctx)
 			if err != nil {
-				err = fmt.Errorf("step failed [%d:%s]: %w", i, step.Name, err)
+				err = fmt.Errorf("step failed [%d#%s]: %w", i, step.Name, err)
 			}
 		default:
 			err = step.Transactor.WithinTx(ctx, func(txCtx context.Context) error {
 				err = step.Action(txCtx)
 				if err != nil {
-					return fmt.Errorf("step failed [%d:%s]: %w", i, step.Name, err)
+					return fmt.Errorf("step failed [%d#%s]: %w", i, step.Name, err)
 				}
 				return nil
 			})
@@ -90,7 +91,7 @@ func (s *Sage) compensate(ctx context.Context, completedSteps []Step, originalEr
 		if err := step.Compensation(ctx); err != nil {
 			compensationErrors = append(
 				compensationErrors,
-				fmt.Errorf("compensation failed - step [%d:%s]: %w", i, step.Name, err),
+				fmt.Errorf("compensation failed - step [%d#%s]: %w", i, step.Name, err),
 			)
 		}
 	}
