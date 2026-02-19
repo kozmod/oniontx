@@ -137,9 +137,9 @@ func Test_Saga_multi_Facade(t *testing.T) {
 					assert.NoError(t, err)
 					return nil
 				},
-				Compensation: func(ctx context.Context, ariseErr error) error {
-					assert.Error(t, ariseErr)
-					assert.ErrorIs(t, ariseErr, entity.ErrExpected)
+				Compensation: func(ctx context.Context, aroseErr error) error {
+					assert.Error(t, aroseErr)
+					assert.ErrorIs(t, aroseErr, entity.ErrExpected)
 
 					err := sqlTransactor.WithinTx(ctx, func(ctx context.Context) error {
 						return sqlRepo.Delete(ctx, sqlTextRecord)
@@ -157,9 +157,9 @@ func Test_Saga_multi_Facade(t *testing.T) {
 					assert.NoError(t, err)
 					return nil
 				},
-				Compensation: func(ctx context.Context, ariseErr error) error {
-					assert.Error(t, ariseErr)
-					assert.ErrorIs(t, ariseErr, entity.ErrExpected)
+				Compensation: func(ctx context.Context, aroseErr error) error {
+					assert.Error(t, aroseErr)
+					assert.ErrorIs(t, aroseErr, entity.ErrExpected)
 
 					err := mongoRepo.Delete(ctx, mongoTestDataValA)
 					assert.NoError(t, err)
@@ -249,7 +249,7 @@ func Test_Saga_multi_Facade(t *testing.T) {
 				},
 				// Need to add current compensation to list of compensations.
 				CompensationOnFail: true,
-				Compensation: func(ctx context.Context, ariseErr error) error {
+				Compensation: func(ctx context.Context, aroseErr error) error {
 					// check Mongo entities (commit).
 					data, err := mongo.GetDataByID(ctx, t, mongoCollectionA, mongoTestID)
 					assert.NoError(t, err)
@@ -263,7 +263,7 @@ func Test_Saga_multi_Facade(t *testing.T) {
 					// Compensation logic.
 					//
 					// Check an error type and call compensation only for Mongo.
-					if ariseErr != nil && errors.Is(ariseErr, entity.ErrExpected) {
+					if aroseErr != nil && errors.Is(aroseErr, entity.ErrExpected) {
 						err = mongoRepo.Delete(ctx, mongoTestDataValA)
 						assert.NoError(t, err)
 						return err

@@ -8,6 +8,39 @@ import (
 	"testing"
 )
 
+func Test_Saga_example(t *testing.T) {
+	t.Skip()
+
+	steps := []Step{
+		{
+			Name: "first step",
+			// Action — a function to execute
+			Action: func(ctx context.Context) error {
+				// Action logic.
+				return nil
+			},
+
+			// Compensation — a function to compensate an action when an error occurs.
+			//
+			// Parameters:
+			//   - ctx: context for cancellation and deadlines (context that is passed through the action)
+			//   - aroseErr: error from the previous action that needs compensation
+			Compensation: func(ctx context.Context, aroseErr error) error {
+				// Action compensation logic.
+				return nil
+			},
+			// CompensationOnFail needs to add the current compensation to the list of compensations.
+			CompensationOnFail: true,
+		},
+	}
+	// Saga execution.
+	err := NewSaga(steps).Execute(context.Background())
+	//nolint: staticcheck
+	if err != nil {
+		// Error handling.
+	}
+}
+
 // nolint: dupl
 func TestSaga_Execute(t *testing.T) {
 
@@ -80,7 +113,7 @@ func TestSaga_Execute(t *testing.T) {
 					executedActions = append(executedActions, "action2")
 					return expErr
 				},
-				Compensation: func(ctx context.Context, ariseErr error) error {
+				Compensation: func(ctx context.Context, aroseErr error) error {
 					executedCompensation = append(executedCompensation, "comp2")
 					t.Fatalf("should not have been called")
 					return nil
@@ -109,7 +142,7 @@ func TestSaga_Execute(t *testing.T) {
 						executedActions = append(executedActions, "action1")
 						return expErr
 					},
-					Compensation: func(ctx context.Context, ariseErr error) error {
+					Compensation: func(ctx context.Context, aroseErr error) error {
 						executedCompensation = append(executedCompensation, "comp1")
 						t.Fatalf("should not have been called")
 						return nil
@@ -136,7 +169,7 @@ func TestSaga_Execute(t *testing.T) {
 						executedActions = append(executedActions, "action1")
 						return expErr
 					},
-					Compensation: func(ctx context.Context, ariseErr error) error {
+					Compensation: func(ctx context.Context, aroseErr error) error {
 						executedCompensation = append(executedCompensation, "comp1")
 						return nil
 					},

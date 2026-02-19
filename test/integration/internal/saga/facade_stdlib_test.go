@@ -49,9 +49,9 @@ func Test_Saga_stdlib_Facade(t *testing.T) {
 					assert.NoError(t, err)
 					return nil
 				},
-				Compensation: func(ctx context.Context, ariseErr error) error {
-					assert.Error(t, ariseErr)
-					assert.ErrorIs(t, ariseErr, entity.ErrExpected)
+				Compensation: func(ctx context.Context, aroseErr error) error {
+					assert.Error(t, aroseErr)
+					assert.ErrorIs(t, aroseErr, entity.ErrExpected)
 
 					err := repoA.Delete(ctx, textRecord)
 					assert.NoError(t, err)

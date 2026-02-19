@@ -22,9 +22,14 @@ type Step struct {
 
 	// Compensation - a compensating action that undoes the Action (if possible).
 	// Called upon failure in subsequent steps.
-	Compensation func(ctx context.Context, ariseErr error) error
+	// Invoked when a subsequent step fails.
+	//
+	// Parameters:
+	//   - ctx: context for cancellation and deadlines (context that is passed through the action)
+	//   - aroseErr: error from the previous action that needs compensation
+	Compensation func(ctx context.Context, aroseErr error) error
 
-	// CompensationOnFail need to add current Compensation to list of compensations.
+	// CompensationOnFail needs to add the current compensation to the list of compensations.
 	CompensationOnFail bool
 }
 
