@@ -184,5 +184,4 @@ func TestSaga_Execute(t *testing.T) {
 			assertTrue(t, slices.Equal([]string{"comp1"}, executedCompensation))
 		})
 	})
-
 }
