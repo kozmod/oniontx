@@ -42,7 +42,7 @@ jobs:
       - name: Run integration tests
         run: |
           cd test
-          go test -v ./... -cover -coverpkg=../... -coverprofile cover.out  && go tool cover -func cover.out
+          go test -v -p=1 ./... -cover -coverpkg=../... -coverprofile cover.out  && go tool cover -func cover.out
 
       - name: Stop containers
         if: always()
