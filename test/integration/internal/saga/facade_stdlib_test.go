@@ -99,9 +99,9 @@ func Test_Saga_stdlib_Facade(t *testing.T) {
 		t.Logf("test error output: \n{\n%v\n}", err)
 
 		assert.ErrorIs(t, err, entity.ErrExpected)
-		assert.ErrorIs(t, err, sage.ErrSagaActionFailed)
+		assert.ErrorIs(t, err, sage.ErrActionFailed)
 		assert.ErrorIs(t, err, mtx.ErrRollbackSuccess)
-		assert.ErrorIs(t, err, sage.ErrSagaCompensationSuccess)
+		assert.ErrorIs(t, err, sage.ErrCompensationSuccess)
 
 		{
 			records, err := stdlib.GetTextRecords(db)

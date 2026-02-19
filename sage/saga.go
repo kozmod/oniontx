@@ -7,9 +7,10 @@ import (
 )
 
 var (
-	ErrSagaActionFailed        = fmt.Errorf("action failed")
-	ErrSagaCompensationFailed  = fmt.Errorf("compensation failed")
-	ErrSagaCompensationSuccess = fmt.Errorf("compensation executed")
+	ErrActionFailed        = fmt.Errorf("action failed")
+	ErrCompensationFailed  = fmt.Errorf("compensation failed")
+	ErrCompensationSuccess = fmt.Errorf("compensation executed")
+	ErrPanicRecovered      = fmt.Errorf("panic recovered")
 )
 
 // Step of the [Sage].
@@ -96,11 +97,11 @@ func (s *Sage) compensate(ctx context.Context, completedSteps []Step, originalEr
 	}
 
 	if len(compensationErrors) > 0 {
-		compensationErrors = append(compensationErrors, ErrSagaCompensationFailed)
+		compensationErrors = append(compensationErrors, ErrCompensationFailed)
 		return errors.Join(
 			fmt.Errorf("original error: %w,  compensation errors: %w", originalErr, errors.Join(compensationErrors...)),
 		)
 	}
 
-	return errors.Join(originalErr, ErrSagaCompensationSuccess, ErrSagaActionFailed)
+	return errors.Join(originalErr, ErrCompensationSuccess, ErrActionFailed)
 }
