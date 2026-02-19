@@ -6,7 +6,7 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/kozmod/oniontx"
+	"github.com/kozmod/oniontx/mtx"
 )
 
 // Wrapper wraps [gorm.DB] and implements [oniontx.TxBeginner].
@@ -47,14 +47,14 @@ func (w *Wrapper) Commit(_ context.Context) error {
 
 // Transactor manage a transaction for single [gorm.DB] instance.
 type Transactor struct {
-	*oniontx.Transactor[*Wrapper, *Wrapper]
+	*mtx.Transactor[*Wrapper, *Wrapper]
 }
 
 // NewTransactor returns new [Transactor] ([gorm] implementation).
 func NewTransactor(db *Wrapper) *Transactor {
 	var (
-		operator   = oniontx.NewContextOperator[*Wrapper, *Wrapper](db)
-		transactor = oniontx.NewTransactor[*Wrapper, *Wrapper](db, operator)
+		operator   = mtx.NewContextOperator[*Wrapper, *Wrapper](db)
+		transactor = mtx.NewTransactor[*Wrapper, *Wrapper](db, operator)
 	)
 	return &Transactor{
 		Transactor: transactor,

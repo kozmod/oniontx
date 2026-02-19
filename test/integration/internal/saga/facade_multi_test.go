@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kozmod/oniontx"
+	"github.com/kozmod/oniontx/sage"
 	"github.com/kozmod/oniontx/test/integration/internal/entity"
 	"github.com/kozmod/oniontx/test/integration/internal/mongo"
 	"github.com/kozmod/oniontx/test/integration/internal/stdlib"
@@ -68,7 +68,7 @@ func Test_Saga_multi_Facade(t *testing.T) {
 			mongoTransactor = mongo.NewTransactor(mongo.NewMongo(mongoClient))
 			mongoRepo       = mongo.NewRepository(mongoCollectionA, mongoTransactor, false)
 		)
-		err := oniontx.NewSaga([]oniontx.Step{
+		err := sage.NewSaga([]sage.Step{
 			{
 				Name: "step_sql_0",
 				Action: func(ctx context.Context) error {
@@ -127,7 +127,7 @@ func Test_Saga_multi_Facade(t *testing.T) {
 			mongoTransactor = mongo.NewTransactor(mongo.NewMongo(mongoClient))
 			mongoRepo       = mongo.NewRepository(mongoCollectionA, mongoTransactor, false)
 		)
-		err := oniontx.NewSaga([]oniontx.Step{
+		err := sage.NewSaga([]sage.Step{
 			{
 				Name: "step_sql_0",
 				Action: func(ctx context.Context) error {
@@ -217,7 +217,7 @@ func Test_Saga_multi_Facade(t *testing.T) {
 			mongoTransactor = mongo.NewTransactor(mongo.NewMongo(mongoClient))
 			mongoRepo       = mongo.NewRepository(mongoCollectionA, mongoTransactor, false)
 		)
-		err := oniontx.NewSaga([]oniontx.Step{
+		err := sage.NewSaga([]sage.Step{
 			{
 				Name: "step_sql_0",
 				Action: func(ctx context.Context) error {

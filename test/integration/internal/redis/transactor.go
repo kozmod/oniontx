@@ -5,7 +5,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"github.com/kozmod/oniontx"
+	"github.com/kozmod/oniontx/mtx"
 )
 
 // Pipeliner represents common methods of [redis.Client] and [redis.Pipeliner].
@@ -48,17 +48,17 @@ func (t *pipelinerWrapper) Commit(ctx context.Context) error {
 // Transactor manage a transaction for single [redis.Client] instance.
 type Transactor struct {
 	client *redis.Client
-	*oniontx.Transactor[*redisClientWrapper, *pipelinerWrapper]
+	*mtx.Transactor[*redisClientWrapper, *pipelinerWrapper]
 }
 
 // NewTransactor returns new [Transactor].
 func NewTransactor(client *redis.Client) *Transactor {
 	var (
 		base       = redisClientWrapper{Client: client}
-		operator   = oniontx.NewContextOperator[*redisClientWrapper, *pipelinerWrapper](&base)
+		operator   = mtx.NewContextOperator[*redisClientWrapper, *pipelinerWrapper](&base)
 		transactor = Transactor{
 			client:     client,
-			Transactor: oniontx.NewTransactor[*redisClientWrapper, *pipelinerWrapper](&base, operator),
+			Transactor: mtx.NewTransactor[*redisClientWrapper, *pipelinerWrapper](&base, operator),
 		}
 	)
 	return &transactor

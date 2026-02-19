@@ -4,10 +4,10 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 
-	"github.com/jmoiron/sqlx"
-	"github.com/kozmod/oniontx"
+	"github.com/kozmod/oniontx/mtx"
 )
 
 // Executor represents common methods of [sqlx.DB] and [sqlx.Tx].
@@ -51,15 +51,15 @@ func (t *TxWrapper) Commit(_ context.Context) error {
 
 // Transactor manage a transaction for single [pgx.Conn] instance.
 type Transactor struct {
-	*oniontx.Transactor[*Wrapper, *TxWrapper]
+	*mtx.Transactor[*Wrapper, *TxWrapper]
 }
 
 // NewTransactor returns new Transactor ([sqlx] implementation).
 func NewTransactor(db *sqlx.DB) *Transactor {
 	var (
 		base       = Wrapper{DB: db}
-		operator   = oniontx.NewContextOperator[*Wrapper, *TxWrapper](&base)
-		transactor = oniontx.NewTransactor[*Wrapper, *TxWrapper](&base, operator)
+		operator   = mtx.NewContextOperator[*Wrapper, *TxWrapper](&base)
+		transactor = mtx.NewTransactor[*Wrapper, *TxWrapper](&base, operator)
 	)
 	return &Transactor{
 		Transactor: transactor,

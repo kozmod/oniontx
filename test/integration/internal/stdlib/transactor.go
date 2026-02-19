@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/kozmod/oniontx"
+	"github.com/kozmod/oniontx/mtx"
 )
 
 // Executor represents common methods of sql.DB and sql.Tx.
@@ -48,16 +48,16 @@ func (t *TxWrapper) Commit(_ context.Context) error {
 
 // Transactor manage a transaction for single [sql.DB] instance.
 type Transactor struct {
-	*oniontx.Transactor[*Wrapper, *TxWrapper]
+	*mtx.Transactor[*Wrapper, *TxWrapper]
 }
 
 // NewTransactor returns new [Transactor].
 func NewTransactor(db *sql.DB) *Transactor {
 	var (
 		base       = Wrapper{DB: db}
-		operator   = oniontx.NewContextOperator[*Wrapper, *TxWrapper](&base)
+		operator   = mtx.NewContextOperator[*Wrapper, *TxWrapper](&base)
 		transactor = Transactor{
-			Transactor: oniontx.NewTransactor[*Wrapper, *TxWrapper](&base, operator),
+			Transactor: mtx.NewTransactor[*Wrapper, *TxWrapper](&base, operator),
 		}
 	)
 	return &transactor
