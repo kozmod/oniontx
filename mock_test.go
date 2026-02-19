@@ -73,3 +73,11 @@ func assertNoError(t *testing.T, err error) {
 		t.Fatalf("error arise: %v", err)
 	}
 }
+
+// assertNoError was added to avoid to use external dependencies for mocking
+func assertError(t *testing.T, err error) {
+	t.Helper()
+	if err == nil {
+		t.Fatalf("error arise: %v", err)
+	}
+}

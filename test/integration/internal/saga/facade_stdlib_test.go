@@ -41,14 +41,18 @@ func Test_Saga_stdlib_Facade(t *testing.T) {
 		)
 		err := oniontx.NewSaga([]oniontx.Step{
 			{
-				Name:       "step_0",
-				Transactor: transactor,
+				Name: "step_0",
 				Action: func(ctx context.Context) error {
-					err := repoA.Insert(ctx, textRecord)
+					err := transactor.WithinTx(ctx, func(ctx context.Context) error {
+						return repoA.Insert(ctx, textRecord)
+					})
 					assert.NoError(t, err)
-					return err
+					return nil
 				},
-				Compensation: func(ctx context.Context) error {
+				Compensation: func(ctx context.Context, ariseErr error) error {
+					assert.Error(t, ariseErr)
+					assert.ErrorIs(t, ariseErr, entity.ErrExpected)
+
 					err := repoA.Delete(ctx, textRecord)
 					assert.NoError(t, err)
 					return err
@@ -66,20 +70,25 @@ func Test_Saga_stdlib_Facade(t *testing.T) {
 				},
 			},
 			{
-				Name:       "step_2",
-				Transactor: transactor,
+				Name: "step_2",
 				Action: func(ctx context.Context) error {
-					err := repoA.Insert(ctx, textRecord)
-					if err != nil {
-						return fmt.Errorf("step_2 - repoA error: %w", err)
-					}
-					err = repoB.Insert(ctx, textRecord) // will fail (entity.ErrExpected)
-					if err != nil {
-						assert.Error(t, err)
-						assert.ErrorIs(t, err, entity.ErrExpected)
-						return fmt.Errorf("step_2 - repoB error: %w", err)
-					}
-					return nil
+					err := transactor.WithinTx(ctx, func(ctx context.Context) error {
+						err := repoA.Insert(ctx, textRecord)
+						if err != nil {
+							return fmt.Errorf("step_2 - repoA error: %w", err)
+						}
+						err = repoB.Insert(ctx, textRecord) // will fail (entity.ErrExpected)
+						if err != nil {
+							return fmt.Errorf("step_2 - repoB error: %w", err)
+						}
+
+						assert.Fail(t, "step_2 - repoB is expected to fail")
+						return nil
+					})
+
+					assert.Error(t, err)
+					assert.ErrorIs(t, err, entity.ErrExpected)
+					return err
 				},
 			},
 		}).Execute(ctx)

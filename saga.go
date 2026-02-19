@@ -17,19 +17,15 @@ type Step struct {
 	// Name of the step.
 	Name string
 
-	// Transactor - a local transactor for a specific storage.
-	// It should implement an interface similar to [oniontx.Transactor].
-	// This [Transactor] is optional and uses as others Transactors wrapper.
-	Transactor interface {
-		WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error)
-	}
-
 	// Action is the main operation executed within a step's transaction.
 	Action func(ctx context.Context) error
 
 	// Compensation - a compensating action that undoes the Action (if possible).
-	// Called upon failure in subsequent steps
-	Compensation func(ctx context.Context) error
+	// Called upon failure in subsequent steps.
+	Compensation func(ctx context.Context, ariseErr error) error
+
+	// CompensationOnFail need to add current Compensation to list of compensations.
+	CompensationOnFail bool
 }
 
 // Sage coordinates a distributed transaction using the `Saga` pattern.
@@ -51,21 +47,17 @@ func (s *Sage) Execute(ctx context.Context) error {
 	var completedSteps []Step
 
 	for i, step := range s.steps {
-		var err error
-		switch {
-		case step.Transactor == nil:
-			err = step.Action(ctx)
-			if err != nil {
-				err = fmt.Errorf("step failed [%d#%s]: %w", i, step.Name, err)
-			}
-		default:
-			err = step.Transactor.WithinTx(ctx, func(txCtx context.Context) error {
-				err = step.Action(txCtx)
-				if err != nil {
-					return fmt.Errorf("step failed [%d#%s]: %w", i, step.Name, err)
-				}
-				return nil
-			})
+		if step.Action == nil {
+			continue
+		}
+
+		if step.CompensationOnFail {
+			completedSteps = append(completedSteps, step)
+		}
+
+		err := step.Action(ctx)
+		if err != nil {
+			err = fmt.Errorf("step failed [%d#%s]: %w", i, step.Name, err)
 		}
 
 		if err != nil {
@@ -73,7 +65,9 @@ func (s *Sage) Execute(ctx context.Context) error {
 			return s.compensate(ctx, completedSteps, err)
 		}
 
-		completedSteps = append(completedSteps, step)
+		if !step.CompensationOnFail {
+			completedSteps = append(completedSteps, step)
+		}
 	}
 
 	return nil
@@ -88,7 +82,7 @@ func (s *Sage) compensate(ctx context.Context, completedSteps []Step, originalEr
 			continue
 		}
 
-		if err := step.Compensation(ctx); err != nil {
+		if err := step.Compensation(ctx, originalErr); err != nil {
 			compensationErrors = append(
 				compensationErrors,
 				fmt.Errorf("compensation failed - step [%d#%s]: %w", i, step.Name, err),

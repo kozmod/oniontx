@@ -2,6 +2,8 @@ package saga
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -23,7 +25,8 @@ func Test_Saga_multi_Facade(t *testing.T) {
 	)
 
 	var (
-		globalCtx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		ctx               = context.Background()
+		globalCtx, cancel = context.WithTimeout(ctx, 10*time.Second)
 
 		sqlDB = stdlib.ConnectDB(t)
 
@@ -59,7 +62,6 @@ func Test_Saga_multi_Facade(t *testing.T) {
 		t.Cleanup(cleanupFn)
 
 		var (
-			ctx           = context.Background()
 			sqlTransactor = stdlib.NewTransactor(sqlDB)
 			sqlRepo       = stdlib.NewTextRepository(sqlTransactor, false)
 
@@ -68,27 +70,29 @@ func Test_Saga_multi_Facade(t *testing.T) {
 		)
 		err := oniontx.NewSaga([]oniontx.Step{
 			{
-				Name:       "step_sql_0",
-				Transactor: sqlTransactor,
+				Name: "step_sql_0",
 				Action: func(ctx context.Context) error {
-					err := sqlRepo.Insert(ctx, sqlTextRecord)
+					err := sqlTransactor.WithinTx(ctx, func(ctx context.Context) error {
+						return sqlRepo.Insert(ctx, sqlTextRecord)
+					})
 					assert.NoError(t, err)
-					return err
+					return nil
 				},
-				Compensation: func(ctx context.Context) error {
+				Compensation: func(ctx context.Context, _ error) error {
 					assert.Fail(t, "should not call (sql)")
 					return nil
 				},
 			},
 			{
-				Name:       "step_mongo_0",
-				Transactor: mongoTransactor,
+				Name: "step_mongo_0",
 				Action: func(ctx context.Context) error {
-					err := mongoRepo.Save(ctx, mongoTestDataValA)
+					err := mongoTransactor.WithinTx(ctx, func(ctx context.Context) error {
+						return mongoRepo.Save(ctx, mongoTestDataValA)
+					})
 					assert.NoError(t, err)
-					return err
+					return nil
 				},
-				Compensation: func(ctx context.Context) error {
+				Compensation: func(ctx context.Context, _ error) error {
 					assert.Fail(t, "should not call (mongo)")
 					return nil
 				},
@@ -113,11 +117,10 @@ func Test_Saga_multi_Facade(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("success_success_compensation", func(t *testing.T) {
+	t.Run("success_compensation", func(t *testing.T) {
 		t.Cleanup(cleanupFn)
 
 		var (
-			ctx           = context.Background()
 			sqlTransactor = stdlib.NewTransactor(sqlDB)
 			sqlRepo       = stdlib.NewTextRepository(sqlTransactor, false)
 
@@ -126,28 +129,38 @@ func Test_Saga_multi_Facade(t *testing.T) {
 		)
 		err := oniontx.NewSaga([]oniontx.Step{
 			{
-				Name:       "step_sql_0",
-				Transactor: sqlTransactor,
+				Name: "step_sql_0",
 				Action: func(ctx context.Context) error {
-					err := sqlRepo.Insert(ctx, sqlTextRecord)
+					err := sqlTransactor.WithinTx(ctx, func(ctx context.Context) error {
+						return sqlRepo.Insert(ctx, sqlTextRecord)
+					})
 					assert.NoError(t, err)
-					return err
+					return nil
 				},
-				Compensation: func(ctx context.Context) error {
-					err := sqlRepo.Delete(ctx, sqlTextRecord)
+				Compensation: func(ctx context.Context, ariseErr error) error {
+					assert.Error(t, ariseErr)
+					assert.ErrorIs(t, ariseErr, entity.ErrExpected)
+
+					err := sqlTransactor.WithinTx(ctx, func(ctx context.Context) error {
+						return sqlRepo.Delete(ctx, sqlTextRecord)
+					})
 					assert.NoError(t, err)
-					return err
+					return nil
 				},
 			},
 			{
-				Name:       "step_mongo_0",
-				Transactor: mongoTransactor,
+				Name: "step_mongo_0",
 				Action: func(ctx context.Context) error {
-					err := mongoRepo.Save(ctx, mongoTestDataValA)
+					err := mongoTransactor.WithinTx(ctx, func(ctx context.Context) error {
+						return mongoRepo.Save(ctx, mongoTestDataValA)
+					})
 					assert.NoError(t, err)
-					return err
+					return nil
 				},
-				Compensation: func(ctx context.Context) error {
+				Compensation: func(ctx context.Context, ariseErr error) error {
+					assert.Error(t, ariseErr)
+					assert.ErrorIs(t, ariseErr, entity.ErrExpected)
+
 					err := mongoRepo.Delete(ctx, mongoTestDataValA)
 					assert.NoError(t, err)
 					return err
@@ -169,8 +182,7 @@ func Test_Saga_multi_Facade(t *testing.T) {
 				},
 			},
 			{
-				Name:       "step_error",
-				Transactor: sqlTransactor,
+				Name: "step_error",
 				Action: func(ctx context.Context) error {
 					return entity.ErrExpected
 				},
@@ -190,7 +202,91 @@ func Test_Saga_multi_Facade(t *testing.T) {
 			data, err := mongo.GetDataByID(ctx, t, mongoCollectionA, mongoTestID)
 			assert.Equal(t, mongoDummyData, data)
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), mongo.ErrTextNoDocResult)
+			assert.Containsf(t, err.Error(), mongo.ErrTextNoDocResult, "should have returned an error")
+		}
+	})
+
+	t.Run("success_compensation_in_single_action", func(t *testing.T) {
+		t.Cleanup(cleanupFn)
+		t.Log("using `CompensationOnFail` flag")
+
+		var (
+			sqlTransactor = stdlib.NewTransactor(sqlDB)
+			sqlRepo       = stdlib.NewTextRepository(sqlTransactor, false)
+
+			mongoTransactor = mongo.NewTransactor(mongo.NewMongo(mongoClient))
+			mongoRepo       = mongo.NewRepository(mongoCollectionA, mongoTransactor, false)
+		)
+		err := oniontx.NewSaga([]oniontx.Step{
+			{
+				Name: "step_sql_0",
+				Action: func(ctx context.Context) error {
+					// The parent [Transactor] which maintain SQL transactions.
+					err := sqlTransactor.WithinTx(ctx, func(ctx context.Context) error {
+						err := sqlRepo.Insert(ctx, sqlTextRecord)
+						if err != nil {
+							return fmt.Errorf("1 sql insert failed: %w", err)
+						}
+
+						// The child [Transactor] which maintain Mongo transactions.
+						err = mongoTransactor.WithinTx(ctx, func(ctx context.Context) error {
+							return mongoRepo.Save(ctx, mongoTestDataValA)
+						})
+						if err != nil {
+							return fmt.Errorf("1 mongo save failed: %w", err)
+						}
+						err = sqlRepo.Insert(ctx, sqlTextRecord)
+						if err != nil {
+							return fmt.Errorf("2 sql insert failed: %w", err)
+						}
+
+						// Because Mongo transaction was commited, need to imitate an error
+						// in the last step for the parent [Transactor] (sql).
+						return entity.ErrExpected
+					})
+					assert.Error(t, err)
+					return err
+				},
+				// Need to add current compensation to list of compensations.
+				CompensationOnFail: true,
+				Compensation: func(ctx context.Context, ariseErr error) error {
+					// check Mongo entities (commit).
+					data, err := mongo.GetDataByID(ctx, t, mongoCollectionA, mongoTestID)
+					assert.NoError(t, err)
+					assert.Equal(t, mongoTestDataValA, data)
+
+					// check SQL entities (rollback)
+					records, err := stdlib.GetTextRecords(sqlDB)
+					assert.NoError(t, err)
+					assert.Len(t, records, 0)
+
+					// Compensation logic.
+					//
+					// Check an error type and call compensation only for Mongo.
+					if ariseErr != nil && errors.Is(ariseErr, entity.ErrExpected) {
+						err = mongoRepo.Delete(ctx, mongoTestDataValA)
+						assert.NoError(t, err)
+						return err
+					}
+					assert.Fail(t, "should not have been called")
+					return nil
+				},
+			},
+		}).Execute(ctx)
+
+		assert.ErrorIs(t, err, entity.ErrExpected)
+
+		t.Logf("test error output: \n{\n%v\n}", err)
+
+		{
+			records, err := stdlib.GetTextRecords(sqlDB)
+			assert.NoError(t, err)
+			assert.Len(t, records, 0)
+
+			data, err := mongo.GetDataByID(ctx, t, mongoCollectionA, mongoTestID)
+			assert.Equal(t, mongoDummyData, data)
+			assert.Error(t, err)
+			assert.Containsf(t, err.Error(), mongo.ErrTextNoDocResult, "should have returned an error")
 		}
 	})
 }

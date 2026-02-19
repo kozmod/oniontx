@@ -99,7 +99,7 @@ func Test(t *testing.T) {
 			data, err := GetDataByID(ctx, t, collectionA, testID)
 			assert.Equal(t, dummyData, data)
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), ErrTextNoDocResult)
+			assert.Containsf(t, err.Error(), ErrTextNoDocResult, "should have returned an error")
 		})
 	})
 	t.Run("multiple_collection", func(t *testing.T) {
@@ -152,7 +152,7 @@ func Test(t *testing.T) {
 			data, err := GetDataByID(ctx, t, collectionA, testID)
 			assert.Equal(t, dummyData, data)
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), ErrTextNoDocResult)
+			assert.Containsf(t, err.Error(), ErrTextNoDocResult, "should have returned an error")
 		})
 	})
 	t.Run("with_options", func(t *testing.T) {
