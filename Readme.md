@@ -7,12 +7,18 @@
 ![GitHub last commit](https://img.shields.io/github/last-commit/kozmod/oniontx)
 [![GitHub MIT license](https://img.shields.io/github/license/kozmod/oniontx)](https://github.com/kozmod/oniontx/blob/dev/LICENSE)
 
-`oniontx` allows to move transferring transaction management from the `Persistence` (repository) layer to the `Application` (service) layer using owner defined contract.
+`oniontx` enables moving transaction management from the `Persistence` (repository) layer 
+to the `Application` (service) (service) layer using an owner-defined contract.
+
+## Transactor
+
 # <img src=".github/assets/clean_arch+uml.png" alt="drawing"  width="700" />
-🔴 **NOTE:** `Transactor` was designed to work with only the same instance of the "repository" (`*sql.DB`, etc.)
+🔴 **NOTE:** `Transactor` was designed to work with only a single instance of a "repository" (`*sql.DB`, etc.).
+For multiple repositories, use `Transactor` with `Sage`.
+
 ### The key features:
- - [**default implementation for `stdlib`**](#stdlib)
- - [**default implementation for popular libraries**](#libs)
+ - [**simple implementation for `stdlib`**](#stdlib)
+ - [**simple implementation for popular libraries**](#libs)
  - [**custom implementation's contract**](#custom)
  - [**simple testing with testing frameworks**](#testing)
 
@@ -90,7 +96,7 @@ func (r *repoB) Insert(ctx context.Context, val string) error {
 
 ---
 ### <a name="libs"><a/>Default implementation examples for libs
-Examples of default implementation of `Transactor` (sqlx, pgx, gorm, redis, mongo):
+Examples of default `Transactor` implementations (sqlx, pgx, gorm, redis, mongo)
 - [sqlx](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/sqlx)
 - [pgx](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/pgx)
 - [gorm](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/gorm)
@@ -100,8 +106,8 @@ Examples of default implementation of `Transactor` (sqlx, pgx, gorm, redis, mong
 ---
 
 ##  <a name="custom"><a/>Custom implementation
-If it's required, `oniontx` allowed opportunity to implements custom algorithms for maintaining transactions (examples).
-
+If required, `oniontx` provides the ability to 
+implement custom algorithms for managing transactions (see examples).
 #### Interfaces:
 ```go 
 type (
@@ -126,7 +132,7 @@ type (
 )
 ```
 ### Examples 
-`❗` ️***This examples based on `stdlib` pacakge.***
+`❗` ️***These examples are based on the `stdlib` package.***
 
 `TxBeginner` and `Tx` implementations:
 ```go
@@ -322,7 +328,7 @@ func main() {
 ```
 ---
 #### Execution transaction in the different use cases
-***Execution the same transaction for different `usecases` with the same `oniontx.Transactor` instance***
+***Executing the same transaction for different `UseCases` using the same `Transactor` instance***
 
 UseCases:
 ```go
@@ -463,7 +469,40 @@ func main() {
 }
 ```
 
-### <a name="testing"><a/>Testing
+## Saga
+The implementation of the `Saga` pattern.
+
+Example:
+```go
+steps := []Step{
+	{
+		Name: "first step",
+		// Action — a function to execute
+		Action: func(ctx context.Context) error {
+			// Action logic.
+			return nil
+		},
+		// Compensation — a function to compensate an action when an error occurs.
+		//
+		// Parameters:
+		//   - ctx: context for cancellation and deadlines (context that is passed through the action)
+		//   - aroseErr: error from the previous action that needs compensation
+		Compensation: func(ctx context.Context, aroseErr error) error {
+			// Action compensation logic.
+			return nil
+		},
+		// CompensationOnFail needs to add the current compensation to the list of compensations.
+		CompensationOnFail: true,
+	},
+}
+// Saga execution.
+err := NewSaga(steps).Execute(context.Background())
+if err != nil {
+	// Error handling.
+}
+```
+
+## <a name="testing"><a/>Testing
 
 [test](https://github.com/kozmod/oniontx/tree/master/test) package contains useful examples for creating unit test:
 

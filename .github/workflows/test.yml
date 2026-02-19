@@ -23,7 +23,7 @@ jobs:
           go-version: 1.23.1
 
       - name: Test
-        run: go test -v ./... -cover -coverprofile cover.out  && go tool cover -func cover.out
+        run: go test -v -p=1 ./... -cover -coverprofile cover.out  && go tool cover -func cover.out
 
       - name: Build
         run: go build -v ./...

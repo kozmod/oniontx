@@ -15,5 +15,5 @@ const (
 
 var (
 	// ErrExpected - error for tests.
-	ErrExpected = fmt.Errorf("expected fake error")
+	ErrExpected = fmt.Errorf("expected_fake_error")
 )
