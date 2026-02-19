@@ -14,7 +14,7 @@ to the `Application` (service) (service) layer using an owner-defined contract.
 
 # <img src=".github/assets/clean_arch+uml.png" alt="drawing"  width="700" />
 🔴 **NOTE:** `Transactor` was designed to work with only a single instance of a "repository" (`*sql.DB`, etc.).
-For multiple repositories, use `Transactor` with `Sage`.
+For multiple repositories, use `Transactor` with `Sage`[<sup>**ⓘ**</sup>](#saga).
 
 ### The key features:
  - [**simple implementation for `stdlib`**](#stdlib)
@@ -469,7 +469,7 @@ func main() {
 }
 ```
 
-## Saga
+## <a name="saga"><a/>Saga
 The implementation of the `Saga` pattern.
 
 Example:
@@ -501,6 +501,9 @@ if err != nil {
 	// Error handling.
 }
 ```
+
+[More examples here](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/saga).
+
 
 ## <a name="testing"><a/>Testing
 
