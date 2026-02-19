@@ -54,7 +54,7 @@ func (c committerValueMock) Rollback(ctx context.Context) error {
 func assertTrue(t *testing.T, val bool) {
 	t.Helper()
 	if !val {
-		t.Fatal()
+		t.Fatalf("expected true [current value: %v]", val)
 	}
 }
 
@@ -62,7 +62,7 @@ func assertTrue(t *testing.T, val bool) {
 func assertFalse(t *testing.T, val bool) {
 	t.Helper()
 	if val {
-		t.Fatal()
+		t.Fatalf("expected false [current value: %v]", val)
 	}
 }
 
@@ -70,14 +70,14 @@ func assertFalse(t *testing.T, val bool) {
 func assertNoError(t *testing.T, err error) {
 	t.Helper()
 	if err != nil {
-		t.Fatalf("error arise: %v", err)
+		t.Fatalf("error arose: %v", err)
 	}
 }
 
-// assertNoError was added to avoid to use external dependencies for mocking
+// assertError was added to avoid to use external dependencies for mocking
 func assertError(t *testing.T, err error) {
 	t.Helper()
 	if err == nil {
-		t.Fatalf("error arise: %v", err)
+		t.Fatalf("error expected")
 	}
 }

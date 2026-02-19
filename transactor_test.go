@@ -86,7 +86,7 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 			assertTrue(t, &c == tx)
 			return nil
 		})
-		assertTrue(t, err == nil)
+		assertNoError(t, err)
 		assertTrue(t, beginnerCalled)
 		assertTrue(t, commitCalled)
 	})
@@ -116,7 +116,7 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 			assertTrue(t, &b == beginner)
 			return nil
 		})
-		assertTrue(t, err == nil)
+		assertNoError(t, err)
 		assertTrue(t, beginnerCalled)
 		assertTrue(t, commitCalled)
 	})
@@ -147,7 +147,7 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 				assertTrue(t, &c == tx)
 				return nil
 			})
-			assertTrue(t, err == nil)
+			assertNoError(t, err)
 			assertTrue(t, beginnerCalled)
 			assertTrue(t, commitCalled)
 		})
@@ -172,7 +172,7 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 				assertTrue(t, &c == tx)
 				return nil
 			})
-			assertTrue(t, err == nil)
+			assertNoError(t, err)
 			assertTrue(t, !commitCalled)
 		})
 		t.Run("failed_commit", func(t *testing.T) {
@@ -532,7 +532,7 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 				assertTrue(t, c == tx)
 				return nil
 			})
-			assertTrue(t, err == nil)
+			assertNoError(t, err)
 
 			err = tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
@@ -545,7 +545,7 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 			return err
 		})
 		assertTrue(t, beginCalled == 1)
-		assertTrue(t, err == nil)
+		assertNoError(t, err)
 		assertTrue(t, commitCalled == 1)
 	})
 	t.Run("error_and_rollback_on_high_lvl_when_error_on_low_lvl_func", func(t *testing.T) {
@@ -584,7 +584,7 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 				})
 				return err
 			})
-			assertTrue(t, err != nil)
+			assertError(t, err)
 
 			return err
 		})
@@ -632,10 +632,10 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 						assertTrue(t, c == tx)
 						panic(lowLvlPanicMsg)
 					})
-					assertTrue(t, err != nil)
+					assertError(t, err)
 					return err
 				})
-				assertTrue(t, err != nil)
+				assertError(t, err)
 
 				return err
 			})
@@ -678,7 +678,7 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 						assertTrue(t, c == tx)
 						panic(lowLvlPanicMsg)
 					})
-					assertTrue(t, err != nil)
+					assertError(t, err)
 					panic(middleLvlPanicMsg)
 				})
 				assertTrue(t, err != nil)
