@@ -65,6 +65,11 @@ tags.del: ## Delete root module and submodules tags (args: t=<v*.*.*-*.*>)(git)
 tags.list: ## List all exists 'git' tags
 	@(git tag | sort -rt "." -k1,1n -k2,2n -k3,3n | tail -r)
 
+.PHONY: git.log
+git.log: ## Print formatted git log from "start commit" to HEAD (args: c - start commit)
+	@(val=$$(echo $(c)| tr -d ' ') && \
+	git log --pretty=format:"* %H %s" $c..HEAD)
+
 .PHONY: help
 help: ## List all 'make' targets with description
 	@grep -h -E '^[.a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
