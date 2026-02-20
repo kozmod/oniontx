@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/kozmod/oniontx"
+	"github.com/kozmod/oniontx/sage"
 	"github.com/kozmod/oniontx/test/integration/internal/entity"
 	"github.com/stretchr/testify/assert"
 )
@@ -27,7 +27,7 @@ func Test_Concurrent(t *testing.T) {
 			errChan = make(chan error, 1)
 		)
 
-		steps := []oniontx.Step{
+		steps := []sage.Step{
 			{
 				Name: "step0",
 				Action: func(ctx context.Context) error {
@@ -90,7 +90,7 @@ func Test_Concurrent(t *testing.T) {
 			},
 		}
 
-		err := oniontx.NewSaga(steps).Execute(ctx)
+		err := sage.NewSaga(steps).Execute(ctx)
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, entity.ErrExpected)
 		assert.ElementsMatch(t, []string{"action0", "action1", "action2"}, executedActions)

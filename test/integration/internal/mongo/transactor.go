@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kozmod/oniontx"
+	"github.com/kozmod/oniontx/mtx"
 
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-// ClientWrapper wraps [mongo.Client] and implements [oniontx.TxBeginner].
+// ClientWrapper wraps [mongo.Client] and implements [mtx.TxBeginner].
 type ClientWrapper struct {
 	*mongo.Client
 
@@ -59,7 +59,7 @@ func (c *ClientWrapper) BeginTx(ctx context.Context) (*SessionWrapper, error) {
 	}, nil
 }
 
-// SessionWrapper wraps [mongo.Session] and implements [oniontx.Tx].
+// SessionWrapper wraps [mongo.Session] and implements [mtx.Tx].
 type SessionWrapper struct {
 	*mongo.Session
 }
@@ -77,15 +77,15 @@ func (t *SessionWrapper) Commit(ctx context.Context) error {
 
 // Transactor manage a transaction for single [redis.Client] instance.
 type Transactor struct {
-	*oniontx.Transactor[*ClientWrapper, *SessionWrapper]
+	*mtx.Transactor[*ClientWrapper, *SessionWrapper]
 }
 
 // NewTransactor returns new [Transactor].
 func NewTransactor(client *ClientWrapper) *Transactor {
 	var (
-		operator   = oniontx.NewContextOperator[*ClientWrapper, *SessionWrapper](client)
+		operator   = mtx.NewContextOperator[*ClientWrapper, *SessionWrapper](client)
 		transactor = Transactor{
-			Transactor: oniontx.NewTransactor[*ClientWrapper, *SessionWrapper](client, operator),
+			Transactor: mtx.NewTransactor[*ClientWrapper, *SessionWrapper](client, operator),
 		}
 	)
 	return &transactor

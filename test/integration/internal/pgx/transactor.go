@@ -6,7 +6,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/kozmod/oniontx"
+	"github.com/kozmod/oniontx/mtx"
 )
 
 // Executor represents common methods of [pgx.Conn] and [pgx.Tx].
@@ -17,7 +17,7 @@ type Executor interface {
 	Prepare(ctx context.Context, name, sql string) (sd *pgconn.StatementDescription, err error)
 }
 
-// Wrapper wraps [pgx.Conn] and implements [oniontx.TxBeginner].
+// Wrapper wraps [pgx.Conn] and implements [mtx.TxBeginner].
 type Wrapper struct {
 	*pgx.Conn
 }
@@ -29,7 +29,7 @@ func (w *Wrapper) BeginTx(ctx context.Context) (*TxWrapper, error) {
 	return &TxWrapper{Tx: tx}, err
 }
 
-// TxWrapper wraps [pgx.Tx] and implements [oniontx.Tx]
+// TxWrapper wraps [pgx.Tx] and implements [mtx.Tx]
 type TxWrapper struct {
 	pgx.Tx
 }
@@ -46,15 +46,15 @@ func (t *TxWrapper) Commit(ctx context.Context) error {
 
 // Transactor manage a transaction for single [pgx.Conn] instance.
 type Transactor struct {
-	*oniontx.Transactor[*Wrapper, *TxWrapper]
+	*mtx.Transactor[*Wrapper, *TxWrapper]
 }
 
 // NewTransactor returns new Transactor ([pgx] implementation).
 func NewTransactor(conn *pgx.Conn) *Transactor {
 	var (
 		base       = Wrapper{Conn: conn}
-		operator   = oniontx.NewContextOperator[*Wrapper, *TxWrapper](&base)
-		transactor = oniontx.NewTransactor[*Wrapper, *TxWrapper](&base, operator)
+		operator   = mtx.NewContextOperator[*Wrapper, *TxWrapper](&base)
+		transactor = mtx.NewTransactor[*Wrapper, *TxWrapper](&base, operator)
 	)
 	return &Transactor{
 		Transactor: transactor,

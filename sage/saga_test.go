@@ -1,4 +1,4 @@
-package oniontx
+package sage
 
 import (
 	"context"
@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"slices"
 	"testing"
+
+	"github.com/kozmod/oniontx/internal/testtool"
 )
 
 func Test_Saga_example(t *testing.T) {
@@ -84,9 +86,9 @@ func TestSaga_Execute(t *testing.T) {
 		}
 
 		err := NewSaga(steps).Execute(ctx)
-		assertNoError(t, err)
-		assertTrue(t, slices.Equal([]string{"action1", "action2"}, executedActions))
-		assertTrue(t, len(executedCompensation) == 0)
+		testtool.AssertNoError(t, err)
+		testtool.AssertTrue(t, slices.Equal([]string{"action1", "action2"}, executedActions))
+		testtool.AssertTrue(t, len(executedCompensation) == 0)
 	})
 
 	t.Run("success_compensation_on_step1", func(t *testing.T) {
@@ -122,10 +124,10 @@ func TestSaga_Execute(t *testing.T) {
 		}
 
 		err := NewSaga(steps).Execute(ctx)
-		assertError(t, err)
-		assertTrue(t, errors.Is(err, expErr))
-		assertTrue(t, slices.Equal([]string{"action1", "action2"}, executedActions))
-		assertTrue(t, slices.Equal([]string{"comp1"}, executedCompensation))
+		testtool.AssertError(t, err)
+		testtool.AssertTrue(t, errors.Is(err, expErr))
+		testtool.AssertTrue(t, slices.Equal([]string{"action1", "action2"}, executedActions))
+		testtool.AssertTrue(t, slices.Equal([]string{"comp1"}, executedCompensation))
 	})
 
 	t.Run("compensation_on_fail", func(t *testing.T) {
@@ -151,10 +153,10 @@ func TestSaga_Execute(t *testing.T) {
 			}
 
 			err := NewSaga(steps).Execute(ctx)
-			assertError(t, err)
-			assertTrue(t, errors.Is(err, expErr))
-			assertTrue(t, slices.Equal([]string{"action1"}, executedActions))
-			assertTrue(t, len(executedCompensation) == 0)
+			testtool.AssertError(t, err)
+			testtool.AssertTrue(t, errors.Is(err, expErr))
+			testtool.AssertTrue(t, slices.Equal([]string{"action1"}, executedActions))
+			testtool.AssertTrue(t, len(executedCompensation) == 0)
 		})
 		t.Run("added", func(t *testing.T) {
 			var (
@@ -178,10 +180,10 @@ func TestSaga_Execute(t *testing.T) {
 			}
 
 			err := NewSaga(steps).Execute(ctx)
-			assertError(t, err)
-			assertTrue(t, errors.Is(err, expErr))
-			assertTrue(t, slices.Equal([]string{"action1"}, executedActions))
-			assertTrue(t, slices.Equal([]string{"comp1"}, executedCompensation))
+			testtool.AssertError(t, err)
+			testtool.AssertTrue(t, errors.Is(err, expErr))
+			testtool.AssertTrue(t, slices.Equal([]string{"action1"}, executedActions))
+			testtool.AssertTrue(t, slices.Equal([]string{"comp1"}, executedCompensation))
 		})
 	})
 }

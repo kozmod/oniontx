@@ -1,8 +1,7 @@
-package oniontx
+package mtx
 
 import (
 	"context"
-	"testing"
 )
 
 // beginnerMock was added to avoid to use external dependencies for mocking (pointer receiver).
@@ -48,36 +47,4 @@ func (c committerValueMock) Commit(ctx context.Context) error {
 
 func (c committerValueMock) Rollback(ctx context.Context) error {
 	return c.committer.commitFn(ctx)
-}
-
-// assertTrue was added to avoid to use external dependencies for mocking
-func assertTrue(t *testing.T, val bool) {
-	t.Helper()
-	if !val {
-		t.Fatalf("expected true [current value: %v]", val)
-	}
-}
-
-// assertFalse was added to avoid to use external dependencies for mocking
-func assertFalse(t *testing.T, val bool) {
-	t.Helper()
-	if val {
-		t.Fatalf("expected false [current value: %v]", val)
-	}
-}
-
-// assertNoError was added to avoid to use external dependencies for mocking
-func assertNoError(t *testing.T, err error) {
-	t.Helper()
-	if err != nil {
-		t.Fatalf("error arose: %v", err)
-	}
-}
-
-// assertError was added to avoid to use external dependencies for mocking
-func assertError(t *testing.T, err error) {
-	t.Helper()
-	if err == nil {
-		t.Fatalf("error expected")
-	}
 }

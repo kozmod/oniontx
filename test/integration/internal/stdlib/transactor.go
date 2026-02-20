@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/kozmod/oniontx"
+	"github.com/kozmod/oniontx/mtx"
 )
 
 // Executor represents common methods of sql.DB and sql.Tx.
@@ -19,7 +19,7 @@ type Executor interface {
 	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
 }
 
-// Wrapper wraps [sql.DB] and implements [oniontx.TxBeginner].
+// Wrapper wraps [sql.DB] and implements [mtx.TxBeginner].
 type Wrapper struct {
 	*sql.DB
 }
@@ -31,7 +31,7 @@ func (db Wrapper) BeginTx(ctx context.Context) (*TxWrapper, error) {
 	return &TxWrapper{Tx: tx}, err
 }
 
-// TxWrapper wraps [sql.Tx] and implements [oniontx.Tx].
+// TxWrapper wraps [sql.Tx] and implements [mtx.Tx].
 type TxWrapper struct {
 	*sql.Tx
 }
@@ -48,16 +48,16 @@ func (t *TxWrapper) Commit(_ context.Context) error {
 
 // Transactor manage a transaction for single [sql.DB] instance.
 type Transactor struct {
-	*oniontx.Transactor[*Wrapper, *TxWrapper]
+	*mtx.Transactor[*Wrapper, *TxWrapper]
 }
 
 // NewTransactor returns new [Transactor].
 func NewTransactor(db *sql.DB) *Transactor {
 	var (
 		base       = Wrapper{DB: db}
-		operator   = oniontx.NewContextOperator[*Wrapper, *TxWrapper](&base)
+		operator   = mtx.NewContextOperator[*Wrapper, *TxWrapper](&base)
 		transactor = Transactor{
-			Transactor: oniontx.NewTransactor[*Wrapper, *TxWrapper](&base, operator),
+			Transactor: mtx.NewTransactor[*Wrapper, *TxWrapper](&base, operator),
 		}
 	)
 	return &transactor

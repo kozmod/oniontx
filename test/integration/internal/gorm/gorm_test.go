@@ -3,9 +3,10 @@ package gorm
 import (
 	"context"
 	"database/sql"
+	"testing"
+
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/pkg/errors"
-	"testing"
 
 	"github.com/stretchr/testify/assert"
 

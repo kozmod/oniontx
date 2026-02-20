@@ -17,86 +17,16 @@ to the `Application` (service) (service) layer using an owner-defined contract.
 For multiple repositories, use `Transactor` with `Sage`[<sup>**ⓘ**</sup>](#saga).
 
 ### The key features:
- - [**simple implementation for `stdlib`**](#stdlib)
+ - [**simple implementation for `stdlib`**](#libs)
  - [**simple implementation for popular libraries**](#libs)
  - [**custom implementation's contract**](#custom)
  - [**simple testing with testing frameworks**](#testing)
 
 ---
-### <a name="stdlib"><a/>`stdlib` package
-`Transactor` implementation for `stdlib`:
-```go
-// Look at to `github.com/kozmod/oniontx` to see `Transactor` implementation for standard library
-package main
-
-import (
-	"context"
-	"database/sql"
-	"fmt"
-	"log"
-
-	ostdlib "github.com/kozmod/oniontx/stdlib"
-)
-
-func main() {
-	var (
-		db *sql.DB // database instance
-
-		tr = ostdlib.NewTransactor(db)
-		r1 = repoA{t: tr}
-		r2 = repoB{t: tr}
-	)
-
-	err := tr.WithinTx(context.Background(), func(ctx context.Context) error {
-		err := r1.Insert(ctx, "repoA")
-		if err != nil {
-			return err
-		}
-		err = r2.Insert(ctx, "repoB")
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-
-	if err != nil {
-		log.Fatal(err)
-	}
-	
-}
-
-type repoA struct {
-	t *ostdlib.Transactor
-}
-
-func (r *repoA) Insert(ctx context.Context, val string) error {
-	ex := r.t.GetExecutor(ctx)
-	_, err := ex.ExecContext(ctx, `INSERT INTO tx (text) VALUES ($1)`, val)
-	if err != nil {
-		return fmt.Errorf("repoA.Insert: %w", err)
-	}
-	return nil
-}
-
-type repoB struct {
-	t *ostdlib.Transactor
-}
-
-func (r *repoB) Insert(ctx context.Context, val string) error {
-	ex := r.t.GetExecutor(ctx)
-	_, err := ex.ExecContext(ctx, `INSERT INTO tx (text) VALUES ($1)`, val)
-	if err != nil {
-		return fmt.Errorf("repoB.Insert: %w", err)
-	}
-	return nil
-}
-```
-[test/integration](https://github.com/kozmod/oniontx/tree/master/test) module contains more complicated 
-[example](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/stdlib).
-
----
 ### <a name="libs"><a/>Default implementation examples for libs
-Examples of default `Transactor` implementations (sqlx, pgx, gorm, redis, mongo)
+[test/integration](https://github.com/kozmod/oniontx/tree/master/test) module contains  examples 
+of default `Transactor` implementations (stdlib, sqlx, pgx, gorm, redis, mongo):
+- [stdlib](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/stdlib)
 - [sqlx](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/sqlx)
 - [pgx](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/pgx)
 - [gorm](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/gorm)
@@ -143,7 +73,7 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/kozmod/oniontx"
+	"github.com/kozmod/oniontx/mtx"
 )
 
 // Executor represents common methods of sql.DB and sql.Tx.
@@ -151,7 +81,7 @@ type Executor interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 }
 
-// DB is sql.DB wrapper, implements oniontx.TxBeginner.
+// DB is sql.DB wrapper, implements mtx.TxBeginner.
 type DB struct {
 	*sql.DB
 }
@@ -165,7 +95,7 @@ func (db *DB) BeginTx(ctx context.Context) (*Tx, error) {
 	return &Tx{Tx: tx}, err
 }
 
-// Tx is sql.Tx wrapper, implements oniontx.Tx.
+// Tx is sql.Tx wrapper, implements mtx.Tx.
 type Tx struct {
 	*sql.Tx
 }
@@ -186,13 +116,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kozmod/oniontx"
+	"github.com/kozmod/oniontx/mtx"
 
 	"github.com/user/some_project/internal/db"
 )
 
 type RepositoryA struct {
-	Transactor *oniontx.Transactor[*db.DB, *db.Tx]
+	Transactor *mtx.Transactor[*db.DB, *db.Tx]
 }
 
 func (r RepositoryA) Insert(ctx context.Context, val int) error {
@@ -215,13 +145,13 @@ import (
 	"context"
 	"fmt"
 	
-	"github.com/kozmod/oniontx"
+	"github.com/kozmod/oniontx/mtx"
 	
 	"github.com/user/some_project/internal/db"
 )
 
 type RepositoryB struct {
-	Transactor *oniontx.Transactor[*db.DB, *db.Tx]
+	Transactor *mtx.Transactor[*db.DB, *db.Tx]
 }
 
 func (r RepositoryB) Insert(ctx context.Context, val int) error {
@@ -247,7 +177,7 @@ import (
 )
 
 type (
-	// transactor is the contract of  the oniontx.Transactor
+	// transactor is the contract of  the mtx.Transactor
 	transactor interface {
 		WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error)
 	}
@@ -290,7 +220,7 @@ import (
 	"database/sql"
 	"os"
 
-	oniontx "github.com/kozmod/oniontx"
+	"github.com/kozmod/oniontx/mtx"
 	
 	"github.com/user/some_project/internal/repoA"
 	"github.com/user/some_project/internal/repoB"
@@ -303,8 +233,8 @@ func main() {
 		database *sql.DB // database pointer
 
 		wrapper    = &db.DB{DB: database}
-		operator   = oniontx.NewContextOperator[*db.DB, *db.Tx](&wrapper)
-		transactor = oniontx.NewTransactor[*db.DB, *db.Tx](wrapper, operator)
+		operator   = mtx.NewContextOperator[*db.DB, *db.Tx](&wrapper)
+		transactor = mtx.NewTransactor[*db.DB, *db.Tx](wrapper, operator)
 
 		repositoryA = repoA.RepositoryA{
 			Transactor: transactor,
@@ -340,7 +270,7 @@ import (
 )
 
 type (
-	// transactor is the contract of  the oniontx.Transactor
+	// transactor is the contract of  the mtx.Transactor
 	transactor interface {
 		WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error)
 	}
@@ -383,7 +313,7 @@ import (
 )
 
 type (
-	// transactor is the contract of  the oniontx.Transactor
+	// transactor is the contract of  the mtx.Transactor
 	transactor interface {
 		WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error)
 	}
@@ -431,7 +361,7 @@ import (
 	"database/sql"
 	"os"
 
-	oniontx "github.com/kozmod/oniontx"
+	"github.com/kozmod/oniontx/mtx"
 
 	"github.com/user/some_project/internal/db"
 	"github.com/user/some_project/internal/repoA"
@@ -445,8 +375,8 @@ func main() {
 		database *sql.DB // database pointer
 
 		wrapper    = &db.DB{DB: database}
-		operator   = oniontx.NewContextOperator[*db.DB, *db.Tx](&wrapper)
-		transactor = oniontx.NewTransactor[*db.DB, *db.Tx](wrapper, operator)
+		operator   = mtx.NewContextOperator[*db.DB, *db.Tx](&wrapper)
+		transactor = mtx.NewTransactor[*db.DB, *db.Tx](wrapper, operator)
 
 		useCaseA = a.UseCaseA{
 			Repo: repoA.RepositoryA{
