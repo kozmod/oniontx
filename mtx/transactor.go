@@ -1,3 +1,6 @@
+// Package mtx provides a flexible transaction management system with support for
+// nested transactions, panic recovery, and context-based transaction propagation.
+// It allows working with different database/sql implementations through interfaces
 package mtx
 
 import (
@@ -7,13 +10,33 @@ import (
 )
 
 var (
-	ErrNilTxBeginner   = fmt.Errorf("tx beginner is nil")
-	ErrNilTxOperator   = fmt.Errorf("tx operator is nil")
-	ErrBeginTx         = fmt.Errorf("begin tx")
-	ErrCommitFailed    = fmt.Errorf("commit failed")
-	ErrRollbackFailed  = fmt.Errorf("rollback failed")
+	// ErrNilTxBeginner indicates that the provided TxBeginner is nil.
+	// This error is returned when trying to use a Transactor with an uninitialized beginner.
+	ErrNilTxBeginner = fmt.Errorf("tx beginner is nil")
+
+	// ErrNilTxOperator indicates that the provided CtxOperator is nil.
+	// This error is returned when trying to use a Transactor with an uninitialized operator.
+	ErrNilTxOperator = fmt.Errorf("tx operator is nil")
+
+	// ErrBeginTx indicates that starting a new transaction has failed.
+	// This error wraps the underlying error from the database driver.
+	ErrBeginTx = fmt.Errorf("begin tx")
+
+	// ErrCommitFailed indicates that committing a transaction has failed.
+	// This error wraps the underlying error from the database driver during commit
+	ErrCommitFailed = fmt.Errorf("commit failed")
+
+	// ErrRollbackFailed indicates that rolling back a transaction has failed.
+	// This error wraps the underlying error from the database driver during rollback.
+	ErrRollbackFailed = fmt.Errorf("rollback failed")
+
+	// ErrRollbackSuccess indicates that a transaction was successfully rolled back.
+	// Despite being an error type, it signals a successful rollback operation.
 	ErrRollbackSuccess = fmt.Errorf("rollback tx")
-	ErrPanicRecovered  = fmt.Errorf("panic recovered")
+
+	// ErrPanicRecovered indicates that a panic was recovered and converted to an error.
+	// It wraps the original panic value to provide context about what caused the panic.
+	ErrPanicRecovered = fmt.Errorf("panic recovered")
 )
 
 type (
@@ -29,14 +52,21 @@ type (
 		Commit(ctx context.Context) error
 	}
 
-	// СtxOperator is responsible for interaction with context.Context to store or extract Tx.
+	// СtxOperator is responsible for transaction propagation through context.Context.
+	// It provides methods to inject a transaction into context and extract it back.
 	СtxOperator[T Tx] interface {
 		Inject(ctx context.Context, tx T) context.Context
 		Extract(ctx context.Context) (T, bool)
 	}
 )
 
-// Transactor manage a transaction for single TxBeginner instance.
+// Transactor manages transactions for a single TxBeginner instance.
+// It provides a high-level API for executing functions within a transaction context,
+// with support for nested transactions, automatic rollback on error/panic,
+// and proper transaction propagation through context.
+//
+// The type parameters B and T allow working with any transaction implementation
+// that satisfies the TxBeginner and Tx interfaces respectively.
 type Transactor[B TxBeginner[T], T Tx] struct {
 	beginner B
 	operator СtxOperator[T]
@@ -52,48 +82,53 @@ func NewTransactor[B TxBeginner[T], T Tx](
 	}
 }
 
-// WithinTx execute all queries with Tx and transaction Options.
-// The function create new Tx or reuse Tx obtained from [context.Context].
-/*
-When WithinTx call recursively, the highest level function responsible for creating transaction and applying commit or rollback of a transaction.
-
-		tr := NewTransactor[...](...)
-
-		// The highest level.
-		// A transaction creates and finishes (commit/rollback) on this level.
-		err := tr.WithinTx(ctx, func(ctx context.Context) error {
-
-			// A middle level.
-			err := tr.WithinTx(ctx, func(ctx context.Context) error {
-				return nil
-			})
-
-			// A middle level.
-			err = tr.WithinTx(ctx, func(ctx context.Context) error {
-
-				// The lowest level.
-				err = tr.WithinTx(ctx, func(ctx context.Context) error {
-					return nil
-				})
-				return nil
-			})
-
-			return err
-		})
-
-NOTE:
-
-+ a processed error returns to the highest level function for commit or rollback.
-
-+ panics are transformed to errors with the same message.
-
-+ higher level panics override lower level panic (that was transformed to an error) or an error.
-
-Examples:
-
-1 - [mtx.Test_Transactor_recursive_call]
-2 - [test/integration/internal/stdlib/stdlib_test.go]
-*/
+// WithinTx executes the provided function within a transaction context.
+// It handles transaction creation, propagation, and automatic cleanup (commit/rollback).
+//
+// Key features:
+//   - Nested transaction support: When called recursively, only the top-level
+//     call creates and manages the actual transaction. Inner calls reuse the existing
+//     transaction from the context.
+//   - Automatic rollback: If the function returns an error or panics, the
+//     transaction is automatically rolled back.
+//   - Automatic commit: If the function completes without error, the transaction
+//     is automatically committed (only at the top level).
+//   - Panic recovery: Panics are recovered and converted to errors with
+//     ErrPanicRecovered. Higher-level panics override lower-level ones.
+//   - Context propagation: The transaction is injected into the context for
+//     inner function calls.
+//
+// The function follows these rules:
+//   - If a transaction exists in the context, it is reused (nested call)
+//   - Otherwise, a new transaction is created (top-level call)
+//   - Errors from the function or from commit/rollback are properly wrapped
+//   - Panics are handled gracefully without crashing the application
+//
+// Example:
+//
+//	// Top-level transaction
+//	err := transactor.WithinTx(ctx, func(ctx context.Context) error {
+//	    // This operation runs in a transaction
+//	    if err := someOperation(ctx); err != nil {
+//	        return err // Will trigger rollback
+//	    }
+//
+//	    // Nested call - reuses the same transaction
+//	    err := transactor.WithinTx(ctx, func(ctx context.Context) error {
+//	        return anotherOperation(ctx) // Same transaction
+//	    })
+//
+//	    return err
+//	}) // Auto-commits on success, rolls back on error
+//
+// Note:
+//   - A processed error returns to the highest level for commit or rollback
+//   - Panics are transformed to errors with the same message
+//   - Higher level panics override lower level panics or errors
+//
+// Examples:
+//   - [mtx.Test_Transactor_recursive_call]
+//   - [test/integration/internal/stdlib/stdlib_test.go]
 func (t *Transactor[B, T]) WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error) {
 	var (
 		nilBeginner B
@@ -160,13 +195,15 @@ func (t *Transactor[B, T]) WithinTx(ctx context.Context, fn func(ctx context.Con
 	return err
 }
 
-// TryGetTx returns [Tx] and "true" from [context.Context] or return `false`.
+// TryGetTx attempts to retrieve a transaction from the given context.
+// It returns the transaction and true if found, or a zero value and false otherwise.
 func (t *Transactor[B, T]) TryGetTx(ctx context.Context) (T, bool) {
 	tx, ok := t.operator.Extract(ctx)
 	return tx, ok
 }
 
-// TxBeginner returns [TxBeginner] which using in Transactor.
+// TxBeginner returns the underlying TxBeginner used by this Transactor.
+// This can be useful for creating transactions manually.
 func (t *Transactor[B, T]) TxBeginner() B {
 	return t.beginner
 }
