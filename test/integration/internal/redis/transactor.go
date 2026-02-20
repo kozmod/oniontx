@@ -15,7 +15,7 @@ type Pipeliner interface {
 	redis.ListCmdable
 }
 
-// redisClientWrapper wraps [redis.Client] and implements [oniontx.TxBeginner].
+// redisClientWrapper wraps [redis.Client] and implements [mtx.TxBeginner].
 type redisClientWrapper struct {
 	*redis.Client
 }
@@ -27,7 +27,7 @@ func (rdb redisClientWrapper) BeginTx(_ context.Context) (*pipelinerWrapper, err
 	}, nil
 }
 
-// pipelinerWrapper wraps [redis.Pipeliner] and implements [oniontx.Tx].
+// pipelinerWrapper wraps [redis.Pipeliner] and implements [mtx.Tx].
 type pipelinerWrapper struct {
 	redis.Pipeliner
 }

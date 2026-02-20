@@ -10,7 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-// ClientWrapper wraps [mongo.Client] and implements [oniontx.TxBeginner].
+// ClientWrapper wraps [mongo.Client] and implements [mtx.TxBeginner].
 type ClientWrapper struct {
 	*mongo.Client
 
@@ -59,7 +59,7 @@ func (c *ClientWrapper) BeginTx(ctx context.Context) (*SessionWrapper, error) {
 	}, nil
 }
 
-// SessionWrapper wraps [mongo.Session] and implements [oniontx.Tx].
+// SessionWrapper wraps [mongo.Session] and implements [mtx.Tx].
 type SessionWrapper struct {
 	*mongo.Session
 }

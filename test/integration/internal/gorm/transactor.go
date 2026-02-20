@@ -9,7 +9,7 @@ import (
 	"github.com/kozmod/oniontx/mtx"
 )
 
-// Wrapper wraps [gorm.DB] and implements [oniontx.TxBeginner].
+// Wrapper wraps [gorm.DB] and implements [mtx.TxBeginner].
 type Wrapper struct {
 	*gorm.DB
 

@@ -17,7 +17,7 @@ type Executor interface {
 	Prepare(ctx context.Context, name, sql string) (sd *pgconn.StatementDescription, err error)
 }
 
-// Wrapper wraps [pgx.Conn] and implements [oniontx.TxBeginner].
+// Wrapper wraps [pgx.Conn] and implements [mtx.TxBeginner].
 type Wrapper struct {
 	*pgx.Conn
 }
@@ -29,7 +29,7 @@ func (w *Wrapper) BeginTx(ctx context.Context) (*TxWrapper, error) {
 	return &TxWrapper{Tx: tx}, err
 }
 
-// TxWrapper wraps [pgx.Tx] and implements [oniontx.Tx]
+// TxWrapper wraps [pgx.Tx] and implements [mtx.Tx]
 type TxWrapper struct {
 	pgx.Tx
 }

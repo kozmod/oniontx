@@ -19,7 +19,7 @@ type Executor interface {
 	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
 }
 
-// Wrapper wraps [sql.DB] and implements [oniontx.TxBeginner].
+// Wrapper wraps [sql.DB] and implements [mtx.TxBeginner].
 type Wrapper struct {
 	*sql.DB
 }
@@ -31,7 +31,7 @@ func (db Wrapper) BeginTx(ctx context.Context) (*TxWrapper, error) {
 	return &TxWrapper{Tx: tx}, err
 }
 
-// TxWrapper wraps [sql.Tx] and implements [oniontx.Tx].
+// TxWrapper wraps [sql.Tx] and implements [mtx.Tx].
 type TxWrapper struct {
 	*sql.Tx
 }
