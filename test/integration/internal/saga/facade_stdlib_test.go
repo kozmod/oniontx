@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/kozmod/oniontx/mtx"
-	"github.com/kozmod/oniontx/sage"
+	"github.com/kozmod/oniontx/saga"
 	"github.com/kozmod/oniontx/test/integration/internal/entity"
 	"github.com/kozmod/oniontx/test/integration/internal/stdlib"
 
@@ -40,7 +40,7 @@ func Test_Saga_stdlib_Facade(t *testing.T) {
 			repoA      = stdlib.NewTextRepository(transactor, false)
 			repoB      = stdlib.NewTextRepository(transactor, true)
 		)
-		err := sage.NewSaga([]sage.Step{
+		err := saga.NewSaga([]saga.Step{
 			{
 				Name: "step_0",
 				Action: func(ctx context.Context) error {
@@ -99,9 +99,9 @@ func Test_Saga_stdlib_Facade(t *testing.T) {
 		t.Logf("test error output: \n{\n%v\n}", err)
 
 		assert.ErrorIs(t, err, entity.ErrExpected)
-		assert.ErrorIs(t, err, sage.ErrActionFailed)
+		assert.ErrorIs(t, err, saga.ErrActionFailed)
 		assert.ErrorIs(t, err, mtx.ErrRollbackSuccess)
-		assert.ErrorIs(t, err, sage.ErrCompensationSuccess)
+		assert.ErrorIs(t, err, saga.ErrCompensationSuccess)
 
 		{
 			records, err := stdlib.GetTextRecords(db)

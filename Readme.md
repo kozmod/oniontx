@@ -14,7 +14,7 @@ to the `Application` (service) (service) layer using an owner-defined contract.
 
 # <img src=".github/assets/clean_arch+uml.png" alt="drawing"  width="700" />
 🔴 **NOTE:** `Transactor` was designed to work with only a single instance of a "repository" (`*sql.DB`, etc.).
-For multiple repositories, use `Transactor` with `Sage`[<sup>**ⓘ**</sup>](#saga).
+For multiple repositories, use `Transactor` with `Saga`[<sup>**ⓘ**</sup>](#saga).
 
 ### The key features:
  - [**simple implementation for `stdlib`**](#libs)

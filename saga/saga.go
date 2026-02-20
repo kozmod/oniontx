@@ -1,4 +1,4 @@
-package sage
+package saga
 
 import (
 	"context"
@@ -31,7 +31,7 @@ var (
 	ErrPanicRecovered = fmt.Errorf("panic recovered")
 )
 
-// Step of the [Sage].
+// Step of the [Saga].
 type Step struct {
 	// Name of the step.
 	Name string
@@ -52,14 +52,14 @@ type Step struct {
 	CompensationOnFail bool
 }
 
-// Sage coordinates a distributed transaction using the `Saga` pattern.
-type Sage struct {
+// Saga coordinates a distributed transaction using the `Saga` pattern.
+type Saga struct {
 	steps []Step
 }
 
-// NewSaga creates a new [Sage] instance.
-func NewSaga(steps []Step) *Sage {
-	return &Sage{
+// NewSaga creates a new [Saga] instance.
+func NewSaga(steps []Step) *Saga {
+	return &Saga{
 		steps: steps,
 	}
 }
@@ -67,7 +67,7 @@ func NewSaga(steps []Step) *Sage {
 // Execute runs all Saga steps.
 //
 // If any step fails, compensating actions are triggered for all successfully completed steps.
-func (s *Sage) Execute(ctx context.Context) error {
+func (s *Saga) Execute(ctx context.Context) error {
 	var completedSteps []Step
 
 	for i, step := range s.steps {
@@ -98,7 +98,7 @@ func (s *Sage) Execute(ctx context.Context) error {
 }
 
 // compensate triggers compensating actions for all steps in reverse order
-func (s *Sage) compensate(ctx context.Context, completedSteps []Step, originalErr error) error {
+func (s *Saga) compensate(ctx context.Context, completedSteps []Step, originalErr error) error {
 	var compensationErrors []error
 
 	for i, step := range completedSteps {
