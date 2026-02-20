@@ -13,6 +13,7 @@ var (
 	ErrCommitFailed    = fmt.Errorf("commit failed")
 	ErrRollbackFailed  = fmt.Errorf("rollback failed")
 	ErrRollbackSuccess = fmt.Errorf("rollback tx")
+	ErrPanicRecovered  = fmt.Errorf("panic recovered")
 )
 
 type (
@@ -90,7 +91,7 @@ NOTE:
 
 Examples:
 
-1 - [oniontx.Test_Transactor_recursive_call]
+1 - [mtx.Test_Transactor_recursive_call]
 2 - [test/integration/internal/stdlib/stdlib_test.go]
 */
 func (t *Transactor[B, T]) WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error) {
@@ -118,13 +119,19 @@ func (t *Transactor[B, T]) WithinTx(ctx context.Context, fn func(ctx context.Con
 		switch p := recover(); {
 		case p != nil:
 			if ok {
-				err = fmt.Errorf("transactor - panic [%v]", p)
+				err = errors.Join(fmt.Errorf("transactor - panic [%v]", p), ErrPanicRecovered)
 				return
 			}
 			if rbErr := tx.Rollback(ctx); rbErr != nil {
-				err = fmt.Errorf("transactor - panic [%v]: %w", p, errors.Join(rbErr, ErrRollbackFailed))
+				err = fmt.Errorf(
+					"transactor - panic [%v]: %w", p,
+					errors.Join(rbErr, ErrRollbackFailed, ErrPanicRecovered),
+				)
 			} else {
-				err = fmt.Errorf("transactor - panic [%v]: %w", p, ErrRollbackSuccess)
+				err = fmt.Errorf(
+					"transactor - panic [%v]: %w", p,
+					errors.Join(ErrRollbackSuccess, ErrPanicRecovered),
+				)
 			}
 		case err != nil:
 			if ok {

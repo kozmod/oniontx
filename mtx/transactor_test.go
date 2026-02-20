@@ -303,6 +303,7 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 				panic(expPanic)
 			})
 			testtool.AssertTrue(t, errors.Is(err, ErrRollbackSuccess))
+			testtool.AssertTrue(t, errors.Is(err, ErrPanicRecovered))
 			testtool.AssertTrue(t, strings.Contains(err.Error(), expPanic))
 			testtool.AssertTrue(t, rollbackCalled)
 			testtool.AssertTrue(t, beginCalled)
@@ -339,6 +340,7 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 				panic(expPanicMsg)
 			})
 			testtool.AssertTrue(t, errors.Is(err, ErrRollbackFailed))
+			testtool.AssertTrue(t, errors.Is(err, ErrPanicRecovered))
 			testtool.AssertTrue(t, errors.Is(err, rollbackErr))
 			testtool.AssertTrue(t, strings.Contains(err.Error(), expPanicMsg))
 			testtool.AssertTrue(t, rollbackCalled)
@@ -397,7 +399,7 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 	})
 }
 
-// Test_Transactor_recursive_call - testing recursive [oniontx.Transactor] calls.
+// Test_Transactor_recursive_call - testing recursive [mtx.Transactor] calls.
 func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 	const (
 		ctxValTopLvl    = "top_lvl"
@@ -642,6 +644,7 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 				return err
 			})
 			testtool.AssertTrue(t, errors.Is(err, ErrRollbackSuccess))
+			testtool.AssertTrue(t, errors.Is(err, ErrPanicRecovered))
 			testtool.AssertTrue(t, strings.Contains(err.Error(), lowLvlPanicMsg))
 			testtool.AssertTrue(t, beginCalled == 1)
 			testtool.AssertTrue(t, commitCalled == 0)
@@ -688,6 +691,7 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 				return err
 			})
 			testtool.AssertTrue(t, errors.Is(err, ErrRollbackSuccess))
+			testtool.AssertTrue(t, errors.Is(err, ErrPanicRecovered))
 			testtool.AssertFalse(t, strings.Contains(err.Error(), lowLvlPanicMsg))
 			testtool.AssertTrue(t, strings.Contains(err.Error(), middleLvlPanicMsg))
 			testtool.AssertTrue(t, beginCalled == 1)
