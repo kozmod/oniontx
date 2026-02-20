@@ -436,7 +436,9 @@ if err != nil {
 }
 ```
 
-[More examples here](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/saga).
+More examples:
+- [tests](https://github.com/kozmod/oniontx/tree/master/saga/saga_test.go)
+- [integration tests](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/saga)
 
 
 ## <a name="testing"><a/>Testing
