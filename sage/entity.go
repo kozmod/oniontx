@@ -104,42 +104,62 @@ type RetryOptions struct {
 
 // WithRetry returns a function with retry logic for execution.
 // It makes the specified number of attempts to call fn until it succeeds.
-// Before the first attempt, it waits for the specified Delay.
-// If all attempts fail, behavior depends on ReturnAllAroseErr:
-//   - if true - returns all errors via `errors.Join(...)`.
-//   - if false - returns the lat error.
+// Between attempts, it waits for the specified Delay using a ticker.
+// The function respects context cancellation and will return context.Err() if done.
 //
-// If Attempts = 0, the function immediately returns nil without executing fn.
+// Behavior:
+//   - If Attempts = 0, the function immediately returns nil without executing fn
+//   - Before each attempt, it waits for the Delay period
+//   - The function stops retrying on first successful execution
+//   - Context cancellation is respected between attempts
+//   - All errors from failed attempts are collected
+//
+// If all attempts fail, behavior depends on ReturnAllAroseErr:
+//   - if true - returns all errors via errors.Join(...)
+//   - if false - returns only the last error that occurred
+//
+// Example:
+//
+//	opts := RetryOptions{
+//	    Attempts: 3,
+//	    Delay:    time.Second,
+//	    ReturnAllAroseErr: true,
+//	}
+//
+//	retryableFn := WithRetry(opts, func(ctx context.Context) error {
+//	    return someOperation(ctx)
+//	})
+//
+//	err := retryableFn(ctx) // Will try up to 3 times with 1s delays
 func WithRetry(opt RetryOptions, fn func(ctx context.Context) error) func(ctx context.Context) error {
 	return func(ctx context.Context) error {
 		if opt.Attempts == 0 {
 			return nil
 		}
 
-		time.Sleep(opt.Delay)
-
 		var (
 			err      error
 			retryErr []error
-			i        = 0
+			ticker   = time.NewTicker(opt.Delay)
 		)
-		for ; i < int(opt.Attempts); i++ {
-			err = fn(ctx)
-			if err == nil {
-				break
+		defer ticker.Stop()
+
+		for i := uint32(0); i < opt.Attempts; i++ {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-ticker.C:
+				err = fn(ctx)
+				if err == nil {
+					break
+				}
+				retryErr = append(retryErr, fmt.Errorf("retry [%d]: %w", i, err))
 			}
-
-			retryErr = append(retryErr, fmt.Errorf("retry [%d]: %w", i, err))
-		}
-
-		if len(retryErr) == 0 {
-			return nil
 		}
 
 		if opt.ReturnAllAroseErr {
 			return errors.Join(retryErr...)
 		}
-
 		return err
 	}
 }
