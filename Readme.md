@@ -402,6 +402,10 @@ func main() {
 ## <a name="saga"><a/>Saga
 The implementation of the `Saga` pattern.
 
+The `Saga` coordinates the execution of a business process consisting of multiple steps.
+Each step contains a direct action and a compensation in case of failure.
+# <img src=".github/assets/sage_usage_1.png" alt="drawing"  width="700" />
+
 Example:
 ```go
 steps := []Step{
