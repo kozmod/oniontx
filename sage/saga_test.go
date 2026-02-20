@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/kozmod/oniontx/internal/testtool"
 )
@@ -48,8 +49,6 @@ func TestSaga_Execute(t *testing.T) {
 
 	var (
 		ctx = context.Background()
-
-		expErr = fmt.Errorf("exp_sage_error")
 	)
 
 	t.Run("success_actions", func(t *testing.T) {
@@ -113,7 +112,7 @@ func TestSaga_Execute(t *testing.T) {
 				Name: "step1",
 				Action: func(ctx context.Context) error {
 					executedActions = append(executedActions, "action2")
-					return expErr
+					return testtool.ErrExpTest
 				},
 				Compensation: func(ctx context.Context, aroseErr error) error {
 					executedCompensation = append(executedCompensation, "comp2")
@@ -125,7 +124,7 @@ func TestSaga_Execute(t *testing.T) {
 
 		err := NewSaga(steps).Execute(ctx)
 		testtool.AssertError(t, err)
-		testtool.AssertTrue(t, errors.Is(err, expErr))
+		testtool.AssertTrue(t, errors.Is(err, testtool.ErrExpTest))
 		testtool.AssertTrue(t, slices.Equal([]string{"action1", "action2"}, executedActions))
 		testtool.AssertTrue(t, slices.Equal([]string{"comp1"}, executedCompensation))
 	})
@@ -142,7 +141,7 @@ func TestSaga_Execute(t *testing.T) {
 					Name: "step0",
 					Action: func(ctx context.Context) error {
 						executedActions = append(executedActions, "action1")
-						return expErr
+						return testtool.ErrExpTest
 					},
 					Compensation: func(ctx context.Context, aroseErr error) error {
 						executedCompensation = append(executedCompensation, "comp1")
@@ -154,7 +153,7 @@ func TestSaga_Execute(t *testing.T) {
 
 			err := NewSaga(steps).Execute(ctx)
 			testtool.AssertError(t, err)
-			testtool.AssertTrue(t, errors.Is(err, expErr))
+			testtool.AssertTrue(t, errors.Is(err, testtool.ErrExpTest))
 			testtool.AssertTrue(t, slices.Equal([]string{"action1"}, executedActions))
 			testtool.AssertTrue(t, len(executedCompensation) == 0)
 		})
@@ -169,7 +168,7 @@ func TestSaga_Execute(t *testing.T) {
 					Name: "step0",
 					Action: func(ctx context.Context) error {
 						executedActions = append(executedActions, "action1")
-						return expErr
+						return testtool.ErrExpTest
 					},
 					Compensation: func(ctx context.Context, aroseErr error) error {
 						executedCompensation = append(executedCompensation, "comp1")
@@ -181,9 +180,214 @@ func TestSaga_Execute(t *testing.T) {
 
 			err := NewSaga(steps).Execute(ctx)
 			testtool.AssertError(t, err)
-			testtool.AssertTrue(t, errors.Is(err, expErr))
+			testtool.AssertTrue(t, errors.Is(err, testtool.ErrExpTest))
 			testtool.AssertTrue(t, slices.Equal([]string{"action1"}, executedActions))
 			testtool.AssertTrue(t, slices.Equal([]string{"comp1"}, executedCompensation))
+		})
+	})
+}
+
+func Test_Saga_panic_recovery(t *testing.T) {
+	var (
+		ctx = context.Background()
+	)
+	t.Run("static_func", func(t *testing.T) {
+		t.Run("success_v1", func(t *testing.T) {
+			steps := []Step{
+				{
+					Name: "step0",
+					Action: WithPanicRecovery(func(ctx context.Context) error {
+						panic("panic_v1!")
+					}),
+				},
+			}
+
+			err := NewSaga(steps).Execute(ctx)
+			testtool.AssertError(t, err)
+			testtool.AssertTrue(t, errors.Is(err, ErrPanicRecovered))
+			testtool.AssertTrue(t, errors.Is(err, ErrActionFailed))
+
+			t.Logf("test error output: \n{\n%v\n}", err)
+		})
+	})
+	t.Run("builders", func(t *testing.T) {
+		t.Run("success_ActionFunc", func(t *testing.T) {
+			steps := []Step{
+				{
+					Name: "step0",
+					Action: ActionFunc(func(ctx context.Context) error {
+						panic("panic_v2!")
+					}).WithPanicRecovery(),
+				},
+			}
+
+			err := NewSaga(steps).Execute(ctx)
+			testtool.AssertError(t, err)
+			testtool.AssertTrue(t, errors.Is(err, ErrPanicRecovered))
+			testtool.AssertTrue(t, errors.Is(err, ErrActionFailed))
+
+			t.Logf("test error output: \n{\n%v\n}", err)
+		})
+
+		t.Run("success_CompensationFunc", func(t *testing.T) {
+			steps := []Step{
+				{
+					Name: "step0",
+					Action: ActionFunc(func(ctx context.Context) error {
+						return testtool.ErrExpTest
+					}),
+					Compensation: CompensationFunc(func(ctx context.Context, aroseErr error) error {
+						panic("panic_v3!")
+					}).WithPanicRecovery(),
+					CompensationOnFail: true,
+				},
+			}
+
+			err := NewSaga(steps).Execute(ctx)
+			testtool.AssertError(t, err)
+			testtool.AssertTrue(t, errors.Is(err, ErrPanicRecovered))
+			testtool.AssertTrue(t, errors.Is(err, ErrCompensationFailed))
+
+			t.Logf("test error output: \n{\n%v\n}", err)
+		})
+	})
+}
+
+func Test_Saga_retry(t *testing.T) {
+	var (
+		ctx = context.Background()
+	)
+	t.Run("static_func", func(t *testing.T) {
+		t.Run("success", func(t *testing.T) {
+			var (
+				errCounter  = 0
+				actionCalls = 0
+			)
+			steps := []Step{
+				{
+					Name: "step0",
+					Action: WithRetry(
+						RetryOptions{
+							Attempts: 3,
+							Delay:    time.Nanosecond,
+						},
+						func(ctx context.Context) error {
+							actionCalls++
+							errCounter++
+							if errCounter < 3 {
+								return testtool.ErrExpTest
+							}
+							return nil
+						}),
+				},
+			}
+
+			err := NewSaga(steps).Execute(ctx)
+			testtool.AssertNoError(t, err)
+			testtool.AssertTrue(t, actionCalls == 3)
+		})
+		t.Run("success_with_return_all_errors", func(t *testing.T) {
+			var (
+				errCounter  = 0
+				actionCalls = 0
+
+				secondExpErr = fmt.Errorf("some_err_2")
+			)
+			steps := []Step{
+				{
+					Name: "step0",
+					Action: WithRetry(
+						RetryOptions{
+							Attempts:          3,
+							Delay:             time.Nanosecond,
+							ReturnAllAroseErr: true,
+						},
+						func(ctx context.Context) error {
+							actionCalls++
+							errCounter++
+							switch actionCalls {
+							case 1:
+								return testtool.ErrExpTest
+							case 2:
+								return secondExpErr
+							default:
+								return nil
+							}
+						}),
+				},
+			}
+
+			err := NewSaga(steps).Execute(ctx)
+			testtool.AssertError(t, err)
+			testtool.AssertTrue(t, actionCalls == 3)
+			testtool.AssertTrue(t, errors.Is(err, testtool.ErrExpTest))
+			testtool.AssertTrue(t, errors.Is(err, secondExpErr))
+			testtool.AssertTrue(t, errors.Is(err, ErrActionFailed))
+
+			t.Logf("test error output: \n{\n%v\n}", err)
+		})
+	})
+	t.Run("builders", func(t *testing.T) {
+		t.Run("success_ActionFunc", func(t *testing.T) {
+			var (
+				errCounter  = 0
+				actionCalls = 0
+			)
+			steps := []Step{
+				{
+					Name: "step0",
+					Action: ActionFunc(func(ctx context.Context) error {
+						actionCalls++
+						errCounter++
+						if errCounter < 3 {
+							return testtool.ErrExpTest
+						}
+						return nil
+					}).WithRetry(RetryOptions{
+						Attempts: 3,
+						Delay:    time.Nanosecond,
+					}),
+				},
+			}
+
+			err := NewSaga(steps).Execute(ctx)
+			testtool.AssertNoError(t, err)
+			testtool.AssertTrue(t, actionCalls == 3)
+		})
+		t.Run("success_CompensationFunc", func(t *testing.T) {
+			var (
+				errCounter        = 0
+				actionCalls       = 0
+				compensationCalls = 0
+			)
+			steps := []Step{
+				{
+					Name: "step0",
+					Action: ActionFunc(func(ctx context.Context) error {
+						actionCalls++
+						return testtool.ErrExpTest
+					}),
+					Compensation: CompensationFunc(func(ctx context.Context, aroseErr error) error {
+						compensationCalls++
+						errCounter++
+						if errCounter < 3 {
+							return testtool.ErrExpTest
+						}
+						return nil
+					}).WithRetry(RetryOptions{
+						Attempts: 3,
+						Delay:    time.Nanosecond,
+					}),
+					CompensationOnFail: true,
+				},
+			}
+
+			err := NewSaga(steps).Execute(ctx)
+			testtool.AssertError(t, err)
+			testtool.AssertTrue(t, errors.Is(err, ErrActionFailed))
+			testtool.AssertTrue(t, errors.Is(err, ErrCompensationSuccess))
+			testtool.AssertTrue(t, actionCalls == 1)
+			testtool.AssertTrue(t, compensationCalls == 3)
 		})
 	})
 }

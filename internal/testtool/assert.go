@@ -1,6 +1,8 @@
 package testtool
 
-import "testing"
+import (
+	"testing"
+)
 
 // AssertTrue was added to avoid to use external dependencies for mocking
 func AssertTrue(t *testing.T, val bool) {

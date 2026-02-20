@@ -7,10 +7,28 @@ import (
 )
 
 var (
-	ErrActionFailed        = fmt.Errorf("action failed")
-	ErrCompensationFailed  = fmt.Errorf("compensation failed")
+	// ErrActionFailed indicates that an action execution has failed.
+	// This error is typically returned when a business operation or step
+	// in a workflow cannot be completed successfully
+	ErrActionFailed = fmt.Errorf("action failed")
+
+	// ErrCompensationFailed indicates that a compensation operation has failed.
+	// This error is returned when trying to undo a previously
+	// completed action, and the compensation logic itself encounters an error.
+	ErrCompensationFailed = fmt.Errorf("compensation failed")
+
+	// ErrCompensationSuccess indicates that a compensation was executed successfully.
+	// This error can be used to signal that compensation logic has been applied,
+	// which might be useful for logging or monitoring purposes.
+	// Note: Despite being an error type, it represents a successful compensation
+	// execution, not a failure.
 	ErrCompensationSuccess = fmt.Errorf("compensation executed")
-	ErrPanicRecovered      = fmt.Errorf("panic recovered")
+
+	// ErrPanicRecovered is returned when a panic is recovered and converted to an error.
+	// It wraps the original panic value to provide more context about what caused
+	// the panic. This allows panics to be handled gracefully without crashing
+	// the application.
+	ErrPanicRecovered = fmt.Errorf("panic recovered")
 )
 
 // Step of the [Sage].
@@ -19,7 +37,7 @@ type Step struct {
 	Name string
 
 	// Action is the main operation executed within a step's transaction.
-	Action func(ctx context.Context) error
+	Action ActionFunc
 
 	// Compensation - a compensating action that undoes the Action (if possible).
 	// Called upon failure in subsequent steps.
@@ -28,7 +46,7 @@ type Step struct {
 	// Parameters:
 	//   - ctx: context for cancellation and deadlines (context that is passed through the action)
 	//   - aroseErr: error from the previous action that needs compensation
-	Compensation func(ctx context.Context, aroseErr error) error
+	Compensation CompensationFunc
 
 	// CompensationOnFail needs to add the current compensation to the list of compensations.
 	CompensationOnFail bool
