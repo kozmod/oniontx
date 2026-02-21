@@ -46,7 +46,6 @@ func Test_Saga_example(t *testing.T) {
 
 // nolint: dupl
 func TestSaga_Execute(t *testing.T) {
-
 	var (
 		ctx = context.Background()
 	)
@@ -267,10 +266,7 @@ func Test_Saga_retry(t *testing.T) {
 				{
 					Name: "step0",
 					Action: WithRetry(
-						RetryOptions{
-							Attempts: 3,
-							Delay:    time.Nanosecond,
-						},
+						NewBaseRetryOpt(3, time.Nanosecond),
 						func(ctx context.Context) error {
 							actionCalls++
 							errCounter++
@@ -294,27 +290,24 @@ func Test_Saga_retry(t *testing.T) {
 				secondExpErr = fmt.Errorf("some_err_2")
 			)
 			steps := []Step{
-				{
-					Name: "step0",
-					Action: WithRetry(
-						RetryOptions{
-							Attempts:          3,
-							Delay:             time.Nanosecond,
-							ReturnAllAroseErr: true,
-						},
-						func(ctx context.Context) error {
-							actionCalls++
-							errCounter++
-							switch actionCalls {
-							case 1:
-								return testtool.ErrExpTest
-							case 2:
-								return secondExpErr
-							default:
-								return nil
-							}
-						}),
-				},
+				NewStep("step0").
+					WithAction(
+						WithRetry(
+							NewBaseRetryOpt(3, time.Nanosecond).
+								WithReturnAllAroseErr(),
+							func(ctx context.Context) error {
+								actionCalls++
+								errCounter++
+								switch actionCalls {
+								case 1:
+									return testtool.ErrExpTest
+								case 2:
+									return secondExpErr
+								default:
+									return nil
+								}
+							}),
+					),
 			}
 
 			err := NewSaga(steps).Execute(ctx)
@@ -343,10 +336,9 @@ func Test_Saga_retry(t *testing.T) {
 							return testtool.ErrExpTest
 						}
 						return nil
-					}).WithRetry(RetryOptions{
-						Attempts: 3,
-						Delay:    time.Nanosecond,
-					}),
+					}).WithRetry(
+						NewBaseRetryOpt(3, time.Nanosecond),
+					),
 				},
 			}
 
@@ -374,10 +366,9 @@ func Test_Saga_retry(t *testing.T) {
 							return testtool.ErrExpTest
 						}
 						return nil
-					}).WithRetry(RetryOptions{
-						Attempts: 3,
-						Delay:    time.Nanosecond,
-					}),
+					}).WithRetry(
+						NewBaseRetryOpt(3, time.Nanosecond),
+					),
 					CompensationOnFail: true,
 				},
 			}
@@ -389,5 +380,46 @@ func Test_Saga_retry(t *testing.T) {
 			testtool.AssertTrue(t, actionCalls == 1)
 			testtool.AssertTrue(t, compensationCalls == 3)
 		})
+	})
+}
+
+func Test_V2(t *testing.T) {
+	var (
+		ctx = context.Background()
+	)
+
+	t.Run("success_actions", func(t *testing.T) {
+		var (
+			executedActions      []string
+			executedCompensation []string
+		)
+
+		steps := []Step{
+			NewStep("step0").
+				WithAction(func(ctx context.Context) error {
+					executedActions = append(executedActions, "action1")
+					return nil
+				}).
+				WithCompensation(func(ctx context.Context, aroseErr error) error {
+					executedCompensation = append(executedCompensation, "comp1")
+					t.Fatalf("should not have been called")
+					return nil
+				}),
+			NewStep("step1").
+				WithAction(func(ctx context.Context) error {
+					executedActions = append(executedActions, "action2")
+					return nil
+				}).
+				WithCompensation(func(ctx context.Context, aroseErr error) error {
+					executedCompensation = append(executedCompensation, "comp2")
+					t.Fatalf("should not have been called")
+					return nil
+				}),
+		}
+
+		err := NewSaga(steps).Execute(ctx)
+		testtool.AssertNoError(t, err)
+		testtool.AssertTrue(t, slices.Equal([]string{"action1", "action2"}, executedActions))
+		testtool.AssertTrue(t, len(executedCompensation) == 0)
 	})
 }
