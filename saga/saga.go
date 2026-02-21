@@ -31,27 +31,6 @@ var (
 	ErrPanicRecovered = fmt.Errorf("panic recovered")
 )
 
-// Step of the [Saga].
-type Step struct {
-	// Name of the step.
-	Name string
-
-	// Action is the main operation executed within a step's transaction.
-	Action ActionFunc
-
-	// Compensation - a compensating action that undoes the Action (if possible).
-	// Called upon failure in subsequent steps.
-	// Invoked when a subsequent step fails.
-	//
-	// Parameters:
-	//   - ctx: context for cancellation and deadlines (context that is passed through the action)
-	//   - aroseErr: error from the previous action that needs compensation
-	Compensation CompensationFunc
-
-	// CompensationOnFail needs to add the current compensation to the list of compensations.
-	CompensationOnFail bool
-}
-
 // Saga coordinates a distributed transaction using the `Saga` pattern.
 type Saga struct {
 	steps []Step
