@@ -21,7 +21,7 @@ func (a ActionFunc) WithPanicRecovery() ActionFunc {
 // The function will be retried according to the provided RetryOptions.
 // If all retry attempts fail, the behavior depends on RetryOptions.ReturnAllAroseErr.
 // Returns a new ActionFunc with retry logic enabled.
-func (a ActionFunc) WithRetry(opt RetryOpt) ActionFunc {
+func (a ActionFunc) WithRetry(opt RetryPolicy) ActionFunc {
 	return WithRetry(opt, a)
 }
 
@@ -46,11 +46,11 @@ func (c CompensationFunc) WithPanicRecovery() CompensationFunc {
 }
 
 // WithRetry wraps the CompensationFunc with retry logic.
-// The compensation function will be retried according to the provided RetryOpt.
+// The compensation function will be retried according to the provided RetryPolicy.
 // The original aroseErr is preserved and passed through to each retry attempt.
-// If all retry attempts fail, the behavior depends on RetryOpt.ReturnAllAroseErr.
+// If all retry attempts fail, the behavior depends on RetryPolicy.ReturnAllAroseErr.
 // Returns a new CompensationFunc with retry logic enabled.
-func (c CompensationFunc) WithRetry(opt RetryOpt) CompensationFunc {
+func (c CompensationFunc) WithRetry(opt RetryPolicy) CompensationFunc {
 	return func(ctx context.Context, aroseErr error) error {
 		fn := func(ctx context.Context) error {
 			return c(ctx, aroseErr)
