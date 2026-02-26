@@ -9,6 +9,11 @@ import (
 // additional behavior like panic recovery or retries.
 type ActionFunc func(ctx context.Context) error
 
+// NewAction creates a new ActionFunc.
+func NewAction(afn ActionFunc) ActionFunc {
+	return afn
+}
+
 // WithPanicRecovery wraps the ActionFunc with panic recovery logic.
 // If the original function panics, the panic is recovered and returned as an error
 // that wraps both the original panic value and ErrPanicRecovered.
@@ -30,6 +35,11 @@ func (a ActionFunc) WithRetry(opt RetryPolicy) ActionFunc {
 // It receives both the context and the error that triggered the compensation,
 // allowing it to make decisions based on the specific error that occurred.
 type CompensationFunc func(ctx context.Context, aroseErr error) error
+
+// NewCompensation creates a new CompensationFunc.
+func NewCompensation(afn CompensationFunc) CompensationFunc {
+	return afn
+}
 
 // WithPanicRecovery wraps the CompensationFunc with panic recovery logic.
 // If the compensation function panics, the panic is recovered and returned as an error

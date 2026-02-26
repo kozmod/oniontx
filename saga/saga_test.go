@@ -107,15 +107,15 @@ func TestSaga_Execute(t *testing.T) {
 			},
 			{
 				Name: "step1",
-				Action: func(ctx context.Context) error {
+				Action: NewAction(func(ctx context.Context) error {
 					executedActions = append(executedActions, "action2")
 					return testtool.ErrExpTest
-				},
-				Compensation: func(ctx context.Context, aroseErr error) error {
+				}),
+				Compensation: NewCompensation(func(ctx context.Context, aroseErr error) error {
 					executedCompensation = append(executedCompensation, "comp2")
 					t.Fatalf("should not have been called")
 					return nil
-				},
+				}),
 			},
 		}
 
