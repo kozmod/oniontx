@@ -5,6 +5,7 @@ import (
 	"errors"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/kozmod/oniontx/internal/testtool"
 )
@@ -204,7 +205,7 @@ func Test_Saga_panic_recovery(t *testing.T) {
 			testtool.AssertTrue(t, errors.Is(err, ErrPanicRecovered))
 			testtool.AssertTrue(t, errors.Is(err, ErrActionFailed))
 
-			t.Logf("test error output: \n{\n%v\n}", err)
+			testtool.LogError(t, err)
 		})
 	})
 	t.Run("builders", func(t *testing.T) {
@@ -223,7 +224,7 @@ func Test_Saga_panic_recovery(t *testing.T) {
 			testtool.AssertTrue(t, errors.Is(err, ErrPanicRecovered))
 			testtool.AssertTrue(t, errors.Is(err, ErrActionFailed))
 
-			t.Logf("test error output: \n{\n%v\n}", err)
+			testtool.LogError(t, err)
 		})
 
 		t.Run("success_CompensationFunc", func(t *testing.T) {
@@ -245,7 +246,7 @@ func Test_Saga_panic_recovery(t *testing.T) {
 			testtool.AssertTrue(t, errors.Is(err, ErrPanicRecovered))
 			testtool.AssertTrue(t, errors.Is(err, ErrCompensationFailed))
 
-			t.Logf("test error output: \n{\n%v\n}", err)
+			testtool.LogError(t, err)
 		})
 	})
 }
@@ -289,4 +290,80 @@ func Test_actions_v2(t *testing.T) {
 		testtool.AssertTrue(t, slices.Equal([]string{"action1", "action2"}, executedActions))
 		testtool.AssertTrue(t, len(executedCompensation) == 0)
 	})
+}
+
+func Test_execute_context(t *testing.T) {
+	t.Run("action_ctx_cancel", func(t *testing.T) {
+		var (
+			ctx, cancel     = context.WithCancel(context.Background())
+			executedActions []string
+		)
+
+		steps := []Step{
+			NewStep("step0").
+				WithAction(nil),
+			NewStep("step1").
+				WithAction(func(ctx context.Context) error {
+					executedActions = append(executedActions, "action1")
+					return nil
+				}),
+			NewStep("step2").
+				WithAction(func(ctx context.Context) error {
+					executedActions = append(executedActions, "action2")
+					cancel() // cancel context for test
+					return nil
+				}),
+			NewStep("step3").
+				WithAction(func(ctx context.Context) error {
+					executedActions = append(executedActions, "action3")
+					t.Fatalf("should not have been called")
+					return nil
+				}),
+		}
+
+		err := NewSaga(steps).Execute(ctx)
+		testtool.AssertError(t, err)
+		testtool.AssertTrue(t, errors.Is(err, ErrExecuteActionsContextDone))
+		testtool.AssertTrue(t, slices.Equal([]string{"action1", "action2"}, executedActions))
+	})
+	t.Run("retry_ctx_cancel", func(t *testing.T) {
+		var (
+			ctx, cancel     = context.WithCancel(context.Background())
+			executedActions []string
+			actionCalls     = 1
+		)
+
+		steps := []Step{
+			NewStep("step0").
+				WithAction(nil),
+			NewStep("step1").
+				WithAction(
+					NewAction(func(ctx context.Context) error {
+						executedActions = append(executedActions, "action1")
+						switch {
+						case actionCalls == 1:
+							actionCalls++
+							return testtool.ErrExpTest
+						case actionCalls == 2:
+							actionCalls++
+							return testtool.ErrExpTest
+						case actionCalls >= 3:
+							actionCalls++
+							cancel() // cancel context for test
+							return testtool.ErrExpTest
+						}
+						return nil
+					}).WithRetry(NewBaseRetryOpt(4, 1*time.Nanosecond)),
+				),
+		}
+		err := NewSaga(steps).Execute(ctx)
+		testtool.AssertError(t, err)
+		testtool.AssertTrue(t, errors.Is(err, ErrRetryContextDone))
+		testtool.AssertTrue(t, 4 == actionCalls) // 3 + first execution
+		testtool.AssertTrue(t, slices.Equal([]string{"action1", "action1", "action1"}, executedActions))
+
+		testtool.LogError(t, err)
+
+	})
+
 }

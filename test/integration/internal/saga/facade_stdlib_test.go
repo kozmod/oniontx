@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/kozmod/oniontx/internal/testtool"
 	"github.com/kozmod/oniontx/mtx"
 	"github.com/kozmod/oniontx/saga"
 	"github.com/kozmod/oniontx/test/integration/internal/entity"
@@ -96,7 +97,7 @@ func Test_Saga_stdlib_Facade(t *testing.T) {
 
 		assert.Error(t, err)
 
-		t.Logf("test error output: \n{\n%v\n}", err)
+		testtool.LogError(t, err)
 
 		assert.ErrorIs(t, err, entity.ErrExpected)
 		assert.ErrorIs(t, err, saga.ErrActionFailed)

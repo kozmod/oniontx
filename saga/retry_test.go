@@ -104,7 +104,7 @@ func Test_Saga_retry(t *testing.T) {
 			testtool.AssertTrue(t, errors.Is(err, secondExpErr))
 			testtool.AssertTrue(t, errors.Is(err, ErrActionFailed))
 
-			t.Logf("test error output: \n{\n%v\n}", err)
+			testtool.LogError(t, err)
 		})
 	})
 	t.Run("builders", func(t *testing.T) {

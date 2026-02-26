@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kozmod/oniontx/internal/testtool"
 	"github.com/kozmod/oniontx/saga"
 	"github.com/kozmod/oniontx/test/integration/internal/entity"
 	"github.com/kozmod/oniontx/test/integration/internal/mongo"
@@ -192,7 +193,7 @@ func Test_Saga_multi_Facade(t *testing.T) {
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, entity.ErrExpected)
 
-		t.Logf("test error output: \n{\n%v\n}", err)
+		testtool.LogError(t, err)
 
 		{
 			records, err := stdlib.GetTextRecords(sqlDB)
@@ -276,7 +277,7 @@ func Test_Saga_multi_Facade(t *testing.T) {
 
 		assert.ErrorIs(t, err, entity.ErrExpected)
 
-		t.Logf("test error output: \n{\n%v\n}", err)
+		testtool.LogError(t, err)
 
 		{
 			records, err := stdlib.GetTextRecords(sqlDB)
