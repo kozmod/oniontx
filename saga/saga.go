@@ -29,6 +29,18 @@ var (
 	// the panic. This allows panics to be handled gracefully without crashing
 	// the application.
 	ErrPanicRecovered = fmt.Errorf("panic recovered")
+
+	// ErrExecuteActionsContextDone indicates that the context was cancelled or
+	// timed out during the execution of saga actions. This error is returned
+	// when the saga is interrupted before completing all steps, typically due to
+	// client cancellation or deadline exceeded.
+	ErrExecuteActionsContextDone = fmt.Errorf("execute actions context done")
+
+	// ErrRetryContextDone indicates that the context was cancelled or timed out
+	// during retry attempts. This error is returned when a retry operation is
+	// interrupted by context cancellation, meaning the operation was not completed
+	// and no more retries will be attempted.
+	ErrRetryContextDone = fmt.Errorf("retry context done")
 )
 
 // Saga coordinates a distributed transaction using the `Saga` pattern.
@@ -50,26 +62,28 @@ func (s *Saga) Execute(ctx context.Context) error {
 	var completedSteps []Step
 
 	for i, step := range s.steps {
-		if step.Action == nil {
-			continue
-		}
+		select {
+		case <-ctx.Done():
+			return errors.Join(ctx.Err(), ErrExecuteActionsContextDone)
+		default:
+			if step.Action == nil {
+				continue
+			}
 
-		if step.CompensationOnFail {
-			completedSteps = append(completedSteps, step)
-		}
+			if step.CompensationOnFail {
+				completedSteps = append(completedSteps, step)
+			}
 
-		err := step.Action(ctx)
-		if err != nil {
-			err = fmt.Errorf("step failed [%d#%s]: %w", i, step.Name, err)
-		}
+			err := step.Action(ctx)
+			if err != nil {
+				err = errors.Join(fmt.Errorf("step failed [%d#%s]", i, step.Name), err)
+				// Run compensation when error arise.
+				return s.compensate(ctx, completedSteps, err)
+			}
 
-		if err != nil {
-			// Run compensation when error arise.
-			return s.compensate(ctx, completedSteps, err)
-		}
-
-		if !step.CompensationOnFail {
-			completedSteps = append(completedSteps, step)
+			if !step.CompensationOnFail {
+				completedSteps = append(completedSteps, step)
+			}
 		}
 	}
 
@@ -78,7 +92,10 @@ func (s *Saga) Execute(ctx context.Context) error {
 
 // compensate triggers compensating actions for all steps in reverse order
 func (s *Saga) compensate(ctx context.Context, completedSteps []Step, originalErr error) error {
-	var compensationErrors []error
+	var (
+		compensationErrors    []error
+		compensationsExecuted int32
+	)
 
 	for i, step := range completedSteps {
 		if step.Compensation == nil {
@@ -91,6 +108,7 @@ func (s *Saga) compensate(ctx context.Context, completedSteps []Step, originalEr
 				fmt.Errorf("compensation failed - step [%d#%s]: %w", i, step.Name, err),
 			)
 		}
+		compensationsExecuted++
 	}
 
 	if len(compensationErrors) > 0 {
@@ -98,6 +116,10 @@ func (s *Saga) compensate(ctx context.Context, completedSteps []Step, originalEr
 		return errors.Join(
 			fmt.Errorf("original error: %w,  compensation errors: %w", originalErr, errors.Join(compensationErrors...)),
 		)
+	}
+
+	if compensationsExecuted <= 0 {
+		return errors.Join(originalErr, ErrActionFailed)
 	}
 
 	return errors.Join(originalErr, ErrCompensationSuccess, ErrActionFailed)

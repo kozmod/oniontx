@@ -206,14 +206,17 @@ func WithRetry(opt RetryPolicy, fn func(ctx context.Context) error) func(ctx con
 			retryErr []error
 		)
 
+	stop:
 		for i := uint32(0); i < attempts; i++ {
 			select {
 			case <-ctx.Done():
-				return ctx.Err()
+				err = errors.Join(ctx.Err(), ErrRetryContextDone)
+				retryErr = append(retryErr, fmt.Errorf("retry [%d]: %w", i, err))
+				break stop
 			default:
 				err = fn(ctx)
 				if err == nil {
-					break
+					break stop
 				}
 				retryErr = append(retryErr, fmt.Errorf("retry [%d]: %w", i, err))
 				time.Sleep(opt.Delay(i))
