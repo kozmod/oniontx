@@ -328,9 +328,9 @@ func Test_execute_context(t *testing.T) {
 	})
 	t.Run("retry_ctx_cancel", func(t *testing.T) {
 		var (
-			ctx, cancel     = context.WithCancel(context.Background())
-			executedActions []string
-			actionCalls     = 1
+			ctx, cancel = context.WithCancel(context.Background())
+			executed    []string
+			actionCalls = 1
 		)
 
 		steps := []Step{
@@ -339,7 +339,7 @@ func Test_execute_context(t *testing.T) {
 			NewStep("step1").
 				WithAction(
 					NewAction(func(ctx context.Context) error {
-						executedActions = append(executedActions, "action1")
+						executed = append(executed, "action1")
 						switch {
 						case actionCalls == 1:
 							actionCalls++
@@ -360,10 +360,37 @@ func Test_execute_context(t *testing.T) {
 		testtool.AssertError(t, err)
 		testtool.AssertTrue(t, errors.Is(err, ErrRetryContextDone))
 		testtool.AssertTrue(t, 4 == actionCalls) // 3 + first execution
-		testtool.AssertTrue(t, slices.Equal([]string{"action1", "action1", "action1"}, executedActions))
+		testtool.AssertTrue(t, slices.Equal([]string{"action1", "action1", "action1"}, executed))
 
 		testtool.LogError(t, err)
-
 	})
 
+	t.Run("compensation_ctx_cancel", func(t *testing.T) {
+		var (
+			ctx, cancel = context.WithCancel(context.Background())
+			executed    []string
+		)
+
+		steps := []Step{
+			NewStep("step1").
+				WithAction(
+					NewAction(func(ctx context.Context) error {
+						executed = append(executed, "action1")
+						cancel() // cancel context for test
+						return testtool.ErrExpTest
+					}),
+				).WithCompensation(
+				NewCompensation(func(ctx context.Context, aroseErr error) error {
+					t.Fatalf("should not have been called")
+					return nil
+				}),
+			).WithCompensationOnFail(),
+		}
+		err := NewSaga(steps).Execute(ctx)
+		testtool.AssertError(t, err)
+		testtool.AssertTrue(t, errors.Is(err, ErrExecuteCompensationContextDone))
+		testtool.AssertTrue(t, slices.Equal([]string{"action1"}, executed))
+
+		testtool.LogError(t, err)
+	})
 }

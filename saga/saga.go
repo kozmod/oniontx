@@ -36,6 +36,12 @@ var (
 	// client cancellation or deadline exceeded.
 	ErrExecuteActionsContextDone = fmt.Errorf("execute actions context done")
 
+	// ErrExecuteCompensationContextDone indicates that the context was cancelled or
+	// timed out during the execution of saga action compensation. This error is returned
+	// when the saga is interrupted before completing all steps, typically due to
+	// client cancellation or deadline exceeded.
+	ErrExecuteCompensationContextDone = fmt.Errorf("execute compensation context done")
+
 	// ErrRetryContextDone indicates that the context was cancelled or timed out
 	// during retry attempts. This error is returned when a retry operation is
 	// interrupted by context cancellation, meaning the operation was not completed
@@ -90,31 +96,38 @@ func (s *Saga) Execute(ctx context.Context) error {
 	return nil
 }
 
-// compensate triggers compensating actions for all steps in reverse order
+// compensate triggers compensating actions for all steps in reverse order.
 func (s *Saga) compensate(ctx context.Context, completedSteps []Step, originalErr error) error {
 	var (
 		compensationErrors    []error
 		compensationsExecuted int32
 	)
 
+stop:
 	for i, step := range completedSteps {
-		if step.Compensation == nil {
-			continue
-		}
+		select {
+		case <-ctx.Done():
+			compensationErrors = append(compensationErrors, errors.Join(ctx.Err(), ErrExecuteCompensationContextDone))
+			break stop
+		default:
+			if step.Compensation == nil {
+				continue
+			}
 
-		if err := step.Compensation(ctx, originalErr); err != nil {
-			compensationErrors = append(
-				compensationErrors,
-				fmt.Errorf("compensation failed - step [%d#%s]: %w", i, step.Name, err),
-			)
+			if err := step.Compensation(ctx, originalErr); err != nil {
+				compensationErrors = append(
+					compensationErrors,
+					fmt.Errorf("compensation failed - step [%d#%s]: %w", i, step.Name, err),
+				)
+			}
+			compensationsExecuted++
 		}
-		compensationsExecuted++
 	}
 
 	if len(compensationErrors) > 0 {
 		compensationErrors = append(compensationErrors, ErrCompensationFailed)
 		return errors.Join(
-			fmt.Errorf("original error: %w,  compensation errors: %w", originalErr, errors.Join(compensationErrors...)),
+			fmt.Errorf("compensation errors: %w", errors.Join(compensationErrors...)),
 		)
 	}
 
