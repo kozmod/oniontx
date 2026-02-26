@@ -30,8 +30,17 @@ var (
 	// the application.
 	ErrPanicRecovered = fmt.Errorf("panic recovered")
 
+	// ErrExecuteActionsContextDone indicates that the context was cancelled or
+	// timed out during the execution of saga actions. This error is returned
+	// when the saga is interrupted before completing all steps, typically due to
+	// client cancellation or deadline exceeded.
 	ErrExecuteActionsContextDone = fmt.Errorf("execute actions context done")
-	ErrRetryContextDone          = fmt.Errorf("retry context done")
+
+	// ErrRetryContextDone indicates that the context was cancelled or timed out
+	// during retry attempts. This error is returned when a retry operation is
+	// interrupted by context cancellation, meaning the operation was not completed
+	// and no more retries will be attempted.
+	ErrRetryContextDone = fmt.Errorf("retry context done")
 )
 
 // Saga coordinates a distributed transaction using the `Saga` pattern.
