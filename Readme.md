@@ -1,4 +1,4 @@
-# oniontx <img align="right" src=".github/assets/onion_1.png" alt="drawing"  width="90" />
+# oniontx <img align="right" src=".github/assets/onion_1.png" alt="drawing"  width="80" />
 [![test](https://github.com/kozmod/oniontx/actions/workflows/test.yml/badge.svg)](https://github.com/kozmod/oniontx/actions/workflows/test.yml)
 [![Release](https://github.com/kozmod/oniontx/actions/workflows/release.yml/badge.svg)](https://github.com/kozmod/oniontx/actions/workflows/release.yml)
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/kozmod/oniontx)
