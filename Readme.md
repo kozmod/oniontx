@@ -8,15 +8,33 @@
 [![GitHub MIT license](https://img.shields.io/github/license/kozmod/oniontx)](https://github.com/kozmod/oniontx/blob/dev/LICENSE)
 
 `oniontx` enables moving transaction management from the `Persistence` (repository) layer 
-to the `Application` (service) (service) layer using an owner-defined contract.
+to the `Application` (service) layer using an owner-defined contract.
 
-## Transactor
+The library provides **two complementary approaches** that can be used independently or together:
+- **`mtx` package**: Local ACID transactions for single-resource operations
+- **`saga` package**: Distributed compensating transactions for multi-resource coordination
+
+Both packages maintain clean architecture principles by keeping transaction control at the application 
+level while repositories remain focused on data access.
+
+### 🌟 Key Features
+- **Clean Architecture First**: Transactions managed at the application layer, not in repositories
+- **Dual Transaction Support**:
+    - `mtx` package for local ACID transactions (single database)
+    - `saga` package for distributed compensating transactions (multiple services/databases)
+- **Database Agnostic**: Ready-to-use implementations for popular databases and libraries
+- **Testability First**: Built-in support for major testing frameworks
+- **Type-Safe**: Full generics support for compile-time safety
+- **Context-Aware**: Proper context propagation throughout transaction boundaries
+
+### Package mtx - Local Transactions
 
 # <img src=".github/assets/clean_arch+uml.png" alt="drawing"  width="700" />
-🔴 **NOTE:** `Transactor` was designed to work with only a single instance of a "repository" (`*sql.DB`, etc.).
-For multiple repositories, use `Transactor` with `Saga`[<sup>**ⓘ**</sup>](#saga).
+🔴 **NOTE:** Use `mtx` when working with a **single** database instance. 
+It manages ACID transactions across multiple repositories.
+For multiple repositories, use `mtx.Transactor` with `saga.Saga`[<sup>**ⓘ**</sup>](#saga).
 
-### The key features:
+The core entity is **`Transactor`** — it provides a clean abstraction over database transactions and offers:
  - [**simple implementation for `stdlib`**](#libs)
  - [**simple implementation for popular libraries**](#libs)
  - [**custom implementation's contract**](#custom)
@@ -35,7 +53,7 @@ of default `Transactor` implementations (stdlib, sqlx, pgx, gorm, redis, mongo):
 
 ---
 
-##  <a name="custom"><a/>Custom implementation
+####  <a name="custom"><a/>Custom implementation
 If required, `oniontx` provides the ability to 
 implement custom algorithms for managing transactions (see examples).
 #### Interfaces:
@@ -399,11 +417,19 @@ func main() {
 }
 ```
 
-## <a name="saga"><a/>Saga
-The implementation of the `Saga` pattern.
+### <a name="saga"><a/>Package `saga` - Distributed Transactions
+Use `saga` when coordinating operations across **multiple** services, databases, 
+or external systems. It implements the `Saga` pattern with compensating actions
+to maintain data consistency in distributed environments.
 
 The `Saga` coordinates the execution of a business process consisting of multiple steps.
-Each step contains a direct action and a compensation in case of failure.
+Each step contains:
+- **Action**: The main operation to execute
+- **Compensation**: A rollback operation that undoes the action if later steps fail
+
+
+Steps execute sequentially. If any step fails, all previous steps are automatically
+compensated in reverse order, ensuring system consistency
 # <img src=".github/assets/sage_usage_1.png" alt="drawing"  width="700" />
 
 Example:
