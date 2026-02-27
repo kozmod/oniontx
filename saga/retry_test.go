@@ -80,7 +80,7 @@ func Test_Saga_retry(t *testing.T) {
 				NewStep("step0").
 					WithAction(
 						WithRetry(
-							NewBaseRetryOpt(3, time.Nanosecond).
+							NewBaseRetryOpt(5, time.Nanosecond).
 								WithReturnAllAroseErr(),
 							func(ctx context.Context) error {
 								actionCalls++
@@ -90,7 +90,10 @@ func Test_Saga_retry(t *testing.T) {
 									return testtool.ErrExpTest
 								case 2:
 									return secondExpErr
+								case 3:
+									return nil
 								default:
+									t.Fatalf("should not happen")
 									return nil
 								}
 							}),
