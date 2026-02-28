@@ -4,27 +4,37 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
-	"math/rand"
 	"time"
 )
 
-// RetryPolicy defines the interface for retry strategy configuration.
-// It allows different retry strategies (simple, backoff, jitter) to be
-// used interchangeably with the WithRetry function.
-//
-// Implementations should provide:
-//   - Maximum number of retry attempts
-//   - Delay calculation based on attempt number
-//   - Error aggregation behavior configuration
-type RetryPolicy interface {
-	Attempts() uint32
-	Delay(attempt uint32) time.Duration
+type (
+	// RetryPolicy defines the interface for retry strategy configuration.
+	// It allows different retry strategies (simple, backoff, jitter) to be
+	// used interchangeably with the WithRetry function.
+	//
+	// Implementations should provide:
+	//   - Maximum number of retry attempts
+	//   - Delay calculation based on attempt number
+	//   - Error aggregation behavior configuration
+	RetryPolicy interface {
+		Attempts() uint32
+		Delay(attempt uint32) time.Duration
 
-	// ReturnAllAroseErr indicates whether to return all collected errors
-	// from failed attempts (true) or just the last error (false).
-	ReturnAllAroseErr() bool
-}
+		// ReturnAllAroseErr indicates whether to return all collected errors
+		// from failed attempts (true) or just the last error (false).
+		ReturnAllAroseErr() bool
+	}
+
+	// Backoff defines the interface for backoff strategy calculation.
+	Backoff interface {
+		Backoff(attempts uint32, delay time.Duration) time.Duration
+	}
+
+	// Jitter defines the interface for jitter strategy calculation.
+	Jitter interface {
+		Jitter(base time.Duration) time.Duration
+	}
+)
 
 // baseRetryPolicy provides common fields and basic implementation for retry options.
 type baseRetryPolicy struct {
@@ -70,16 +80,6 @@ func NewBaseRetryOpt(attempts uint32, delay time.Duration) *BaseRetryPolicy {
 func (o BaseRetryPolicy) WithReturnAllAroseErr() BaseRetryPolicy {
 	o.returnAllAroseErr = true
 	return o
-}
-
-// Backoff defines the interface for backoff strategy calculation.
-type Backoff interface {
-	Backoff(attempts uint32, delay time.Duration) time.Duration
-}
-
-// Jitter defines the interface for jitter strategy calculation.
-type Jitter interface {
-	Jitter(base time.Duration) time.Duration
 }
 
 // AdvanceRetryPolicy provides configurable retry behavior with pluggable
@@ -146,36 +146,6 @@ func (o AdvanceRetryPolicy) Delay(i uint32) time.Duration {
 		backoffTime = o.jitter.Jitter(backoffTime)
 		return backoffTime
 	}
-	return backoffTime
-}
-
-// FullJitter provides full jitter strategy for retry delays.
-type FullJitter struct{}
-
-// NewFullJitter creates a new full jitter strategy instance.
-func NewFullJitter() FullJitter {
-	return FullJitter{}
-}
-
-// Jitter applies full jitter to the base delay.
-func (o FullJitter) Jitter(base time.Duration) time.Duration {
-	var (
-		r = rand.New(rand.NewSource(time.Now().UnixNano()))
-	)
-	return time.Duration(r.Int63n(int64(base)))
-}
-
-// ExponentialBackoff provides exponential backoff strategy without jitter.
-type ExponentialBackoff struct{}
-
-// NewExponentialBackoff creates a new exponential backoff strategy instance.
-func NewExponentialBackoff() ExponentialBackoff {
-	return ExponentialBackoff{}
-}
-
-// Backoff calculates exponential backoff delay.
-func (o ExponentialBackoff) Backoff(attempt uint32, delay time.Duration) time.Duration {
-	backoffTime := delay * time.Duration(math.Pow(2, float64(attempt)))
 	return backoffTime
 }
 
