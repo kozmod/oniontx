@@ -496,8 +496,8 @@ if err != nil {
 ```
 
 More examples:
-- [examples](https://github.com/kozmod/oniontx/tree/master/examples/saga_test.go)
-- [tests](https://github.com/kozmod/oniontx/tree/master/saga/saga_test.go)
+- [examples](https://github.com/kozmod/oniontx/tree/master/examples)
+- [tests](https://github.com/kozmod/oniontx/tree/master/saga)
 - [integration tests](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/saga)
 
 
