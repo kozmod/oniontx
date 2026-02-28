@@ -24,8 +24,6 @@ type RetryPolicy interface {
 	// ReturnAllAroseErr indicates whether to return all collected errors
 	// from failed attempts (true) or just the last error (false).
 	ReturnAllAroseErr() bool
-
-	CheckErrorTrigger(error) bool
 }
 
 // baseRetryPolicy provides common fields and basic implementation for retry options.
@@ -34,7 +32,6 @@ type baseRetryPolicy struct {
 	delay             time.Duration
 	maxDelay          time.Duration
 	returnAllAroseErr bool
-	errorsThatTrigger []error
 }
 
 // Attempts returns the configured maximum number of retry attempts.
@@ -50,22 +47,6 @@ func (o baseRetryPolicy) ReturnAllAroseErr() bool {
 // Delay returns a constant delay duration regardless of attempt number.
 func (o baseRetryPolicy) Delay(_ uint32) time.Duration {
 	return o.delay
-}
-
-func (o baseRetryPolicy) CheckErrorTrigger(err error) bool {
-	if err == nil {
-		return true
-	}
-	if len(o.errorsThatTrigger) == 0 {
-		return true
-	}
-
-	for _, t := range o.errorsThatTrigger {
-		if errors.Is(err, t) {
-			return true
-		}
-	}
-	return false
 }
 
 // BaseRetryPolicy provides fixed-interval retry configuration.
@@ -141,11 +122,6 @@ func (o AdvanceRetryPolicy) WithMaxDelay(delay time.Duration) AdvanceRetryPolicy
 	return o
 }
 
-func (o BaseRetryPolicy) WithErrorsTriggering(errs []error) BaseRetryPolicy {
-	o.baseRetryPolicy.errorsThatTrigger = errs
-	return o
-}
-
 // Attempts returns the configured maximum number of retry attempts.
 func (o AdvanceRetryPolicy) Attempts() uint32 {
 	return o.attempts
@@ -171,11 +147,6 @@ func (o AdvanceRetryPolicy) Delay(i uint32) time.Duration {
 		return backoffTime
 	}
 	return backoffTime
-}
-
-func (o AdvanceRetryPolicy) WithErrorsTriggering(errs []error) AdvanceRetryPolicy {
-	o.baseRetryPolicy.errorsThatTrigger = errs
-	return o
 }
 
 // FullJitter provides full jitter strategy for retry delays.
