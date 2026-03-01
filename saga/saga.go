@@ -70,7 +70,7 @@ func (s *Saga) Execute(ctx context.Context) error {
 	for i, step := range s.steps {
 		select {
 		case <-ctx.Done():
-			return errors.Join(ctx.Err(), ErrExecuteActionsContextDone)
+			return errors.Join(ErrExecuteActionsContextDone, ctx.Err())
 		default:
 			if step.Action == nil {
 				continue
@@ -82,7 +82,7 @@ func (s *Saga) Execute(ctx context.Context) error {
 
 			err := step.Action(ctx)
 			if err != nil {
-				err = errors.Join(fmt.Errorf("step failed [%d#%s]", i, step.Name), err)
+				err = fmt.Errorf("action failed [%d#%s]: %w", i, step.Name, errors.Join(ErrActionFailed, err))
 				// Run compensation when error arise.
 				return s.compensate(ctx, completedSteps, err)
 			}
@@ -107,7 +107,7 @@ stop:
 	for i, step := range completedSteps {
 		select {
 		case <-ctx.Done():
-			compensationErrors = append(compensationErrors, errors.Join(ctx.Err(), ErrExecuteCompensationContextDone))
+			compensationErrors = append(compensationErrors, errors.Join(ErrExecuteCompensationContextDone, ctx.Err()))
 			break stop
 		default:
 			if step.Compensation == nil {
@@ -117,23 +117,22 @@ stop:
 			if err := step.Compensation(ctx, originalErr); err != nil {
 				compensationErrors = append(
 					compensationErrors,
-					fmt.Errorf("compensation failed - step [%d#%s]: %w", i, step.Name, err),
+					fmt.Errorf("compensation failed [%d#%s]: %w", i, step.Name, err),
 				)
 			}
 			compensationsExecuted++
 		}
 	}
 
+	var err error
 	if len(compensationErrors) > 0 {
-		compensationErrors = append(compensationErrors, ErrCompensationFailed)
-		return errors.Join(
-			fmt.Errorf("compensation errors: %w", errors.Join(compensationErrors...)),
-		)
+		err = errors.Join(errors.Join(compensationErrors...), originalErr)
 	}
 
-	if compensationsExecuted <= 0 {
-		return errors.Join(originalErr, ErrActionFailed)
+	if err != nil {
+		return errors.Join(ErrCompensationFailed, err)
+
 	}
 
-	return errors.Join(originalErr, ErrCompensationSuccess, ErrActionFailed)
+	return errors.Join(ErrCompensationSuccess, originalErr)
 }

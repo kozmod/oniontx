@@ -188,7 +188,7 @@ func WithRetry(opt RetryPolicy, fn func(ctx context.Context) error) func(ctx con
 		for i := uint32(0); i < attempts; i++ {
 			select {
 			case <-ctx.Done():
-				err = errors.Join(ctx.Err(), ErrRetryContextDone)
+				err = errors.Join(ErrRetryContextDone, ctx.Err())
 				retryErrs = append(retryErrs, fmt.Errorf("retry [%d]: %w", i, err))
 				break stop
 			default:
