@@ -70,7 +70,7 @@ func (s *Saga) Execute(ctx context.Context) error {
 	for i, step := range s.steps {
 		select {
 		case <-ctx.Done():
-			return errors.Join(ctx.Err(), ErrExecuteActionsContextDone)
+			return errors.Join(ErrExecuteActionsContextDone, ctx.Err())
 		default:
 			if step.Action == nil {
 				continue
@@ -107,7 +107,7 @@ stop:
 	for i, step := range completedSteps {
 		select {
 		case <-ctx.Done():
-			compensationErrors = append(compensationErrors, errors.Join(ctx.Err(), ErrExecuteCompensationContextDone))
+			compensationErrors = append(compensationErrors, errors.Join(ErrExecuteCompensationContextDone, ctx.Err()))
 			break stop
 		default:
 			if step.Compensation == nil {
@@ -132,8 +132,8 @@ stop:
 	}
 
 	if compensationsExecuted <= 0 {
-		return errors.Join(originalErr, ErrActionFailed)
+		return errors.Join(ErrActionFailed, originalErr)
 	}
 
-	return errors.Join(originalErr, ErrCompensationSuccess, ErrActionFailed)
+	return errors.Join(ErrCompensationSuccess, ErrActionFailed, originalErr)
 }

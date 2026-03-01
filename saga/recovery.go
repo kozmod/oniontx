@@ -3,7 +3,8 @@ package saga
 import (
 	"context"
 	"errors"
-	"fmt"
+
+	"github.com/kozmod/oniontx/internal/tool"
 )
 
 // WithPanicRecovery returns a wrapped function that includes panic recovery logic.
@@ -25,7 +26,7 @@ func WithPanicRecovery(fn func(ctx context.Context) error) func(ctx context.Cont
 	return func(ctx context.Context) (err error) {
 		defer func() {
 			if p := recover(); p != nil {
-				err = errors.Join(fmt.Errorf("panic [%v]", p), ErrPanicRecovered)
+				err = errors.Join(ErrPanicRecovered, tool.WrapPanic(p))
 			}
 		}()
 		err = fn(ctx)

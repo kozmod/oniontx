@@ -82,7 +82,7 @@ func Test_Concurrent(t *testing.T) {
 
 					var err error
 					for e := range errChan {
-						err = errors.Join(err, e)
+						err = errors.Join(e, err)
 					}
 					assert.ErrorIs(t, err, entity.ErrExpected)
 					return err

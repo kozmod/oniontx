@@ -7,6 +7,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
+	"github.com/kozmod/oniontx/internal/tool"
 )
 
 var (
@@ -146,7 +148,7 @@ func (t *Transactor[B, T]) WithinTx(ctx context.Context, fn func(ctx context.Con
 	if !ok {
 		tx, err = t.beginner.BeginTx(ctx)
 		if err != nil {
-			return fmt.Errorf("transactor - cannot begin: %w", errors.Join(err, ErrBeginTx))
+			return fmt.Errorf("transactor - cannot begin: %w", errors.Join(ErrBeginTx, err))
 		}
 	}
 
@@ -154,18 +156,21 @@ func (t *Transactor[B, T]) WithinTx(ctx context.Context, fn func(ctx context.Con
 		switch p := recover(); {
 		case p != nil:
 			if ok {
-				err = errors.Join(fmt.Errorf("transactor - panic [%v]", p), ErrPanicRecovered)
+				err = fmt.Errorf(
+					"transactor - panic: %w",
+					errors.Join(ErrPanicRecovered, tool.WrapPanic(p)),
+				)
 				return
 			}
 			if rbErr := tx.Rollback(ctx); rbErr != nil {
 				err = fmt.Errorf(
-					"transactor - panic [%v]: %w", p,
-					errors.Join(rbErr, ErrRollbackFailed, ErrPanicRecovered),
+					"transactor - panic: %w",
+					errors.Join(ErrRollbackFailed, ErrPanicRecovered, rbErr, tool.WrapPanic(p)),
 				)
 			} else {
 				err = fmt.Errorf(
-					"transactor - panic [%v]: %w", p,
-					errors.Join(ErrRollbackSuccess, ErrPanicRecovered),
+					"transactor - panic: %w",
+					errors.Join(ErrRollbackSuccess, ErrPanicRecovered, tool.WrapPanic(p)),
 				)
 			}
 		case err != nil:
@@ -173,16 +178,16 @@ func (t *Transactor[B, T]) WithinTx(ctx context.Context, fn func(ctx context.Con
 				return
 			}
 			if rbErr := tx.Rollback(ctx); rbErr != nil {
-				err = fmt.Errorf("transactor - call: %w", errors.Join(err, rbErr, ErrRollbackFailed))
+				err = fmt.Errorf("transactor - call: %w", errors.Join(ErrRollbackFailed, rbErr, err))
 			} else {
-				err = fmt.Errorf("transactor - call: %w", errors.Join(err, ErrRollbackSuccess))
+				err = fmt.Errorf("transactor - call: %w", errors.Join(ErrRollbackSuccess, err))
 			}
 		default:
 			if ok {
 				return
 			}
 			if err = tx.Commit(ctx); err != nil {
-				err = fmt.Errorf("transactor: %w", errors.Join(err, ErrCommitFailed))
+				err = fmt.Errorf("transactor: %w", errors.Join(ErrCommitFailed, err))
 			}
 		}
 	}()
