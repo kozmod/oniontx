@@ -82,7 +82,7 @@ func (s *Saga) Execute(ctx context.Context) error {
 
 			err := step.Action(ctx)
 			if err != nil {
-				err = errors.Join(fmt.Errorf("step failed [%d#%s]", i, step.Name), err)
+				err = fmt.Errorf("step failed [%d#%s]: %w", i, step.Name, errors.Join(ErrActionFailed, err))
 				// Run compensation when error arise.
 				return s.compensate(ctx, completedSteps, err)
 			}
@@ -124,16 +124,15 @@ stop:
 		}
 	}
 
+	var err error
 	if len(compensationErrors) > 0 {
-		compensationErrors = append(compensationErrors, ErrCompensationFailed)
-		return errors.Join(
-			fmt.Errorf("compensation errors: %w", errors.Join(compensationErrors...)),
-		)
+		err = errors.Join(errors.Join(compensationErrors...), originalErr)
 	}
 
-	if compensationsExecuted <= 0 {
-		return errors.Join(ErrActionFailed, originalErr)
+	if err != nil {
+		return errors.Join(ErrCompensationFailed, err)
+
 	}
 
-	return errors.Join(ErrCompensationSuccess, ErrActionFailed, originalErr)
+	return errors.Join(ErrCompensationSuccess, originalErr)
 }
