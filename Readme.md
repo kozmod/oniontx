@@ -418,18 +418,25 @@ func main() {
 ```
 
 ### <a name="saga"><a/>Package `saga` - Distributed Transactions
-Use `saga` when coordinating operations across **multiple** services, databases, 
-or external systems. It implements the `Saga` pattern with compensating actions
+Use `saga` when coordinating operations across **multiple** services, databases,
+or external systems. It implements the **In-Progress Saga** pattern with compensating actions
 to maintain data consistency in distributed environments.
+
+Unlike **Distributed Sagas** that require a centralized orchestrator or choreography
+between services, this implementation is designed as an **In-Progress Saga** where:
+- The saga execution happens within a single process/monolith
+- All steps are defined and executed locally
+- Compensations are called within the same process
+- No distributed coordination or persistent saga state is required
 
 The `Saga` coordinates the execution of a business process consisting of multiple steps.
 Each step contains:
 - **Action**: The main operation to execute
 - **Compensation**: A rollback operation that undoes the action if later steps fail
 
-
 Steps execute sequentially. If any step fails, all previous steps are automatically
 compensated in reverse order, ensuring system consistency
+
 # <img src=".github/assets/sage_usage_1.png" alt="drawing"  width="700" />
 
 Example:
