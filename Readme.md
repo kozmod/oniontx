@@ -7,7 +7,7 @@
 ![GitHub last commit](https://img.shields.io/github/last-commit/kozmod/oniontx)
 [![GitHub MIT license](https://img.shields.io/github/license/kozmod/oniontx)](https://github.com/kozmod/oniontx/blob/dev/LICENSE)
 
-`oniontx` enables moving transaction management from the `Persistence` (repository) layer 
+`oniontx` enables moving persistence logic control (for example: transaction management) from the `Persistence` (repository) layer 
 to the `Application` (service) layer using an owner-defined contract.
 
 The library provides **two complementary approaches** that can be used independently or together:
