@@ -17,7 +17,7 @@ The library provides **two complementary approaches** that can be used independe
 Both packages maintain clean architecture principles by keeping transaction control at the application 
 level while repositories remain focused on data access.
 
-### 🌟 Key Features
+### 💡 Key Features
 - **Clean Architecture First**: Transactions managed at the application layer, not in repositories
 - **Dual Transaction Support**:
     - `mtx` package for local ACID transactions (single database)
