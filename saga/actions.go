@@ -90,6 +90,49 @@ func (a ActionFunc) WithAfterHook(after func(ctx context.Context, aroseError err
 	}
 }
 
+// WithWrapper adds a custom wrapper to the ActionFunc that can modify its behavior.
+// The wrapper receives the context and the original ActionFunc, and returns an error.
+// This provides maximum flexibility for cross-cutting concerns that don't fit into
+// the standard before/after hook pattern.
+//
+// Use cases:
+//   - Timing/deadline enforcement
+//   - Circuit breaking
+//   - Rate limiting
+//   - Distributed tracing span creation
+//   - Custom error handling logic
+//   - Performance monitoring
+//   - Feature flagging
+//
+// The wrapper must call the provided ActionFunc to execute the original logic,
+// but can add behavior before, after, or around it.
+//
+// Example with timing:
+//
+//	action := someAction.WithWrapper(func(ctx context.Context, action ActionFunc) error {
+//	    start := time.Now()
+//	    err := action(ctx)
+//	    duration := time.Since(start)
+//	    metrics.RecordActionDuration(duration, err)
+//	    return err
+//	})
+//
+// Example with circuit breaker:
+//
+//	action := someAction.WithWrapper(func(ctx context.Context, action ActionFunc) error {
+//	    if circuit.IsOpen() {
+//	        return ErrCircuitOpen
+//	    }
+//	    err := action(ctx)
+//	    circuit.RecordResult(err)
+//	    return err
+//	})
+func (a ActionFunc) WithWrapper(wrapper func(ctx context.Context, action ActionFunc) error) ActionFunc {
+	return func(ctx context.Context) error {
+		return wrapper(ctx, a)
+	}
+}
+
 // CompensationFunc represents a function that performs compensation logic
 // when an error occurs in the main action.
 // It receives both the context and the error that triggered the compensation,
@@ -188,5 +231,37 @@ func (c CompensationFunc) WithAfterHook(after func(ctx context.Context, actionEr
 			return err
 		}
 		return err
+	}
+}
+
+// WithWrapper adds a custom wrapper to the CompensationFunc that can modify its behavior.
+// The wrapper receives the context, the original action error, and the CompensationFunc,
+// and returns an error. This provides maximum flexibility for cross-cutting concerns
+// specific to compensation logic.
+//
+// Use cases:
+//   - Timing/deadline enforcement for compensations
+//   - Circuit breaking specifically for compensations
+//   - Rate limiting compensation calls
+//   - Distributed tracing with error context
+//   - Conditional compensation based on error type
+//   - Compensation attempt counting and alerting
+//   - Dead letter queue integration for failed compensations
+//
+// The wrapper must call the provided CompensationFunc with the appropriate parameters
+// to execute the original compensation logic.
+//
+// Example with error classification:
+//
+//	compensation := someCompensation.WithWrapper(func(ctx context.Context, actionErr error, comp CompensationFunc) error {
+//	    if errors.Is(actionErr, ErrNonCritical) {
+//	        log.Printf("Skipping compensation for non-critical error: %v", actionErr)
+//	        return nil
+//	    }
+//	    return comp(ctx, actionErr)
+//	})
+func (c CompensationFunc) WithWrapper(wrapper func(ctx context.Context, actionErr error, comp CompensationFunc) error) CompensationFunc {
+	return func(ctx context.Context, actionErr error) error {
+		return wrapper(ctx, actionErr, c)
 	}
 }
