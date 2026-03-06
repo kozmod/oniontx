@@ -604,3 +604,81 @@ func Test_hooks(t *testing.T) {
 		})
 	})
 }
+
+func Test_wrapper(t *testing.T) {
+	t.Run("action", func(t *testing.T) {
+		var (
+			ctx      = context.Background()
+			executed []string
+		)
+
+		steps := []Step{
+			NewStep("step1").
+				WithAction(
+					NewAction(func(ctx context.Context) error {
+						executed = append(executed, "action1")
+						return nil
+					}).WithWrapper(func(ctx context.Context, action ActionFunc) error {
+						executed = append(executed, "before1")
+						err := action(ctx)
+						testtool.AssertNoError(t, err)
+						executed = append(executed, "after1")
+						return nil
+					}),
+				),
+		}
+
+		err := NewSaga(steps).Execute(ctx)
+		testtool.AssertNoError(t, err)
+		testtool.AssertTrue(t, slices.Equal([]string{"before1", "action1", "after1"}, executed))
+	})
+	t.Run("compensation", func(t *testing.T) {
+		var (
+			ctx      = context.Background()
+			expErr   = testtool.ErrExpTest
+			executed []string
+		)
+
+		steps := []Step{
+			NewStep("step1").
+				WithAction(
+					NewAction(func(ctx context.Context) error {
+						executed = append(executed, "action1")
+						return expErr
+					}).WithWrapper(func(ctx context.Context, action ActionFunc) error {
+						executed = append(executed, "before_action1")
+						err := action(ctx) // call action
+						testtool.AssertError(t, err)
+						testtool.AssertTrue(t, errors.Is(err, expErr))
+						executed = append(executed, "after_action1")
+						return err
+					}),
+				).WithCompensation(
+				NewCompensation(func(ctx context.Context, actionErr error) error {
+					executed = append(executed, "com1")
+					testtool.AssertError(t, actionErr)
+					testtool.AssertTrue(t, errors.Is(actionErr, expErr))
+					return nil
+				}).WithWrapper(func(ctx context.Context, actionErr error, comp CompensationFunc) error {
+					executed = append(executed, "before_comp1")
+					testtool.AssertError(t, actionErr)
+					testtool.AssertTrue(t, errors.Is(actionErr, expErr))
+					err := comp(ctx, actionErr) // call compensation
+					testtool.AssertNoError(t, err)
+					executed = append(executed, "after_comp1")
+					return nil
+				}),
+			).WithCompensationOnFail(),
+		}
+
+		err := NewSaga(steps).Execute(ctx)
+		testtool.AssertError(t, err)
+		testtool.AssertTrue(t, errors.Is(err, ErrActionFailed))
+		testtool.AssertTrue(t,
+			slices.Equal(
+				[]string{
+					"before_action1", "action1", "after_action1",
+					"before_comp1", "com1", "after_comp1",
+				}, executed))
+	})
+}
