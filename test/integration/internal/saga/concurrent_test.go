@@ -30,7 +30,7 @@ func Test_Concurrent(t *testing.T) {
 		steps := []saga.Step{
 			{
 				Name: "step0",
-				Action: func(ctx context.Context) error {
+				Action: func(ctx context.Context, _ saga.Track) error {
 					wg.Go(func() {
 						mx.Lock()
 						defer mx.Unlock()
@@ -38,14 +38,14 @@ func Test_Concurrent(t *testing.T) {
 					})
 					return nil
 				},
-				Compensation: func(ctx context.Context, aroseErr error) error {
+				Compensation: func(ctx context.Context, _ saga.Track) error {
 					executedCompensation = append(executedCompensation, "comp0")
 					return nil
 				},
 			},
 			{
 				Name: "step1",
-				Action: func(ctx context.Context) error {
+				Action: func(ctx context.Context, _ saga.Track) error {
 					wg.Go(func() {
 						mx.Lock()
 						defer mx.Unlock()
@@ -53,14 +53,14 @@ func Test_Concurrent(t *testing.T) {
 					})
 					return nil
 				},
-				Compensation: func(ctx context.Context, aroseErr error) error {
+				Compensation: func(ctx context.Context, _ saga.Track) error {
 					executedCompensation = append(executedCompensation, "comp1")
 					return nil
 				},
 			},
 			{
 				Name: "step2",
-				Action: func(ctx context.Context) error {
+				Action: func(ctx context.Context, _ saga.Track) error {
 					wg.Go(func() {
 						mx.Lock()
 						defer mx.Unlock()
@@ -69,14 +69,14 @@ func Test_Concurrent(t *testing.T) {
 					})
 					return nil
 				},
-				Compensation: func(ctx context.Context, aroseErr error) error {
+				Compensation: func(ctx context.Context, _ saga.Track) error {
 					executedCompensation = append(executedCompensation, "comp2")
 					return nil
 				},
 			},
 			{
 				Name: "check_async_sttep",
-				Action: func(ctx context.Context) error {
+				Action: func(ctx context.Context, _ saga.Track) error {
 					wg.Wait()
 					close(errChan)
 
@@ -90,9 +90,9 @@ func Test_Concurrent(t *testing.T) {
 			},
 		}
 
-		err := saga.NewSaga(steps).Execute(ctx)
+		res, err := saga.NewSaga(steps).Execute(ctx)
 		assert.Error(t, err)
-		assert.ErrorIs(t, err, entity.ErrExpected)
+		assert.Equal(t, saga.StageResultCompensated, res.Status)
 		assert.ElementsMatch(t, []string{"action0", "action1", "action2"}, executedActions)
 		assert.ElementsMatch(t, []string{"comp0", "comp1", "comp2"}, executedCompensation)
 	})

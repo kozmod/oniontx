@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kozmod/oniontx/internal/testtool"
+	"github.com/kozmod/oniontx/internal/testtool/assert"
 )
 
 func Test_CtxOperator(t *testing.T) {
@@ -21,8 +21,8 @@ func Test_CtxOperator(t *testing.T) {
 			)
 			ctx = o.Inject(ctx, &c)
 			extracted, ok := o.Extract(ctx)
-			testtool.AssertTrue(t, ok)
-			testtool.AssertTrue(t, extracted == &c)
+			assert.True(t, ok)
+			assert.True(t, extracted == &c)
 		})
 		t.Run("extract_value", func(t *testing.T) {
 			var (
@@ -37,8 +37,8 @@ func Test_CtxOperator(t *testing.T) {
 			)
 			ctx = o.Inject(ctx, c)
 			extracted, ok := o.Extract(ctx)
-			testtool.AssertTrue(t, ok)
-			testtool.AssertTrue(t, extracted == c)
+			assert.True(t, ok)
+			assert.True(t, extracted == c)
 		})
 		t.Run("extract_nil_value", func(t *testing.T) {
 			var (
@@ -53,8 +53,8 @@ func Test_CtxOperator(t *testing.T) {
 			)
 			ctx = o.Inject(ctx, c)
 			extracted, ok := o.Extract(ctx)
-			testtool.AssertTrue(t, ok)
-			testtool.AssertTrue(t, extracted == c)
+			assert.True(t, ok)
+			assert.True(t, extracted == c)
 		})
 
 	})
@@ -84,13 +84,13 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 		)
 		err := tr.WithinTx(ctx, func(ctx context.Context) error {
 			tx, ok := tr.TryGetTx(ctx)
-			testtool.AssertTrue(t, ok)
-			testtool.AssertTrue(t, &c == tx)
+			assert.True(t, ok)
+			assert.True(t, &c == tx)
 			return nil
 		})
-		testtool.AssertNoError(t, err)
-		testtool.AssertTrue(t, beginnerCalled)
-		testtool.AssertTrue(t, commitCalled)
+		assert.NoError(t, err)
+		assert.True(t, beginnerCalled)
+		assert.True(t, commitCalled)
 	})
 	t.Run("TxBeginner", func(t *testing.T) {
 		var (
@@ -114,13 +114,13 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 		)
 		err := tr.WithinTx(ctx, func(ctx context.Context) error {
 			beginner := tr.TxBeginner()
-			testtool.AssertTrue(t, beginner != nil)
-			testtool.AssertTrue(t, &b == beginner)
+			assert.True(t, beginner != nil)
+			assert.True(t, &b == beginner)
 			return nil
 		})
-		testtool.AssertNoError(t, err)
-		testtool.AssertTrue(t, beginnerCalled)
-		testtool.AssertTrue(t, commitCalled)
+		assert.NoError(t, err)
+		assert.True(t, beginnerCalled)
+		assert.True(t, commitCalled)
 	})
 	t.Run("WithinTx", func(t *testing.T) {
 		t.Run("success_commit", func(t *testing.T) {
@@ -145,13 +145,13 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
-				testtool.AssertTrue(t, ok)
-				testtool.AssertTrue(t, &c == tx)
+				assert.True(t, ok)
+				assert.True(t, &c == tx)
 				return nil
 			})
-			testtool.AssertNoError(t, err)
-			testtool.AssertTrue(t, beginnerCalled)
-			testtool.AssertTrue(t, commitCalled)
+			assert.NoError(t, err)
+			assert.True(t, beginnerCalled)
+			assert.True(t, commitCalled)
 		})
 		t.Run("success_and_not_commit_with_exists_tx", func(t *testing.T) {
 			var (
@@ -170,12 +170,12 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 			ctx = o.Inject(ctx, &c)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
-				testtool.AssertTrue(t, ok)
-				testtool.AssertTrue(t, &c == tx)
+				assert.True(t, ok)
+				assert.True(t, &c == tx)
 				return nil
 			})
-			testtool.AssertNoError(t, err)
-			testtool.AssertTrue(t, !commitCalled)
+			assert.NoError(t, err)
+			assert.True(t, !commitCalled)
 		})
 		t.Run("failed_commit", func(t *testing.T) {
 			var (
@@ -199,13 +199,13 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
-				testtool.AssertTrue(t, ok)
-				testtool.AssertTrue(t, &c == tx)
+				assert.True(t, ok)
+				assert.True(t, &c == tx)
 				return nil
 			})
-			testtool.AssertTrue(t, errors.Is(err, ErrCommitFailed))
-			testtool.AssertTrue(t, errors.Is(err, expError))
-			testtool.AssertTrue(t, commitCalled)
+			assert.True(t, errors.Is(err, ErrCommitFailed))
+			assert.True(t, errors.Is(err, expError))
+			assert.True(t, commitCalled)
 		})
 		t.Run("success_rollback", func(t *testing.T) {
 			var (
@@ -231,14 +231,14 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
-				testtool.AssertTrue(t, ok)
-				testtool.AssertTrue(t, &c == tx)
+				assert.True(t, ok)
+				assert.True(t, &c == tx)
 				return expError
 			})
-			testtool.AssertTrue(t, errors.Is(err, ErrRollbackSuccess))
-			testtool.AssertTrue(t, errors.Is(err, expError))
-			testtool.AssertTrue(t, rollbackCalled)
-			testtool.AssertTrue(t, beginCalled)
+			assert.True(t, errors.Is(err, ErrRollbackSuccess))
+			assert.True(t, errors.Is(err, expError))
+			assert.True(t, rollbackCalled)
+			assert.True(t, beginCalled)
 		})
 		t.Run("failed_rollback", func(t *testing.T) {
 			var (
@@ -265,15 +265,15 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
-				testtool.AssertTrue(t, ok)
-				testtool.AssertTrue(t, &c == tx)
+				assert.True(t, ok)
+				assert.True(t, &c == tx)
 				return transactorError
 			})
-			testtool.AssertTrue(t, errors.Is(err, ErrRollbackFailed))
-			testtool.AssertTrue(t, errors.Is(err, transactorError))
-			testtool.AssertTrue(t, errors.Is(err, rollbackErr))
-			testtool.AssertTrue(t, rollbackCalled)
-			testtool.AssertTrue(t, beginCalled)
+			assert.True(t, errors.Is(err, ErrRollbackFailed))
+			assert.True(t, errors.Is(err, transactorError))
+			assert.True(t, errors.Is(err, rollbackErr))
+			assert.True(t, rollbackCalled)
+			assert.True(t, beginCalled)
 		})
 		t.Run("success_panic_rollback", func(t *testing.T) {
 			var (
@@ -298,15 +298,15 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
-				testtool.AssertTrue(t, ok)
-				testtool.AssertTrue(t, &c == tx)
+				assert.True(t, ok)
+				assert.True(t, &c == tx)
 				panic(expPanic)
 			})
-			testtool.AssertTrue(t, errors.Is(err, ErrRollbackSuccess))
-			testtool.AssertTrue(t, errors.Is(err, ErrPanicRecovered))
-			testtool.AssertTrue(t, strings.Contains(err.Error(), expPanic))
-			testtool.AssertTrue(t, rollbackCalled)
-			testtool.AssertTrue(t, beginCalled)
+			assert.True(t, errors.Is(err, ErrRollbackSuccess))
+			assert.True(t, errors.Is(err, ErrPanicRecovered))
+			assert.True(t, strings.Contains(err.Error(), expPanic))
+			assert.True(t, rollbackCalled)
+			assert.True(t, beginCalled)
 		})
 		t.Run("failed_panic_rollback", func(t *testing.T) {
 			const (
@@ -335,16 +335,16 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
-				testtool.AssertTrue(t, ok)
-				testtool.AssertTrue(t, &c == tx)
+				assert.True(t, ok)
+				assert.True(t, &c == tx)
 				panic(expPanicMsg)
 			})
-			testtool.AssertTrue(t, errors.Is(err, ErrRollbackFailed))
-			testtool.AssertTrue(t, errors.Is(err, ErrPanicRecovered))
-			testtool.AssertTrue(t, errors.Is(err, rollbackErr))
-			testtool.AssertTrue(t, strings.Contains(err.Error(), expPanicMsg))
-			testtool.AssertTrue(t, rollbackCalled)
-			testtool.AssertTrue(t, beginCalled)
+			assert.True(t, errors.Is(err, ErrRollbackFailed))
+			assert.True(t, errors.Is(err, ErrPanicRecovered))
+			assert.True(t, errors.Is(err, rollbackErr))
+			assert.True(t, strings.Contains(err.Error(), expPanicMsg))
+			assert.True(t, rollbackCalled)
+			assert.True(t, beginCalled)
 		})
 		t.Run("failed_begin_tx", func(t *testing.T) {
 			var (
@@ -363,12 +363,12 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				_, ok := o.Extract(ctx)
-				testtool.AssertFalse(t, ok)
+				assert.False(t, ok)
 				return nil
 			})
-			testtool.AssertTrue(t, errors.Is(err, ErrBeginTx))
-			testtool.AssertTrue(t, errors.Is(err, expError))
-			testtool.AssertTrue(t, beginCalled)
+			assert.True(t, errors.Is(err, ErrBeginTx))
+			assert.True(t, errors.Is(err, expError))
+			assert.True(t, beginCalled)
 		})
 		t.Run("error_when_beginner_is_nil", func(t *testing.T) {
 			var (
@@ -379,7 +379,7 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				return nil
 			})
-			testtool.AssertTrue(t, errors.Is(err, ErrNilTxBeginner))
+			assert.True(t, errors.Is(err, ErrNilTxBeginner))
 		})
 		t.Run("error_when_operator_is_nil", func(t *testing.T) {
 			var (
@@ -394,7 +394,7 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				return nil
 			})
-			testtool.AssertTrue(t, errors.Is(err, ErrNilTxOperator))
+			assert.True(t, errors.Is(err, ErrNilTxOperator))
 		})
 	})
 }
@@ -431,11 +431,11 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 
 		assertTopLvl = func(ctx context.Context) {
 			// tool.Assert that rollback was called on the recursion "top" level.
-			testtool.AssertTrue(t, isLvlEqual(ctx, ctxValTopLvl))
+			assert.True(t, isLvlEqual(ctx, ctxValTopLvl))
 			// tool.Assert that rollback call wasn't called on the "second" recursion level.
-			testtool.AssertFalse(t, isLvlEqual(ctx, ctxValSecondLvl))
+			assert.False(t, isLvlEqual(ctx, ctxValSecondLvl))
 			// tool.Assert that rollback call wasn't called on the "third" recursion level.
-			testtool.AssertFalse(t, isLvlEqual(ctx, ctxValThirdLvl))
+			assert.False(t, isLvlEqual(ctx, ctxValThirdLvl))
 		}
 	)
 
@@ -493,22 +493,22 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 
 		err := tr.WithinTx(ctx, func(ctx context.Context) error {
 			tx, ok := o.Extract(ctx)
-			testtool.AssertTrue(t, ok)
-			testtool.AssertTrue(t, c == tx)
+			assert.True(t, ok)
+			assert.True(t, c == tx)
 
 			// inject "second" level variable in context.Context.
 			ctx = injectLvl(ctx, ctxValSecondLvl)
 			return tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
-				testtool.AssertTrue(t, ok)
-				testtool.AssertTrue(t, c == tx)
+				assert.True(t, ok)
+				assert.True(t, c == tx)
 				return expError
 			})
 		})
-		testtool.AssertTrue(t, errors.Is(err, ErrRollbackSuccess))
-		testtool.AssertTrue(t, errors.Is(err, expError))
-		testtool.AssertTrue(t, rollbackCalled == 1)
-		testtool.AssertTrue(t, beginCalled == 1)
+		assert.True(t, errors.Is(err, ErrRollbackSuccess))
+		assert.True(t, errors.Is(err, expError))
+		assert.True(t, rollbackCalled == 1)
+		assert.True(t, beginCalled == 1)
 	})
 
 	t.Run("success_and_commit_on_top_lvl_func", func(t *testing.T) {
@@ -525,32 +525,32 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 
 		err := tr.WithinTx(ctx, func(ctx context.Context) error {
 			tx, ok := o.Extract(ctx)
-			testtool.AssertTrue(t, ok)
-			testtool.AssertTrue(t, c == tx)
+			assert.True(t, ok)
+			assert.True(t, c == tx)
 
 			// inject "second" level variable in context.Context.
 			ctx = injectLvl(ctx, ctxValSecondLvl)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
-				testtool.AssertTrue(t, ok)
-				testtool.AssertTrue(t, c == tx)
+				assert.True(t, ok)
+				assert.True(t, c == tx)
 				return nil
 			})
-			testtool.AssertNoError(t, err)
+			assert.NoError(t, err)
 
 			err = tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
-				testtool.AssertTrue(t, ok)
-				testtool.AssertTrue(t, c == tx)
+				assert.True(t, ok)
+				assert.True(t, c == tx)
 				return nil
 			})
-			testtool.AssertTrue(t, err == nil)
+			assert.True(t, err == nil)
 
 			return err
 		})
-		testtool.AssertTrue(t, beginCalled == 1)
-		testtool.AssertNoError(t, err)
-		testtool.AssertTrue(t, commitCalled == 1)
+		assert.True(t, beginCalled == 1)
+		assert.NoError(t, err)
+		assert.True(t, commitCalled == 1)
 	})
 	t.Run("error_and_rollback_on_high_lvl_when_error_on_low_lvl_func", func(t *testing.T) {
 		defer t.Cleanup(cleanup)
@@ -568,35 +568,35 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 
 		err := tr.WithinTx(ctx, func(ctx context.Context) error {
 			tx, ok := o.Extract(ctx)
-			testtool.AssertTrue(t, ok)
-			testtool.AssertTrue(t, c == tx)
+			assert.True(t, ok)
+			assert.True(t, c == tx)
 
 			// inject "second" level variable in context.Context.
 			ctx = injectLvl(ctx, ctxValSecondLvl)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
-				testtool.AssertTrue(t, ok)
-				testtool.AssertTrue(t, c == tx)
+				assert.True(t, ok)
+				assert.True(t, c == tx)
 
 				// inject "third" level variable in context.Context.
 				ctx = injectLvl(ctx, ctxValThirdLvl)
 				err := tr.WithinTx(ctx, func(ctx context.Context) error {
 					tx, ok := o.Extract(ctx)
-					testtool.AssertTrue(t, ok)
-					testtool.AssertTrue(t, c == tx)
+					assert.True(t, ok)
+					assert.True(t, c == tx)
 					return expError
 				})
 				return err
 			})
-			testtool.AssertError(t, err)
+			assert.Error(t, err)
 
 			return err
 		})
-		testtool.AssertTrue(t, errors.Is(err, ErrRollbackSuccess))
-		testtool.AssertTrue(t, errors.Is(err, expError))
-		testtool.AssertTrue(t, beginCalled == 1)
-		testtool.AssertTrue(t, commitCalled == 0)
-		testtool.AssertTrue(t, rollbackCalled == 1)
+		assert.True(t, errors.Is(err, ErrRollbackSuccess))
+		assert.True(t, errors.Is(err, expError))
+		assert.True(t, beginCalled == 1)
+		assert.True(t, commitCalled == 0)
+		assert.True(t, rollbackCalled == 1)
 	})
 	t.Run("panic", func(t *testing.T) {
 		const (
@@ -618,37 +618,37 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
-				testtool.AssertTrue(t, ok)
-				testtool.AssertTrue(t, c == tx)
+				assert.True(t, ok)
+				assert.True(t, c == tx)
 
 				// inject "second" level variable in context.Context.
 				ctx = injectLvl(ctx, ctxValSecondLvl)
 				err := tr.WithinTx(ctx, func(ctx context.Context) error {
 					tx, ok := o.Extract(ctx)
-					testtool.AssertTrue(t, ok)
-					testtool.AssertTrue(t, c == tx)
+					assert.True(t, ok)
+					assert.True(t, c == tx)
 
 					// inject "second" level variable in context.Context.
 					ctx = injectLvl(ctx, ctxValThirdLvl)
 					err := tr.WithinTx(ctx, func(ctx context.Context) error {
 						tx, ok := o.Extract(ctx)
-						testtool.AssertTrue(t, ok)
-						testtool.AssertTrue(t, c == tx)
+						assert.True(t, ok)
+						assert.True(t, c == tx)
 						panic(lowLvlPanicMsg)
 					})
-					testtool.AssertError(t, err)
+					assert.Error(t, err)
 					return err
 				})
-				testtool.AssertError(t, err)
+				assert.Error(t, err)
 
 				return err
 			})
-			testtool.AssertTrue(t, errors.Is(err, ErrRollbackSuccess))
-			testtool.AssertTrue(t, errors.Is(err, ErrPanicRecovered))
-			testtool.AssertTrue(t, strings.Contains(err.Error(), lowLvlPanicMsg))
-			testtool.AssertTrue(t, beginCalled == 1)
-			testtool.AssertTrue(t, commitCalled == 0)
-			testtool.AssertTrue(t, rollbackCalled == 1)
+			assert.True(t, errors.Is(err, ErrRollbackSuccess))
+			assert.True(t, errors.Is(err, ErrPanicRecovered))
+			assert.True(t, strings.Contains(err.Error(), lowLvlPanicMsg))
+			assert.True(t, beginCalled == 1)
+			assert.True(t, commitCalled == 0)
+			assert.True(t, rollbackCalled == 1)
 		})
 
 		t.Run("error_and_rollback_on_high_lvl_when_panic_on_middle_lvl_override_low_lvl", func(t *testing.T) {
@@ -665,38 +665,38 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
-				testtool.AssertTrue(t, ok)
-				testtool.AssertTrue(t, c == tx)
+				assert.True(t, ok)
+				assert.True(t, c == tx)
 
 				// inject "second" level variable in context.Context.
 				ctx = injectLvl(ctx, ctxValSecondLvl)
 				err := tr.WithinTx(ctx, func(ctx context.Context) error {
 					tx, ok := o.Extract(ctx)
-					testtool.AssertTrue(t, ok)
-					testtool.AssertTrue(t, c == tx)
+					assert.True(t, ok)
+					assert.True(t, c == tx)
 
 					// inject "second" level variable in context.Context.
 					ctx = injectLvl(ctx, ctxValThirdLvl)
 					err := tr.WithinTx(ctx, func(ctx context.Context) error {
 						tx, ok := o.Extract(ctx)
-						testtool.AssertTrue(t, ok)
-						testtool.AssertTrue(t, c == tx)
+						assert.True(t, ok)
+						assert.True(t, c == tx)
 						panic(lowLvlPanicMsg)
 					})
-					testtool.AssertError(t, err)
+					assert.Error(t, err)
 					panic(middleLvlPanicMsg)
 				})
-				testtool.AssertTrue(t, err != nil)
+				assert.True(t, err != nil)
 
 				return err
 			})
-			testtool.AssertTrue(t, errors.Is(err, ErrRollbackSuccess))
-			testtool.AssertTrue(t, errors.Is(err, ErrPanicRecovered))
-			testtool.AssertFalse(t, strings.Contains(err.Error(), lowLvlPanicMsg))
-			testtool.AssertTrue(t, strings.Contains(err.Error(), middleLvlPanicMsg))
-			testtool.AssertTrue(t, beginCalled == 1)
-			testtool.AssertTrue(t, commitCalled == 0)
-			testtool.AssertTrue(t, rollbackCalled == 1)
+			assert.True(t, errors.Is(err, ErrRollbackSuccess))
+			assert.True(t, errors.Is(err, ErrPanicRecovered))
+			assert.False(t, strings.Contains(err.Error(), lowLvlPanicMsg))
+			assert.True(t, strings.Contains(err.Error(), middleLvlPanicMsg))
+			assert.True(t, beginCalled == 1)
+			assert.True(t, commitCalled == 0)
+			assert.True(t, rollbackCalled == 1)
 		})
 	})
 }

@@ -22,14 +22,14 @@ import (
 //	err := safeFn(ctx)
 //
 // err will wrap "panic [something went wrong]" and ErrPanicRecovered
-func WithPanicRecovery(fn func(ctx context.Context) error) func(ctx context.Context) error {
-	return func(ctx context.Context) (err error) {
+func WithPanicRecovery(fn func(ctx context.Context, track Track) error) func(context.Context, Track) error {
+	return func(ctx context.Context, track Track) (err error) {
 		defer func() {
 			if p := recover(); p != nil {
 				err = errors.Join(ErrPanicRecovered, tool.WrapPanic(p))
 			}
 		}()
-		err = fn(ctx)
+		err = fn(ctx, track)
 		return err
 	}
 }

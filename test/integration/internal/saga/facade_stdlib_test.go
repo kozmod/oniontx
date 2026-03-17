@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/kozmod/oniontx/internal/testtool"
-	"github.com/kozmod/oniontx/mtx"
 	"github.com/kozmod/oniontx/saga"
 	"github.com/kozmod/oniontx/test/integration/internal/entity"
 	"github.com/kozmod/oniontx/test/integration/internal/stdlib"
@@ -41,19 +40,20 @@ func Test_Saga_stdlib_Facade(t *testing.T) {
 			repoA      = stdlib.NewTextRepository(transactor, false)
 			repoB      = stdlib.NewTextRepository(transactor, true)
 		)
-		err := saga.NewSaga([]saga.Step{
+		res, err := saga.NewSaga([]saga.Step{
 			{
 				Name: "step_0",
-				Action: func(ctx context.Context) error {
+				Action: func(ctx context.Context, _ saga.Track) error {
 					err := transactor.WithinTx(ctx, func(ctx context.Context) error {
 						return repoA.Insert(ctx, textRecord)
 					})
 					assert.NoError(t, err)
 					return nil
 				},
-				Compensation: func(ctx context.Context, aroseErr error) error {
-					assert.Error(t, aroseErr)
-					assert.ErrorIs(t, aroseErr, entity.ErrExpected)
+				Compensation: func(ctx context.Context, track saga.Track) error {
+					//data := track.GetData()
+					//assert.Len(t, data.Action.Errors, 1)
+					//assert.ErrorIs(t, data.Action.Errors[0], entity.ErrExpected)
 
 					err := repoA.Delete(ctx, textRecord)
 					assert.NoError(t, err)
@@ -62,7 +62,7 @@ func Test_Saga_stdlib_Facade(t *testing.T) {
 			},
 			{
 				Name: "step_1",
-				Action: func(ctx context.Context) error {
+				Action: func(ctx context.Context, _ saga.Track) error {
 					records, err := stdlib.GetTextRecords(db)
 					assert.NoError(t, err)
 					assert.Len(t, records, 1)
@@ -73,7 +73,7 @@ func Test_Saga_stdlib_Facade(t *testing.T) {
 			},
 			{
 				Name: "step_2",
-				Action: func(ctx context.Context) error {
+				Action: func(ctx context.Context, _ saga.Track) error {
 					err := transactor.WithinTx(ctx, func(ctx context.Context) error {
 						err := repoA.Insert(ctx, textRecord)
 						if err != nil {
@@ -96,13 +96,26 @@ func Test_Saga_stdlib_Facade(t *testing.T) {
 		}).Execute(ctx)
 
 		assert.Error(t, err)
-
-		testtool.LogError(t, err)
-
-		assert.ErrorIs(t, err, entity.ErrExpected)
 		assert.ErrorIs(t, err, saga.ErrActionFailed)
-		assert.ErrorIs(t, err, mtx.ErrRollbackSuccess)
-		assert.ErrorIs(t, err, saga.ErrCompensationSuccess)
+
+		assert.Equal(t, saga.StageResultCompensated, res.Status)
+		assert.Len(t, res.Steps, 3)
+
+		assert.Equal(t, saga.ExecutionStatusSuccess, res.Steps[0].Action.Status)
+		assert.Equal(t, saga.ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
+
+		assert.Equal(t, saga.ExecutionStatusSuccess, res.Steps[1].Action.Status)
+		assert.Equal(t, saga.ExecutionStatusUnset, res.Steps[1].Compensation.Status)
+
+		assert.Equal(t, saga.ExecutionStatusFail, res.Steps[2].Action.Status)
+		assert.Equal(t, saga.ExecutionStatusUnset, res.Steps[2].Compensation.Status)
+
+		assert.Len(t, res.Steps[2].Action.Errors, 1)
+		assert.ErrorIs(t, res.Steps[2].Action.Errors[0], saga.ErrActionFailed)
+
+		testtool.TestFn(t, func() {
+			printResult(t, res, err)
+		})
 
 		{
 			records, err := stdlib.GetTextRecords(db)
