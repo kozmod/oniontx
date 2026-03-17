@@ -7,7 +7,7 @@ import (
 // ActionFunc represents a function that performs an action and can return an error.
 // It is designed to be used in workflows, sagas, or any operation that might need
 // additional behavior like panic recovery or retries.
-type ActionFunc func(ctx context.Context) error
+type ActionFunc func(ctx context.Context, track Track) error
 
 // NewAction creates a new ActionFunc.
 func NewAction(afn ActionFunc) ActionFunc {
@@ -47,13 +47,13 @@ func (a ActionFunc) WithRetry(opt RetryPolicy) ActionFunc {
 //	    log.Println("starting action")
 //	    return validateInput(ctx)
 //	})
-func (a ActionFunc) WithBeforeHook(before func(ctx context.Context) error) ActionFunc {
-	return func(ctx context.Context) error {
-		err := before(ctx)
+func (a ActionFunc) WithBeforeHook(before func(ctx context.Context, track Track) error) ActionFunc {
+	return func(ctx context.Context, track Track) error {
+		err := before(ctx, track)
 		if err != nil {
 			return err
 		}
-		return a(ctx)
+		return a(ctx, track)
 	}
 }
 
@@ -79,10 +79,10 @@ func (a ActionFunc) WithBeforeHook(before func(ctx context.Context) error) Actio
 //	    log.Println("action completed successfully")
 //	    return nil
 //	})
-func (a ActionFunc) WithAfterHook(after func(ctx context.Context, aroseError error) error) ActionFunc {
-	return func(ctx context.Context) error {
-		err := a(ctx)
-		err = after(ctx, err)
+func (a ActionFunc) WithAfterHook(after func(ctx context.Context, track Track) error) ActionFunc {
+	return func(ctx context.Context, track Track) error {
+		err := a(ctx, track)
+		err = after(ctx, track)
 		if err != nil {
 			return err
 		}
@@ -127,9 +127,9 @@ func (a ActionFunc) WithAfterHook(after func(ctx context.Context, aroseError err
 //	    circuit.RecordResult(err)
 //	    return err
 //	})
-func (a ActionFunc) WithWrapper(wrapper func(ctx context.Context, action ActionFunc) error) ActionFunc {
-	return func(ctx context.Context) error {
-		return wrapper(ctx, a)
+func (a ActionFunc) WithWrapper(wrapper func(ctx context.Context, track Track, action ActionFunc) error) ActionFunc {
+	return func(ctx context.Context, track Track) error {
+		return wrapper(ctx, track, a)
 	}
 }
 
@@ -137,7 +137,7 @@ func (a ActionFunc) WithWrapper(wrapper func(ctx context.Context, action ActionF
 // when an error occurs in the main action.
 // It receives both the context and the error that triggered the compensation,
 // allowing it to make decisions based on the specific error that occurred.
-type CompensationFunc func(ctx context.Context, actionErr error) error
+type CompensationFunc func(ctx context.Context, track Track) error
 
 // NewCompensation creates a new CompensationFunc.
 func NewCompensation(afn CompensationFunc) CompensationFunc {
@@ -150,11 +150,11 @@ func NewCompensation(afn CompensationFunc) CompensationFunc {
 // The original aroseErr is preserved and passed through to the compensation function.
 // Returns a new CompensationFunc with panic recovery enabled.
 func (c CompensationFunc) WithPanicRecovery() CompensationFunc {
-	return func(ctx context.Context, aroseErr error) error {
-		fn := func(ctx context.Context) error {
-			return c(ctx, aroseErr)
+	return func(ctx context.Context, track Track) error {
+		fn := func(ctx context.Context, track Track) error {
+			return c(ctx, track)
 		}
-		return WithPanicRecovery(fn)(ctx)
+		return WithPanicRecovery(fn)(ctx, track)
 	}
 }
 
@@ -164,11 +164,11 @@ func (c CompensationFunc) WithPanicRecovery() CompensationFunc {
 // If all retry attempts fail, the behavior depends on RetryPolicy.ReturnAllAroseErr.
 // Returns a new CompensationFunc with retry logic enabled.
 func (c CompensationFunc) WithRetry(opt RetryPolicy) CompensationFunc {
-	return func(ctx context.Context, actionError error) error {
-		fn := func(ctx context.Context) error {
-			return c(ctx, actionError)
+	return func(ctx context.Context, track Track) error {
+		fn := func(ctx context.Context, track Track) error {
+			return c(ctx, track)
 		}
-		return WithRetry(opt, fn)(ctx)
+		return WithRetry(opt, fn)(ctx, track)
 	}
 }
 
@@ -185,18 +185,18 @@ func (c CompensationFunc) WithRetry(opt RetryPolicy) CompensationFunc {
 // Example:
 //
 //	compensation := someCompensation.WithBeforeHook(func(ctx context.Context, actionErr error) error {
-//	    if errors.Is(actionErr, ErrTemporaryFailure) {
+//	    if Errors.Is(actionErr, ErrTemporaryFailure) {
 //	        return nil // Compensate for temporary failures
 //	    }
 //	    return ErrSkipCompensation // Skip compensation for permanent failures
 //	})
-func (c CompensationFunc) WithBeforeHook(before func(ctx context.Context, actionErr error) error) CompensationFunc {
-	return func(ctx context.Context, actionErr error) error {
-		err := before(ctx, actionErr)
+func (c CompensationFunc) WithBeforeHook(before func(ctx context.Context, track Track) error) CompensationFunc {
+	return func(ctx context.Context, track Track) error {
+		err := before(ctx, track)
 		if err != nil {
 			return err
 		}
-		return c(ctx, actionErr)
+		return c(ctx, track)
 	}
 }
 
@@ -223,13 +223,17 @@ func (c CompensationFunc) WithBeforeHook(before func(ctx context.Context, action
 //	    log.Printf("Compensation successful for action error: %v", actionErr)
 //	    return nil
 //	})
-func (c CompensationFunc) WithAfterHook(after func(ctx context.Context, actionErr, aroseErr error) error) CompensationFunc {
-	return func(ctx context.Context, actionErr error) error {
-		aroseErr := c(ctx, actionErr)
-		err := after(ctx, actionErr, aroseErr)
+func (c CompensationFunc) WithAfterHook(after func(ctx context.Context, track Track) error) CompensationFunc {
+	return func(ctx context.Context, track Track) error {
+		err := c(ctx, track)
 		if err != nil {
 			return err
 		}
+		err = after(ctx, track)
+		if err != nil {
+			return err
+		}
+
 		return err
 	}
 }
@@ -242,7 +246,7 @@ func (c CompensationFunc) WithAfterHook(after func(ctx context.Context, actionEr
 // Use cases:
 //   - Timing/deadline enforcement for compensations
 //   - Circuit breaking specifically for compensations
-//   - Rate limiting compensation calls
+//   - Rate limiting compensation Calls
 //   - Distributed tracing with error context
 //   - Conditional compensation based on error type
 //   - Compensation attempt counting and alerting
@@ -254,14 +258,14 @@ func (c CompensationFunc) WithAfterHook(after func(ctx context.Context, actionEr
 // Example with error classification:
 //
 //	compensation := someCompensation.WithWrapper(func(ctx context.Context, actionErr error, comp CompensationFunc) error {
-//	    if errors.Is(actionErr, ErrNonCritical) {
+//	    if Errors.Is(actionErr, ErrNonCritical) {
 //	        log.Printf("Skipping compensation for non-critical error: %v", actionErr)
 //	        return nil
 //	    }
 //	    return comp(ctx, actionErr)
 //	})
-func (c CompensationFunc) WithWrapper(wrapper func(ctx context.Context, actionErr error, comp CompensationFunc) error) CompensationFunc {
-	return func(ctx context.Context, actionErr error) error {
-		return wrapper(ctx, actionErr, c)
+func (c CompensationFunc) WithWrapper(wrapper func(ctx context.Context, track Track, comp CompensationFunc) error) CompensationFunc {
+	return func(ctx context.Context, track Track) error {
+		return wrapper(ctx, track, c)
 	}
 }

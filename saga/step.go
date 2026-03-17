@@ -9,6 +9,8 @@ type Step struct {
 	// Name of the step.
 	Name string
 
+	nameCall string
+
 	// Action is the main operation executed within a step's transaction.
 	Action ActionFunc
 

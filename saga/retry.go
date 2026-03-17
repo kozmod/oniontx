@@ -19,10 +19,6 @@ type (
 	RetryPolicy interface {
 		Attempts() uint32
 		Delay(attempt uint32) time.Duration
-
-		// ReturnAllAroseErr indicates whether to return all collected errors
-		// from failed attempts (true) or just the last error (false).
-		ReturnAllAroseErr() bool
 	}
 
 	// Backoff defines the interface for backoff strategy calculation.
@@ -38,20 +34,14 @@ type (
 
 // baseRetryPolicy provides common fields and basic implementation for retry options.
 type baseRetryPolicy struct {
-	attempts          uint32
-	delay             time.Duration
-	maxDelay          time.Duration
-	returnAllAroseErr bool
+	attempts uint32
+	delay    time.Duration
+	maxDelay time.Duration
 }
 
 // Attempts returns the configured maximum number of retry attempts.
 func (o baseRetryPolicy) Attempts() uint32 {
 	return o.attempts
-}
-
-// ReturnAllAroseErr returns the configured error aggregation behavior.
-func (o baseRetryPolicy) ReturnAllAroseErr() bool {
-	return o.returnAllAroseErr
 }
 
 // Delay returns a constant delay duration regardless of attempt number.
@@ -76,12 +66,6 @@ func NewBaseRetryOpt(attempts uint32, delay time.Duration) *BaseRetryPolicy {
 	}
 }
 
-// WithReturnAllAroseErr enables returning all errors from failed attempts.
-func (o BaseRetryPolicy) WithReturnAllAroseErr() BaseRetryPolicy {
-	o.returnAllAroseErr = true
-	return o
-}
-
 // AdvanceRetryPolicy provides configurable retry behavior with pluggable
 // backoff and jitter strategies. This allows for flexible composition of
 // different retry algorithms.
@@ -104,12 +88,6 @@ func NewAdvanceRetryPolicy(attempts uint32, delay time.Duration, backoff Backoff
 	}
 }
 
-// WithReturnAllAroseErr enables returning all errors from failed attempts.
-func (o AdvanceRetryPolicy) WithReturnAllAroseErr() AdvanceRetryPolicy {
-	o.baseRetryPolicy.returnAllAroseErr = true
-	return o
-}
-
 // WithJitter adds jitter to the retry policy.
 func (o AdvanceRetryPolicy) WithJitter(jitter Jitter) AdvanceRetryPolicy {
 	o.jitter = jitter
@@ -125,11 +103,6 @@ func (o AdvanceRetryPolicy) WithMaxDelay(delay time.Duration) AdvanceRetryPolicy
 // Attempts returns the configured maximum number of retry attempts.
 func (o AdvanceRetryPolicy) Attempts() uint32 {
 	return o.attempts
-}
-
-// ReturnAllAroseErr returns the configured error aggregation behavior.
-func (o AdvanceRetryPolicy) ReturnAllAroseErr() bool {
-	return o.returnAllAroseErr
 }
 
 // Delay returns a constant delay duration regardless of attempt number.
@@ -159,51 +132,55 @@ func (o AdvanceRetryPolicy) Delay(i uint32) time.Duration {
 //   - Before each attempt, it waits for the delay provided by opt.Delay(attempt)
 //   - The function stops retrying on first successful execution
 //   - Context cancellation is respected between attempts (checked before each attempt)
-//   - All errors from failed attempts are collected
+//   - All Errors from failed attempts are collected
 //
 // If all attempts fail, behavior depends on ReturnAllAroseErr():
-//   - if true - returns all errors via errors.Join(...)
+//   - if true - returns all Errors via Errors.Join(...)
 //   - if false - returns only the last error that occurred
-func WithRetry(opt RetryPolicy, fn func(ctx context.Context) error) func(ctx context.Context) error {
-	return func(ctx context.Context) error {
+func WithRetry(opt RetryPolicy, fn func(ctx context.Context, track Track) error) func(context.Context, Track) error {
+	return func(ctx context.Context, track Track) error {
 		// first call
 		var (
-			attempts  = opt.Attempts()
-			retryErrs []error
+			attempts = opt.Attempts()
 		)
 
-		err := fn(ctx)
+		err := fn(ctx, track)
 		switch {
 		case err == nil:
+			track.setSuccess()
 			return nil
 		case attempts == 0:
 			return err
 		case err != nil:
-			err = fmt.Errorf("action error: %w", err)
-			retryErrs = append(retryErrs, err)
+			track.setFailedOnError(
+				fmt.Errorf("action error: %w", err),
+			)
 		}
 
 		// retries
 	stop:
 		for i := uint32(0); i < attempts; i++ {
+			track.call()
 			select {
 			case <-ctx.Done():
-				err = errors.Join(ErrRetryContextDone, ctx.Err())
-				retryErrs = append(retryErrs, fmt.Errorf("retry [%d]: %w", i, err))
+				track.setFailedOnError(
+					fmt.Errorf("retry [%d]: %w", i, errors.Join(ErrRetryContextDone, ctx.Err())),
+				)
 				break stop
 			default:
-				err = fn(ctx)
+				err = fn(ctx, track)
 				if err == nil {
+					track.setSuccess()
 					break stop
 				}
-				retryErrs = append(retryErrs, fmt.Errorf("retry [%d]: %w", i, err))
-				time.Sleep(opt.Delay(i))
+				err = fmt.Errorf("retry [%d]: %w", i, err)
+				track.addError(err)
+				if i < attempts-1 {
+					time.Sleep(opt.Delay(i))
+				}
 			}
 		}
 
-		if opt.ReturnAllAroseErr() {
-			return errors.Join(retryErrs...)
-		}
-		return err
+		return nil
 	}
 }

@@ -17,13 +17,6 @@ var (
 	// completed action, and the compensation logic itself encounters an error.
 	ErrCompensationFailed = fmt.Errorf("compensation failed")
 
-	// ErrCompensationSuccess indicates that a compensation was executed successfully.
-	// This error can be used to signal that compensation logic has been applied,
-	// which might be useful for logging or monitoring purposes.
-	// Note: Despite being an error type, it represents a successful compensation
-	// execution, not a failure.
-	ErrCompensationSuccess = fmt.Errorf("compensation executed")
-
 	// ErrPanicRecovered is returned when a panic is recovered and converted to an error.
 	// It wraps the original panic value to provide more context about what caused
 	// the panic. This allows panics to be handled gracefully without crashing
@@ -49,6 +42,15 @@ var (
 	ErrRetryContextDone = fmt.Errorf("retry context done")
 )
 
+type Track interface {
+	call()
+	setSuccess()
+	setFailed()
+	addError(error)
+	setFailedOnError(err error)
+	GetTrack() StepTrack
+}
+
 // Saga coordinates a distributed transaction using the `Saga` pattern.
 type Saga struct {
 	steps []Step
@@ -64,75 +66,93 @@ func NewSaga(steps []Step) *Saga {
 // Execute runs all Saga steps.
 //
 // If any step fails, compensating actions are triggered for all successfully completed steps.
-func (s *Saga) Execute(ctx context.Context) error {
-	var completedSteps []Step
+func (s *Saga) Execute(ctx context.Context) (Result, error) {
+	var (
+		tracks         []*track
+		completedTrack []*track
+		err            error
+	)
 
+stop:
 	for i, step := range s.steps {
+		var (
+			tr = newTrack(
+				step.Name,
+				uint32(i),
+				step.Compensation,
+			)
+		)
+
+		tr.actionTrack()
+		tracks = append(tracks, tr)
 		select {
 		case <-ctx.Done():
-			return errors.Join(ErrExecuteActionsContextDone, ctx.Err())
+			tr.addError(errors.Join(ErrExecuteActionsContextDone, ctx.Err()))
+			break stop
+			//return Errors.Join(ErrExecuteActionsContextDone, ctx.Err())
 		default:
 			if step.Action == nil {
 				continue
 			}
 
 			if step.CompensationOnFail {
-				completedSteps = append(completedSteps, step)
+				completedTrack = append(completedTrack, tr)
 			}
 
-			err := step.Action(ctx)
+			tr.call()
+			err = step.Action(ctx, tr)
+			if err == nil {
+				tr.setSuccess()
+			}
+
 			if err != nil {
+				tr.setFailedOnError(err)
 				err = fmt.Errorf("action failed [%d#%s]: %w", i, step.Name, errors.Join(ErrActionFailed, err))
 				// Run compensation when error arise.
-				return s.compensate(ctx, completedSteps, err)
+				_ = s.compensate(ctx, completedTrack)
+				break stop
 			}
 
 			if !step.CompensationOnFail {
-				completedSteps = append(completedSteps, step)
+				completedTrack = append(completedTrack, tr)
 			}
+		}
+	}
+
+	result, err := prepareResult(tracks)
+	return result, err
+}
+
+// compensate triggers compensating actions for all steps in reverse order.
+func (s *Saga) compensate(ctx context.Context, steps []*track) error {
+	var (
+		err error
+	)
+
+stop:
+	for i, step := range steps {
+		step.compensationTrack()
+		step.call()
+		select {
+		case <-ctx.Done():
+			step.setFailedOnError(
+				fmt.Errorf("compensation failed [%d#%s]: %w", i, step.StepName,
+					errors.Join(ErrExecuteCompensationContextDone, ctx.Err()),
+				),
+			)
+			break stop
+		default:
+			if step.compensationFn == nil {
+				continue
+			}
+
+			if err = step.compensationFn(ctx, step); err != nil {
+				step.setFailedOnError(fmt.Errorf("compensation failed [%d#%s]: %w", i, step.StepName, err))
+				continue
+			}
+			step.setSuccess()
 		}
 	}
 
 	return nil
-}
-
-// compensate triggers compensating actions for all steps in reverse order.
-func (s *Saga) compensate(ctx context.Context, completedSteps []Step, originalErr error) error {
-	var (
-		compensationErrors    []error
-		compensationsExecuted int32
-	)
-
-stop:
-	for i, step := range completedSteps {
-		select {
-		case <-ctx.Done():
-			compensationErrors = append(compensationErrors, errors.Join(ErrExecuteCompensationContextDone, ctx.Err()))
-			break stop
-		default:
-			if step.Compensation == nil {
-				continue
-			}
-
-			if err := step.Compensation(ctx, originalErr); err != nil {
-				compensationErrors = append(
-					compensationErrors,
-					fmt.Errorf("compensation failed [%d#%s]: %w", i, step.Name, err),
-				)
-			}
-			compensationsExecuted++
-		}
-	}
-
-	var err error
-	if len(compensationErrors) > 0 {
-		err = errors.Join(errors.Join(compensationErrors...), originalErr)
-	}
-
-	if err != nil {
-		return errors.Join(ErrCompensationFailed, err)
-
-	}
-
-	return errors.Join(ErrCompensationSuccess, originalErr)
 }
