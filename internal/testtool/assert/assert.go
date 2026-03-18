@@ -21,19 +21,19 @@ func False(t *testing.T, val bool) {
 	}
 }
 
-// NoError was added to avoid to use external dependencies for mocking
-func NoError(t *testing.T, err error) {
-	t.Helper()
-	if err != nil {
-		t.Fatalf("error arose: %v", err)
-	}
-}
-
 // Error was added to avoid to use external dependencies for mocking
 func Error(t *testing.T, err error) {
 	t.Helper()
 	if err == nil {
 		t.Fatalf("error expected")
+	}
+}
+
+// NoError was added to avoid to use external dependencies for mocking
+func NoError(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatalf("error arose: %v", err)
 	}
 }
 
@@ -49,13 +49,13 @@ func Equal[T comparable](t *testing.T, expected, target T) {
 func ErrorIs(t *testing.T, err, target error) {
 	t.Helper()
 	if !errors.Is(err, target) {
-		t.Fatal()
+		t.Fatalf("[%v] is not [%v]", err, target)
 	}
 }
 
 func ErrorIsNot(t *testing.T, err, target error) {
 	t.Helper()
 	if errors.Is(err, target) {
-		t.Fatal()
+		t.Fatalf("[%v] is [%v]", err, target)
 	}
 }

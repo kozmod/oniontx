@@ -86,9 +86,8 @@ stop:
 		tracks = append(tracks, tr)
 		select {
 		case <-ctx.Done():
-			tr.addError(errors.Join(ErrExecuteActionsContextDone, ctx.Err()))
+			tr.setFailedOnError(errors.Join(ErrExecuteActionsContextDone, ctx.Err()))
 			break stop
-			//return Errors.Join(ErrExecuteActionsContextDone, ctx.Err())
 		default:
 			if step.Action == nil {
 				continue
