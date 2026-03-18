@@ -16,7 +16,7 @@ const (
 )
 
 type Result struct {
-	Tracks []StepTrack
+	Tracks []StepData
 	Status StageStatus
 }
 
@@ -33,45 +33,75 @@ func (r Result) String() string {
 	return builder.String()
 }
 
-func prepareResult(tracks []*track) (Result, error) {
+func prepareResult(tracks []*executionTrack) (Result, error) {
+	const (
+		comma = ", "
+	)
 	var (
 		result = Result{
-			Tracks: make([]StepTrack, 0, len(tracks)),
+			Tracks: make([]StepData, 0, len(tracks)),
 			Status: StageResultUnknown,
 		}
-		errs []error
-	)
+		failed      = make([]string, 0, len(tracks))
+		compensated = make([]string, 0, len(tracks))
 
-	for _, t := range tracks {
-		tr := t.GetTrack()
-
-		switch {
-		case tr.Action.Status == ExecutionStatusFail &&
-			(tr.Compensation.Status == ExecutionStatusFail || tr.Compensation.Status == ExecutionStatusUnknown):
-			result.Status = StageResultFail
-			errs = append(errs,
-				fmt.Errorf("action failed [%d#%s]: %w", tr.StepPosition, tr.StepName,
-					errors.Join(ErrActionFailed, ErrCompensationFailed),
-				),
-			)
-
-		case tr.Action.Status == ExecutionStatusFail &&
-			tr.Compensation.Status == ExecutionStatusSuccess:
-			errs = append(errs,
-				fmt.Errorf("action failed and compensated [%d#%s]: %w", tr.StepPosition, tr.StepName, ErrActionFailed),
-			)
-			if result.Status != StageResultFail {
-				result.Status = StageResultCompensated
-			}
+		stateStrFn = func(position uint32, name string) string {
+			return fmt.Sprintf("%d#%s", position, name)
 		}
 
-		result.Tracks = append(result.Tracks, tr)
+		resultErrorFn = func(err error) error {
+			return fmt.Errorf(
+				"state failed - failed [%s], compensated [%s]: %w",
+				strings.Join(failed, comma),
+				strings.Join(compensated, comma),
+				err,
+			)
+		}
+	)
+
+	for _, tr := range tracks {
+		data := tr.GetData()
+
+		switch {
+		case data.Action.Status == ExecutionStatusFail &&
+			(data.Compensation.Status == ExecutionStatusFail ||
+				data.Compensation.Status == ExecutionStatusUncalled):
+			failed = append(failed,
+				stateStrFn(data.StepPosition, data.StepName),
+			)
+		case data.Action.Status == ExecutionStatusFail &&
+			data.Compensation.Status == ExecutionStatusSuccess:
+			failed = append(failed,
+				stateStrFn(data.StepPosition, data.StepName),
+			)
+			compensated = append(compensated,
+				stateStrFn(data.StepPosition, data.StepName),
+			)
+		}
+
+		result.Tracks = append(result.Tracks, data)
 	}
 
-	if len(errs) <= 0 {
-		result.Status = StageResultSuccess
-		return result, nil
+	switch {
+	case len(failed) > 0 && len(compensated) == 0:
+		result.Status = StageResultFail
+		return result, resultErrorFn(errors.Join(ErrActionFailed, ErrCompensationFailed))
+		//return result, fmt.Errorf(
+		//	"state failed - failed [%s], compensated [%s]: %w",
+		//	strings.Join(failed, comma),
+		//	strings.Join(compensated, comma),
+		//	errors.Join(ErrActionFailed, ErrCompensationFailed),
+		//)
+	case len(compensated) > 0:
+		result.Status = StageResultCompensated
+		return result, resultErrorFn(ErrActionFailed)
+		//return result, fmt.Errorf(
+		//	"state failed - failed [%s], compensated [%s]: %w",
+		//	strings.Join(failed, comma),
+		//	strings.Join(compensated, comma),
+		//	ErrActionFailed,
+		//)
 	}
-
-	return result, fmt.Errorf("stage failed: %w", errors.Join(errs...))
+	result.Status = StageResultSuccess
+	return result, nil
 }

@@ -3,6 +3,8 @@ package testtool
 import "fmt"
 
 var (
-	// ErrExpTest - errors for tests.
-	ErrExpTest = fmt.Errorf("exp_test_error")
+	// ErrExpTestA is an error for tests.
+	ErrExpTestA = fmt.Errorf("exp_test_error_A")
+	// ErrExpTestB is an errors for tests.
+	ErrExpTestB = fmt.Errorf("exp_test_error_B")
 )

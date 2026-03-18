@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/kozmod/oniontx/internal/testtool"
+	"github.com/kozmod/oniontx/internal/testtool/assert"
 )
 
 //	func Test_backoff(t *testing.T) {
@@ -55,7 +56,7 @@ func Test_Saga_retry(t *testing.T) {
 	//							actionCalls++
 	//							errCounter++
 	//							if errCounter < 3 {
-	//								return testtool.ErrExpTest
+	//								return testtool.ErrExpTestA
 	//							}
 	//							return nil
 	//						}),
@@ -84,7 +85,7 @@ func Test_Saga_retry(t *testing.T) {
 	//								errCounter++
 	//								switch actionCalls {
 	//								case 1:
-	//									return testtool.ErrExpTest
+	//									return testtool.ErrExpTestA
 	//								case 2:
 	//									return secondExpErr
 	//								case 3:
@@ -100,7 +101,7 @@ func Test_Saga_retry(t *testing.T) {
 	//			err := NewSaga(steps).Execute(ctx)
 	//			testtool.AssertError(t, err)
 	//			testtool.AssertTrue(t, actionCalls == 3)
-	//			testtool.AssertTrue(t, Errors.Is(err, testtool.ErrExpTest))
+	//			testtool.AssertTrue(t, Errors.Is(err, testtool.ErrExpTestA))
 	//			testtool.AssertTrue(t, Errors.Is(err, secondExpErr))
 	//			testtool.AssertTrue(t, Errors.Is(err, ErrActionFailed))
 	//
@@ -120,7 +121,7 @@ func Test_Saga_retry(t *testing.T) {
 	//						actionCalls++
 	//						errCounter++
 	//						if errCounter < 3 {
-	//							return testtool.ErrExpTest
+	//							return testtool.ErrExpTestA
 	//						}
 	//						return nil
 	//					}).WithRetry(
@@ -144,13 +145,13 @@ func Test_Saga_retry(t *testing.T) {
 				Name: "step0",
 				Action: ActionFunc(func(ctx context.Context, track Track) error {
 					actionCalls++
-					return testtool.ErrExpTest
+					return testtool.ErrExpTestA
 				}),
 				Compensation: CompensationFunc(func(ctx context.Context, track Track) error {
 					compensationCalls++
 					errCounter++
 					if errCounter < 3 {
-						return testtool.ErrExpTest
+						return testtool.ErrExpTestA
 					}
 					return nil
 				}).WithRetry(
@@ -166,8 +167,8 @@ func Test_Saga_retry(t *testing.T) {
 		//testtool.AssertError(t, err)
 		//testtool.AssertTrue(t, Errors.Is(err, ErrActionFailed))
 		//testtool.AssertTrue(t, Errors.Is(err, ErrCompensationSuccess))
-		testtool.AssertTrue(t, actionCalls == 1)
-		testtool.AssertTrue(t, compensationCalls == 3)
+		assert.Equal(t, 1, actionCalls)
+		assert.Equal(t, 3, compensationCalls)
 	})
 	//	})
 }

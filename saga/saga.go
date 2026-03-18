@@ -44,11 +44,10 @@ var (
 
 type Track interface {
 	call()
-	setSuccess()
-	setFailed()
+	setStatus(ExecutionStatus)
 	addError(error)
 	setFailedOnError(err error)
-	GetTrack() StepTrack
+	GetData() StepData
 }
 
 // Saga coordinates a distributed transaction using the `Saga` pattern.
@@ -68,15 +67,15 @@ func NewSaga(steps []Step) *Saga {
 // If any step fails, compensating actions are triggered for all successfully completed steps.
 func (s *Saga) Execute(ctx context.Context) (Result, error) {
 	var (
-		tracks         []*track
-		completedTrack []*track
+		tracks         []*executionTrack
+		completedTrack []*executionTrack
 		err            error
 	)
 
 stop:
 	for i, step := range s.steps {
 		var (
-			tr = newTrack(
+			tr = newExecutionTrack(
 				step.Name,
 				uint32(i),
 				step.Compensation,
@@ -101,15 +100,15 @@ stop:
 
 			tr.call()
 			err = step.Action(ctx, tr)
-			if err == nil {
-				tr.setSuccess()
-			}
 
-			if err != nil {
+			switch status := tr.getStatus(); {
+			case err == nil && status != ExecutionStatusFail:
+				tr.setStatus(ExecutionStatusSuccess)
+			case err != nil || status == ExecutionStatusFail:
 				tr.setFailedOnError(err)
 				err = fmt.Errorf("action failed [%d#%s]: %w", i, step.Name, errors.Join(ErrActionFailed, err))
 				// Run compensation when error arise.
-				_ = s.compensate(ctx, completedTrack)
+				s.compensate(ctx, completedTrack)
 				break stop
 			}
 
@@ -124,35 +123,31 @@ stop:
 }
 
 // compensate triggers compensating actions for all steps in reverse order.
-func (s *Saga) compensate(ctx context.Context, steps []*track) error {
-	var (
-		err error
-	)
-
+func (s *Saga) compensate(ctx context.Context, tracks []*executionTrack) {
 stop:
-	for i, step := range steps {
-		step.compensationTrack()
-		step.call()
+	for i, tr := range tracks {
+		if tr.compensationFn == nil {
+			continue
+		}
+		tr.compensationTrack()
 		select {
 		case <-ctx.Done():
-			step.setFailedOnError(
-				fmt.Errorf("compensation failed [%d#%s]: %w", i, step.StepName,
+			tr.setFailedOnError(
+				fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.StepName,
 					errors.Join(ErrExecuteCompensationContextDone, ctx.Err()),
 				),
 			)
 			break stop
 		default:
-			if step.compensationFn == nil {
+			tr.call()
+			err := tr.compensationFn(ctx, tr)
+			switch status := tr.getStatus(); {
+			case err == nil && status != ExecutionStatusFail:
+				tr.setStatus(ExecutionStatusSuccess)
+			case err != nil:
+				tr.setFailedOnError(fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.StepName, err))
 				continue
 			}
-
-			if err = step.compensationFn(ctx, step); err != nil {
-				step.setFailedOnError(fmt.Errorf("compensation failed [%d#%s]: %w", i, step.StepName, err))
-				continue
-			}
-			step.setSuccess()
 		}
 	}
-
-	return nil
 }

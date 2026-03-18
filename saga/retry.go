@@ -147,7 +147,7 @@ func WithRetry(opt RetryPolicy, fn func(ctx context.Context, track Track) error)
 		err := fn(ctx, track)
 		switch {
 		case err == nil:
-			track.setSuccess()
+			track.setStatus(ExecutionStatusSuccess)
 			return nil
 		case attempts == 0:
 			return err
@@ -170,11 +170,11 @@ func WithRetry(opt RetryPolicy, fn func(ctx context.Context, track Track) error)
 			default:
 				err = fn(ctx, track)
 				if err == nil {
-					track.setSuccess()
+					track.setStatus(ExecutionStatusSuccess)
 					break stop
 				}
 				err = fmt.Errorf("retry [%d]: %w", i, err)
-				track.addError(err)
+				track.setFailedOnError(err)
 				if i < attempts-1 {
 					time.Sleep(opt.Delay(i))
 				}

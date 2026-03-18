@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kozmod/oniontx/internal/testtool"
+	"github.com/kozmod/oniontx/internal/testtool/assert"
 )
 
 func Test_retry_jitter(t *testing.T) {
@@ -15,7 +15,7 @@ func Test_retry_jitter(t *testing.T) {
 		)
 
 		delay := jitter.Jitter(base)
-		testtool.AssertTrue(t, delay < base)
+		assert.True(t, delay < base)
 	})
 	t.Run("full_jitter", func(t *testing.T) {
 		var (
@@ -24,6 +24,6 @@ func Test_retry_jitter(t *testing.T) {
 		)
 
 		delay := jitter.Jitter(base)
-		testtool.AssertTrue(t, delay < base)
+		assert.True(t, delay < base)
 	})
 }

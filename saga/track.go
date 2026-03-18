@@ -9,41 +9,20 @@ import (
 type ExecutionStatus string
 
 const (
-	ExecutionStatusUnknown ExecutionStatus = "Unknown"
-	ExecutionStatusSuccess ExecutionStatus = "Success"
-	ExecutionStatusFail    ExecutionStatus = "Fail"
+	ExecutionStatusSuccess  ExecutionStatus = "Success"
+	ExecutionStatusFail     ExecutionStatus = "Fail"
+	ExecutionStatusUncalled ExecutionStatus = "Uncalled"
 )
 
-type ExecutionTrack struct {
-	Status ExecutionStatus
-	Calls  uint32
-	Errors []error
-}
-
-func (t ExecutionTrack) String() string {
-	var builder strings.Builder
-
-	builder.WriteString(fmt.Sprintf("{Status: %s, Calls: %d", t.Status, t.Calls))
-	if len(t.Errors) > 0 {
-		builder.WriteString(fmt.Sprintf(", Errors: %d", len(t.Errors)))
-		if len(t.Errors) == 1 {
-			builder.WriteString(fmt.Sprintf(" [%v]", t.Errors[0]))
-		}
-	}
-
-	builder.WriteString("}")
-	return builder.String()
-}
-
-type StepTrack struct {
-	StepName     string
+type StepData struct {
 	StepPosition uint32
+	StepName     string
 
-	Action       ExecutionTrack
-	Compensation ExecutionTrack
+	Action       ExecutionData
+	Compensation ExecutionData
 }
 
-func (s StepTrack) String() string {
+func (s StepData) String() string {
 	return fmt.Sprintf("Step %d: %s | Action: %s | Compensation: %s",
 		s.StepPosition,
 		s.StepName,
@@ -51,67 +30,89 @@ func (s StepTrack) String() string {
 		s.Compensation.String())
 }
 
-type track struct {
+type ExecutionData struct {
+	Calls  uint32
+	Errors []error
+	Status ExecutionStatus
+}
+
+func (t ExecutionData) String() string {
+	var builder strings.Builder
+
+	builder.WriteString(fmt.Sprintf("{Status: %s, Calls: %d", t.Status, t.Calls))
+	if len(t.Errors) > 0 {
+		builder.WriteString(fmt.Sprintf(", Errors: %d", len(t.Errors)))
+		// @TODO: add errors output
+		//if len(t.Errors) == 1 {
+		//	builder.WriteString(fmt.Sprintf(" [%v]", t.Errors[0]))
+		//}
+	}
+
+	builder.WriteString("}")
+	return builder.String()
+}
+
+type executionTrack struct {
 	StepName   string
 	StepNumber uint32
 
 	mx *sync.RWMutex
 
-	action       *ExecutionTrack
-	compensation *ExecutionTrack
-	current      *ExecutionTrack
+	action       *ExecutionData
+	compensation *ExecutionData
+	current      *ExecutionData
 
 	compensationFn CompensationFunc
 }
 
-func newTrack(stepName string, stepNumber uint32, comp CompensationFunc) *track {
-	return &track{
+func newExecutionTrack(stepName string, stepNumber uint32, comp CompensationFunc) *executionTrack {
+	return &executionTrack{
 		StepName:   stepName,
 		StepNumber: stepNumber,
 		mx:         new(sync.RWMutex),
-		action: &ExecutionTrack{
-			Status: ExecutionStatusUnknown,
+		action: &ExecutionData{
+			Status: ExecutionStatusUncalled,
 		},
-		compensation: &ExecutionTrack{
-			Status: ExecutionStatusUnknown,
+		compensation: &ExecutionData{
+			Status: ExecutionStatusUncalled,
 		},
 		compensationFn: comp,
 	}
 }
 
-func (t *track) actionTrack() *track {
+func (t *executionTrack) actionTrack() *executionTrack {
 	t.mx.Lock()
 	defer t.mx.Unlock()
 	t.current = t.action
 	return t
 }
 
-func (t *track) compensationTrack() *track {
+func (t *executionTrack) compensationTrack() *executionTrack {
 	t.mx.Lock()
 	defer t.mx.Unlock()
 	t.current = t.compensation
 	return t
 }
 
-func (t *track) call() {
+func (t *executionTrack) call() {
 	t.mx.Lock()
 	defer t.mx.Unlock()
 	t.current.Calls = t.current.Calls + 1
 }
 
-func (t *track) setSuccess() {
+func (t *executionTrack) setStatus(status ExecutionStatus) {
 	t.mx.Lock()
 	defer t.mx.Unlock()
-	t.current.Status = ExecutionStatusSuccess
+	t.current.Status = status
 }
 
-func (t *track) setFailed() {
-	t.mx.Lock()
-	defer t.mx.Unlock()
-	t.current.Status = ExecutionStatusFail
+func (t *executionTrack) getStatus() ExecutionStatus {
+	t.mx.RLock()
+	defer t.mx.RUnlock()
+	return t.current.Status
 }
 
-func (t *track) setFailedOnError(err error) {
+func (t *executionTrack) setFailedOnError(err error) {
 	t.mx.Lock()
 	defer t.mx.Unlock()
 	if err != nil {
@@ -120,7 +121,7 @@ func (t *track) setFailedOnError(err error) {
 	}
 }
 
-func (t *track) addError(err error) {
+func (t *executionTrack) addError(err error) {
 	t.mx.Lock()
 	defer t.mx.Unlock()
 	if err != nil {
@@ -128,10 +129,10 @@ func (t *track) addError(err error) {
 	}
 }
 
-func (t *track) GetTrack() StepTrack {
+func (t *executionTrack) GetData() StepData {
 	t.mx.RLock()
 	defer t.mx.RUnlock()
-	return StepTrack{
+	return StepData{
 		StepName:     t.StepName,
 		StepPosition: t.StepNumber,
 		Action:       *t.action,
