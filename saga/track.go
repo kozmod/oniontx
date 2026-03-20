@@ -52,6 +52,16 @@ func (t ExecutionData) String() string {
 	return builder.String()
 }
 
+func (t ExecutionData) Clone() ExecutionData {
+	errors := make([]error, len(t.Errors))
+	copy(errors, t.Errors)
+	return ExecutionData{
+		Calls:  t.Calls,
+		Errors: errors,
+		Status: t.Status,
+	}
+}
+
 type executionTrack struct {
 	StepName   string
 	StepNumber uint32
@@ -63,6 +73,7 @@ type executionTrack struct {
 	current      *ExecutionData
 
 	compensationFn CompensationFunc
+	parentErr      error
 }
 
 func newExecutionTrack(stepName string, stepNumber uint32, comp CompensationFunc) *executionTrack {
@@ -100,7 +111,13 @@ func (t *executionTrack) call() {
 	t.current.Calls = t.current.Calls + 1
 }
 
-func (t *executionTrack) setStatus(status ExecutionStatus) {
+func (t *executionTrack) setParentError(err error) {
+	t.mx.Lock()
+	defer t.mx.Unlock()
+	t.parentErr = err
+}
+
+func (t *executionTrack) SetStatus(status ExecutionStatus) {
 	t.mx.Lock()
 	defer t.mx.Unlock()
 	t.current.Status = status
@@ -112,30 +129,40 @@ func (t *executionTrack) getStatus() ExecutionStatus {
 	return t.current.Status
 }
 
-func (t *executionTrack) setFailedOnError(err error) {
+func (t *executionTrack) SetFailedOnError(err error) {
 	t.mx.Lock()
 	defer t.mx.Unlock()
-	if err != nil {
-		t.current.Status = ExecutionStatusFail
-		t.current.Errors = append(t.current.Errors, err)
+	if err == nil {
+		return
 	}
+	if t.parentErr != nil {
+		err = fmt.Errorf("%w: %w", t.parentErr, err)
+	}
+	t.current.Status = ExecutionStatusFail
+	t.current.Errors = append(t.current.Errors, err)
 }
 
-func (t *executionTrack) addError(err error) {
+func (t *executionTrack) AddError(err error) {
 	t.mx.Lock()
 	defer t.mx.Unlock()
-	if err != nil {
-		t.current.Errors = append(t.current.Errors, err)
+	if err == nil {
+		return
 	}
+	if t.parentErr != nil {
+		err = fmt.Errorf("%w: %w", t.parentErr, err)
+	}
+
+	t.current.Errors = append(t.current.Errors, err)
 }
 
 func (t *executionTrack) GetData() StepData {
 	t.mx.RLock()
 	defer t.mx.RUnlock()
+
 	return StepData{
 		StepName:     t.StepName,
 		StepPosition: t.StepNumber,
-		Action:       *t.action,
-		Compensation: *t.compensation,
+		Action:       t.action.Clone(),
+		Compensation: t.compensation.Clone(),
 	}
 }

@@ -44,9 +44,11 @@ var (
 
 type Track interface {
 	call()
-	setStatus(ExecutionStatus)
-	addError(error)
-	setFailedOnError(err error)
+	setParentError(error)
+
+	SetStatus(ExecutionStatus)
+	AddError(error)
+	SetFailedOnError(error)
 	GetData() StepData
 }
 
@@ -86,7 +88,11 @@ stop:
 		tracks = append(tracks, tr)
 		select {
 		case <-ctx.Done():
-			tr.setFailedOnError(errors.Join(ErrExecuteActionsContextDone, ctx.Err()))
+			tr.SetFailedOnError(
+				fmt.Errorf("action failed [%d#%s]: %w", i, tr.StepName,
+					errors.Join(ErrExecuteActionsContextDone, ctx.Err()),
+				),
+			)
 			break stop
 		default:
 			if step.Action == nil {
@@ -102,10 +108,9 @@ stop:
 
 			switch status := tr.getStatus(); {
 			case err == nil && status != ExecutionStatusFail:
-				tr.setStatus(ExecutionStatusSuccess)
+				tr.SetStatus(ExecutionStatusSuccess)
 			case err != nil || status == ExecutionStatusFail:
-				tr.setFailedOnError(err)
-				err = fmt.Errorf("action failed [%d#%s]: %w", i, step.Name, errors.Join(ErrActionFailed, err))
+				tr.SetFailedOnError(err)
 				// Run compensation when error arise.
 				s.compensate(ctx, completedTrack)
 				break stop
@@ -131,7 +136,7 @@ stop:
 		tr.compensationTrack()
 		select {
 		case <-ctx.Done():
-			tr.setFailedOnError(
+			tr.SetFailedOnError(
 				fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.StepName,
 					errors.Join(ErrExecuteCompensationContextDone, ctx.Err()),
 				),
@@ -140,12 +145,15 @@ stop:
 		default:
 			tr.call()
 			err := tr.compensationFn(ctx, tr)
-			switch status := tr.getStatus(); {
-			case err == nil && status != ExecutionStatusFail:
-				tr.setStatus(ExecutionStatusSuccess)
+			switch {
+			case err == nil:
+				if uint32(len(tr.current.Errors)) == tr.current.Calls {
+					tr.SetStatus(ExecutionStatusFail)
+				} else {
+					tr.SetStatus(ExecutionStatusSuccess)
+				}
 			case err != nil:
-				tr.setFailedOnError(fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.StepName, err))
-				continue
+				tr.SetFailedOnError(fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.StepName, err))
 			}
 		}
 	}

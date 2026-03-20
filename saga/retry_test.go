@@ -9,34 +9,35 @@ import (
 	"github.com/kozmod/oniontx/internal/testtool/assert"
 )
 
-//	func Test_backoff(t *testing.T) {
-//		t.Run("exponential_v1", func(t *testing.T) {
-//			var (
-//				baseTime = time.Second
-//			)
-//			backoff := NewExponentialBackoff()
-//			delay := backoff.Backoff(1, baseTime)
-//			if delay <= baseTime {
-//				t.Fail()
-//			}
-//		})
-//	}
-//
-//	func Test_jitter(t *testing.T) {
-//		t.Run("full_jitter_v1", func(t *testing.T) {
-//			var (
-//				baseTime   = 10 * time.Nanosecond
-//				fullJitter = NewFullJitter()
-//			)
-//			jitter := fullJitter.Jitter(baseTime)
-//			if jitter > baseTime {
-//				t.Fatalf("jitter is greater than base time[jitter: %v, base_time: %v]", jitter, baseTime)
-//			}
-//			if jitter < 0 {
-//				t.Fatalf("jitter is less than zero[jitter: %v]", jitter)
-//			}
-//		})
-//	}
+func Test_backoff(t *testing.T) {
+	t.Run("exponential_v1", func(t *testing.T) {
+		var (
+			baseTime = time.Second
+		)
+		backoff := NewExponentialBackoff()
+		delay := backoff.Backoff(1, baseTime)
+		if delay <= baseTime {
+			t.Fail()
+		}
+	})
+}
+
+func Test_jitter(t *testing.T) {
+	t.Run("full_jitter_v1", func(t *testing.T) {
+		var (
+			baseTime   = 10 * time.Nanosecond
+			fullJitter = NewFullJitter()
+		)
+		jitter := fullJitter.Jitter(baseTime)
+		if jitter > baseTime {
+			t.Fatalf("jitter is greater than base time[jitter: %v, base_time: %v]", jitter, baseTime)
+		}
+		if jitter < 0 {
+			t.Fatalf("jitter is less than zero[jitter: %v]", jitter)
+		}
+	})
+}
+
 func Test_Saga_retry(t *testing.T) {
 	var (
 		ctx = context.Background()

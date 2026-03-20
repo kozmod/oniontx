@@ -82,11 +82,14 @@ func (a ActionFunc) WithBeforeHook(before func(ctx context.Context, track Track)
 func (a ActionFunc) WithAfterHook(after func(ctx context.Context, track Track) error) ActionFunc {
 	return func(ctx context.Context, track Track) error {
 		err := a(ctx, track)
+		if err != nil {
+			track.SetFailedOnError(err)
+		}
 		err = after(ctx, track)
 		if err != nil {
 			return err
 		}
-		return err
+		return nil
 	}
 }
 
@@ -227,14 +230,14 @@ func (c CompensationFunc) WithAfterHook(after func(ctx context.Context, track Tr
 	return func(ctx context.Context, track Track) error {
 		err := c(ctx, track)
 		if err != nil {
-			return err
+			track.SetFailedOnError(err)
 		}
 		err = after(ctx, track)
 		if err != nil {
 			return err
 		}
 
-		return err
+		return nil
 	}
 }
 

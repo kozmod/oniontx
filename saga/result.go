@@ -16,7 +16,7 @@ const (
 )
 
 type Result struct {
-	Tracks []StepData
+	Sterps []StepData
 	Status StageStatus
 }
 
@@ -24,9 +24,9 @@ func (r Result) String() string {
 	var builder strings.Builder
 
 	builder.WriteString(fmt.Sprintf("Status: %s\n", r.Status))
-	builder.WriteString(fmt.Sprintf("Tracks(%d):\n", len(r.Tracks)))
+	builder.WriteString(fmt.Sprintf("Sterps(%d):\n", len(r.Sterps)))
 
-	for i, track := range r.Tracks {
+	for i, track := range r.Sterps {
 		builder.WriteString(fmt.Sprintf("  [%d] %s\n", i+1, track.String()))
 	}
 
@@ -34,12 +34,9 @@ func (r Result) String() string {
 }
 
 func prepareResult(tracks []*executionTrack) (Result, error) {
-	const (
-		comma = ", "
-	)
 	var (
 		result = Result{
-			Tracks: make([]StepData, 0, len(tracks)),
+			Sterps: make([]StepData, 0, len(tracks)),
 			Status: StageResultUnknown,
 		}
 		failed      = make([]string, 0, len(tracks))
@@ -50,6 +47,9 @@ func prepareResult(tracks []*executionTrack) (Result, error) {
 		}
 
 		resultErrorFn = func(err error) error {
+			const (
+				comma = ", "
+			)
 			return fmt.Errorf(
 				"state failed - failed [%s], compensated [%s]: %w",
 				strings.Join(failed, comma),
@@ -77,30 +77,23 @@ func prepareResult(tracks []*executionTrack) (Result, error) {
 			compensated = append(compensated,
 				stateStrFn(data.StepPosition, data.StepName),
 			)
+		case data.Action.Status == ExecutionStatusSuccess &&
+			data.Compensation.Status == ExecutionStatusSuccess:
+			compensated = append(compensated,
+				stateStrFn(data.StepPosition, data.StepName),
+			)
 		}
 
-		result.Tracks = append(result.Tracks, data)
+		result.Sterps = append(result.Sterps, data)
 	}
 
 	switch {
 	case len(failed) > 0 && len(compensated) == 0:
 		result.Status = StageResultFail
 		return result, resultErrorFn(errors.Join(ErrActionFailed, ErrCompensationFailed))
-		//return result, fmt.Errorf(
-		//	"state failed - failed [%s], compensated [%s]: %w",
-		//	strings.Join(failed, comma),
-		//	strings.Join(compensated, comma),
-		//	errors.Join(ErrActionFailed, ErrCompensationFailed),
-		//)
 	case len(compensated) > 0:
 		result.Status = StageResultCompensated
 		return result, resultErrorFn(ErrActionFailed)
-		//return result, fmt.Errorf(
-		//	"state failed - failed [%s], compensated [%s]: %w",
-		//	strings.Join(failed, comma),
-		//	strings.Join(compensated, comma),
-		//	ErrActionFailed,
-		//)
 	}
 	result.Status = StageResultSuccess
 	return result, nil
