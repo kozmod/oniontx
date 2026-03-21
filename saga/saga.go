@@ -90,7 +90,7 @@ stop:
 		case <-ctx.Done():
 			tr.SetFailedOnError(
 				fmt.Errorf("action failed [%d#%s]: %w", i, tr.StepName,
-					errors.Join(ErrExecuteActionsContextDone, ctx.Err()),
+					errors.Join(ctx.Err(), ErrExecuteActionsContextDone),
 				),
 			)
 			break stop
@@ -110,7 +110,12 @@ stop:
 			case err == nil && status != ExecutionStatusFail:
 				tr.SetStatus(ExecutionStatusSuccess)
 			case err != nil || status == ExecutionStatusFail:
-				tr.SetFailedOnError(err)
+				if err != nil {
+					err = errors.Join(err, ErrActionFailed)
+				}
+				tr.SetFailedOnError(
+					fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.StepName, err),
+				)
 				// Run compensation when error arise.
 				s.compensate(ctx, completedTrack)
 				break stop
@@ -138,7 +143,7 @@ stop:
 		case <-ctx.Done():
 			tr.SetFailedOnError(
 				fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.StepName,
-					errors.Join(ErrExecuteCompensationContextDone, ctx.Err()),
+					errors.Join(ctx.Err(), ErrExecuteCompensationContextDone),
 				),
 			)
 			break stop

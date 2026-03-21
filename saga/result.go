@@ -42,7 +42,7 @@ func prepareResult(tracks []*executionTrack) (Result, error) {
 		failed      = make([]string, 0, len(tracks))
 		compensated = make([]string, 0, len(tracks))
 
-		stateStrFn = func(position uint32, name string) string {
+		prepareStateStrFn = func(position uint32, name string) string {
 			return fmt.Sprintf("%d#%s", position, name)
 		}
 
@@ -64,23 +64,24 @@ func prepareResult(tracks []*executionTrack) (Result, error) {
 
 		switch {
 		case data.Action.Status == ExecutionStatusFail &&
-			(data.Compensation.Status == ExecutionStatusFail ||
-				data.Compensation.Status == ExecutionStatusUncalled):
+			data.Compensation.Status == ExecutionStatusUncalled:
 			failed = append(failed,
-				stateStrFn(data.StepPosition, data.StepName),
+				prepareStateStrFn(data.StepPosition, data.StepName),
+			)
+		case data.Action.Status == ExecutionStatusFail &&
+			data.Compensation.Status == ExecutionStatusFail:
+			failed = append(failed,
+				prepareStateStrFn(data.StepPosition, data.StepName),
 			)
 		case data.Action.Status == ExecutionStatusFail &&
 			data.Compensation.Status == ExecutionStatusSuccess:
-			failed = append(failed,
-				stateStrFn(data.StepPosition, data.StepName),
-			)
 			compensated = append(compensated,
-				stateStrFn(data.StepPosition, data.StepName),
+				prepareStateStrFn(data.StepPosition, data.StepName),
 			)
 		case data.Action.Status == ExecutionStatusSuccess &&
 			data.Compensation.Status == ExecutionStatusSuccess:
 			compensated = append(compensated,
-				stateStrFn(data.StepPosition, data.StepName),
+				prepareStateStrFn(data.StepPosition, data.StepName),
 			)
 		}
 
@@ -88,13 +89,14 @@ func prepareResult(tracks []*executionTrack) (Result, error) {
 	}
 
 	switch {
-	case len(failed) > 0 && len(compensated) == 0:
+	case len(failed) > 0 && len(failed) != len(compensated):
 		result.Status = StageResultFail
 		return result, resultErrorFn(errors.Join(ErrActionFailed, ErrCompensationFailed))
 	case len(compensated) > 0:
 		result.Status = StageResultCompensated
 		return result, resultErrorFn(ErrActionFailed)
+	default:
+		result.Status = StageResultSuccess
 	}
-	result.Status = StageResultSuccess
 	return result, nil
 }

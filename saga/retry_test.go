@@ -22,154 +22,109 @@ func Test_backoff(t *testing.T) {
 	})
 }
 
-func Test_jitter(t *testing.T) {
-	t.Run("full_jitter_v1", func(t *testing.T) {
-		var (
-			baseTime   = 10 * time.Nanosecond
-			fullJitter = NewFullJitter()
-		)
-		jitter := fullJitter.Jitter(baseTime)
-		if jitter > baseTime {
-			t.Fatalf("jitter is greater than base time[jitter: %v, base_time: %v]", jitter, baseTime)
-		}
-		if jitter < 0 {
-			t.Fatalf("jitter is less than zero[jitter: %v]", jitter)
-		}
-	})
-}
-
 func Test_Saga_retry(t *testing.T) {
 	var (
 		ctx = context.Background()
 	)
-	//	t.Run("static_func", func(t *testing.T) {
-	//		t.Run("success", func(t *testing.T) {
-	//			var (
-	//				errCounter  = 0
-	//				actionCalls = 0
-	//			)
-	//			steps := []Step{
-	//				{
-	//					Name: "step0",
-	//					Action: WithRetry(
-	//						NewBaseRetryOpt(3, time.Nanosecond),
-	//						func(ctx context.Context) error {
-	//							actionCalls++
-	//							errCounter++
-	//							if errCounter < 3 {
-	//								return testtool.ErrExpTestA
-	//							}
-	//							return nil
-	//						}),
-	//				},
-	//			}
-	//
-	//			err := NewSaga(steps).Execute(ctx)
-	//			testtool.AssertNoError(t, err)
-	//			testtool.AssertTrue(t, actionCalls == 3)
-	//		})
-	//		t.Run("success_with_return_all_errors", func(t *testing.T) {
-	//			var (
-	//				errCounter  = 0
-	//				actionCalls = 0
-	//
-	//				secondExpErr = fmt.Errorf("some_err_2")
-	//			)
-	//			steps := []Step{
-	//				NewStep("step0").
-	//					WithAction(
-	//						WithRetry(
-	//							NewBaseRetryOpt(5, time.Nanosecond).
-	//								WithReturnAllAroseErr(),
-	//							func(ctx context.Context) error {
-	//								actionCalls++
-	//								errCounter++
-	//								switch actionCalls {
-	//								case 1:
-	//									return testtool.ErrExpTestA
-	//								case 2:
-	//									return secondExpErr
-	//								case 3:
-	//									return nil
-	//								default:
-	//									t.Fatalf("should not happen")
-	//									return nil
-	//								}
-	//							}),
-	//					),
-	//			}
-	//
-	//			err := NewSaga(steps).Execute(ctx)
-	//			testtool.AssertError(t, err)
-	//			testtool.AssertTrue(t, actionCalls == 3)
-	//			testtool.AssertTrue(t, Errors.Is(err, testtool.ErrExpTestA))
-	//			testtool.AssertTrue(t, Errors.Is(err, secondExpErr))
-	//			testtool.AssertTrue(t, Errors.Is(err, ErrActionFailed))
-	//
-	//			testtool.LogError(t, err)
-	//		})
-	//	})
-	//	t.Run("builders", func(t *testing.T) {
-	//		t.Run("success_ActionFunc", func(t *testing.T) {
-	//			var (
-	//				errCounter  = 0
-	//				actionCalls = 0
-	//			)
-	//			steps := []Step{
-	//				{
-	//					Name: "step0",
-	//					Action: ActionFunc(func(ctx context.Context) error {
-	//						actionCalls++
-	//						errCounter++
-	//						if errCounter < 3 {
-	//							return testtool.ErrExpTestA
-	//						}
-	//						return nil
-	//					}).WithRetry(
-	//						NewBaseRetryOpt(3, time.Nanosecond),
-	//					),
-	//				},
-	//			}
-	//
-	//			err := NewSaga(steps).Execute(ctx)
-	//			testtool.AssertNoError(t, err)
-	//			testtool.AssertTrue(t, actionCalls == 3)
-	//		})
-	t.Run("success_CompensationFunc", func(t *testing.T) {
-		var (
-			errCounter        = 0
-			actionCalls       = 0
-			compensationCalls = 0
-		)
-		steps := []Step{
-			{
-				Name: "step0",
-				Action: ActionFunc(func(ctx context.Context, track Track) error {
-					actionCalls++
-					return testtool.ErrExpTestA
-				}),
-				Compensation: CompensationFunc(func(ctx context.Context, track Track) error {
-					compensationCalls++
-					errCounter++
-					if errCounter < 3 {
-						return testtool.ErrExpTestA
-					}
-					return nil
-				}).WithRetry(
-					NewBaseRetryOpt(3, time.Nanosecond),
-				),
-				CompensationOnFail: true,
-			},
-		}
+	t.Run("static_func", func(t *testing.T) {
+		t.Run("success", func(t *testing.T) {
+			var (
+				errCounter  = 0
+				actionCalls = 0
+			)
+			steps := []Step{
+				{
+					Name: "step0",
+					Action: WithRetry(
+						NewBaseRetryOpt(3, time.Nanosecond),
+						func(ctx context.Context, _ Track) error {
+							actionCalls++
+							errCounter++
+							if errCounter < 3 {
+								return testtool.ErrExpTestA
+							}
+							return nil
+						}),
+				},
+			}
 
-		resp, err := NewSaga(steps).Execute(ctx)
-		t.Log(resp)
-		t.Log(err)
-		//testtool.AssertError(t, err)
-		//testtool.AssertTrue(t, Errors.Is(err, ErrActionFailed))
-		//testtool.AssertTrue(t, Errors.Is(err, ErrCompensationSuccess))
-		assert.Equal(t, 1, actionCalls)
-		assert.Equal(t, 3, compensationCalls)
+			resp, err := NewSaga(steps).Execute(ctx)
+			assert.NoError(t, err)
+			assert.Equal(t, StageResultSuccess, resp.Status)
+			assert.Equal(t, 3, actionCalls)
+			assert.Equal(t, ExecutionStatusSuccess, resp.Sterps[0].Action.Status)
+			assert.Equal(t, 3, resp.Sterps[0].Action.Calls)
+			assert.Equal(t, 2, len(resp.Sterps[0].Action.Errors))
+			for _, e := range resp.Sterps[0].Action.Errors {
+				assert.ErrorIs(t, e, testtool.ErrExpTestA)
+			}
+		})
+		t.Run("builders", func(t *testing.T) {
+			t.Run("success_ActionFunc", func(t *testing.T) {
+				var (
+					errCounter  = 0
+					actionCalls = 0
+				)
+				steps := []Step{
+					{
+						Name: "step0",
+						Action: ActionFunc(func(ctx context.Context, _ Track) error {
+							actionCalls++
+							errCounter++
+							if errCounter < 3 {
+								return testtool.ErrExpTestA
+							}
+							return nil
+						}).WithRetry(
+							NewBaseRetryOpt(3, time.Nanosecond),
+						),
+					},
+				}
+
+				resp, err := NewSaga(steps).Execute(ctx)
+				assert.NoError(t, err)
+				assert.Equal(t, StageResultSuccess, resp.Status)
+				assert.Equal(t, 3, actionCalls)
+				assert.Equal(t, ExecutionStatusSuccess, resp.Sterps[0].Action.Status)
+				assert.Equal(t, 3, resp.Sterps[0].Action.Calls)
+				assert.Equal(t, 2, len(resp.Sterps[0].Action.Errors))
+				for _, e := range resp.Sterps[0].Action.Errors {
+					assert.ErrorIs(t, e, testtool.ErrExpTestA)
+				}
+			})
+			t.Run("success_CompensationFunc", func(t *testing.T) {
+				var (
+					errCounter        = 0
+					actionCalls       = 0
+					compensationCalls = 0
+				)
+				steps := []Step{
+					{
+						Name: "step0",
+						Action: ActionFunc(func(ctx context.Context, track Track) error {
+							actionCalls++
+							return testtool.ErrExpTestA
+						}),
+						Compensation: CompensationFunc(func(ctx context.Context, track Track) error {
+							compensationCalls++
+							errCounter++
+							if errCounter < 3 {
+								return testtool.ErrExpTestA
+							}
+							return nil
+						}).WithRetry(
+							NewBaseRetryOpt(3, time.Nanosecond),
+						),
+						CompensationOnFail: true,
+					},
+				}
+
+				resp, err := NewSaga(steps).Execute(ctx)
+				assert.Error(t, err)
+				assert.Equal(t, StageResultCompensated, resp.Status)
+				assert.Equal(t, 1, actionCalls)
+				assert.Equal(t, 3, compensationCalls)
+			})
+		})
 	})
-	//	})
 }
