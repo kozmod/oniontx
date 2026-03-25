@@ -75,9 +75,9 @@ func (t ExecutionData) Clone() ExecutionData {
 	}
 }
 
-// executionTrack manages the execution state for a single saga step.
+// inMemoryTrack manages the execution state for a single saga step.
 // It implements the Track interface and provides thread-safe state management.
-type executionTrack struct {
+type inMemoryTrack struct {
 	StepName     string
 	StepPosition uint32
 
@@ -87,14 +87,14 @@ type executionTrack struct {
 	compensation *ExecutionData
 	current      *ExecutionData
 
-	compensationOnFail bool
-	compensationFn     CompensationFunc
-	parentErr          error
+	CompensationRequired bool
+	compensationFn       CompensationFunc
+	parentErr            error
 }
 
-// newExecutionTrack creates a new executionTrack for a given step.
-func newExecutionTrack(position uint32, step Step) *executionTrack {
-	track := executionTrack{
+// newInMemoryTrack creates a new inMemoryTrack for a given step.
+func newInMemoryTrack(position uint32, step Step) *inMemoryTrack {
+	track := inMemoryTrack{
 		StepName:     step.Name,
 		StepPosition: position,
 		mx:           new(sync.RWMutex),
@@ -104,8 +104,8 @@ func newExecutionTrack(position uint32, step Step) *executionTrack {
 		compensation: &ExecutionData{
 			Status: ExecutionStatusUncalled,
 		},
-		compensationOnFail: step.CompensationRequired,
-		compensationFn:     step.Compensation,
+		CompensationRequired: step.CompensationRequired,
+		compensationFn:       step.Compensation,
 	}
 
 	if step.Compensation == nil {
@@ -121,7 +121,7 @@ func newExecutionTrack(position uint32, step Step) *executionTrack {
 
 // actionTrack switches the current execution context to the action.
 // Returns the track for method chaining.
-func (t *executionTrack) actionTrack() *executionTrack {
+func (t *inMemoryTrack) actionTrack() *inMemoryTrack {
 	t.mx.Lock()
 	defer t.mx.Unlock()
 	t.current = t.action
@@ -130,7 +130,7 @@ func (t *executionTrack) actionTrack() *executionTrack {
 
 // compensationTrack switches the current execution context to the compensation.
 // Returns the track for method chaining.
-func (t *executionTrack) compensationTrack() *executionTrack {
+func (t *inMemoryTrack) compensationTrack() *inMemoryTrack {
 	t.mx.Lock()
 	defer t.mx.Unlock()
 	t.current = t.compensation
@@ -139,7 +139,7 @@ func (t *executionTrack) compensationTrack() *executionTrack {
 
 // call increments the call counter for the current execution context.
 // Should be called before each invocation of the operation.
-func (t *executionTrack) call() {
+func (t *inMemoryTrack) call() {
 	t.mx.Lock()
 	defer t.mx.Unlock()
 	t.current.Calls = t.current.Calls + 1
@@ -147,21 +147,21 @@ func (t *executionTrack) call() {
 
 // setParentError sets a parent error that will be wrapped with subsequent errors.
 // Used to provide context about which retry attempt or operation triggered an error.
-func (t *executionTrack) setParentError(err error) {
+func (t *inMemoryTrack) setParentError(err error) {
 	t.mx.Lock()
 	defer t.mx.Unlock()
 	t.parentErr = err
 }
 
 // SetStatus sets the status of the current execution context.
-func (t *executionTrack) SetStatus(status ExecutionStatus) {
+func (t *inMemoryTrack) SetStatus(status ExecutionStatus) {
 	t.mx.Lock()
 	defer t.mx.Unlock()
 	t.current.Status = status
 }
 
 // getStatus returns the status of the current execution context.
-func (t *executionTrack) getStatus() ExecutionStatus {
+func (t *inMemoryTrack) getStatus() ExecutionStatus {
 	t.mx.RLock()
 	defer t.mx.RUnlock()
 	return t.current.Status
@@ -169,7 +169,7 @@ func (t *executionTrack) getStatus() ExecutionStatus {
 
 // SetFailedOnError marks the current execution as failed and records the error.
 // If a parent error exists, it will be wrapped with the new error.
-func (t *executionTrack) SetFailedOnError(err error) {
+func (t *inMemoryTrack) SetFailedOnError(err error) {
 	t.mx.Lock()
 	defer t.mx.Unlock()
 	if err == nil {
@@ -183,7 +183,7 @@ func (t *executionTrack) SetFailedOnError(err error) {
 }
 
 // GetData returns a snapshot of the current execution state for this step.
-func (t *executionTrack) GetData() StepData {
+func (t *inMemoryTrack) GetData() StepData {
 	t.mx.RLock()
 	defer t.mx.RUnlock()
 	return StepData{
@@ -191,6 +191,6 @@ func (t *executionTrack) GetData() StepData {
 		StepPosition:         t.StepPosition,
 		Action:               t.action.Clone(),
 		Compensation:         t.compensation.Clone(),
-		CompensationRequired: t.compensationOnFail,
+		CompensationRequired: t.CompensationRequired,
 	}
 }
