@@ -435,70 +435,69 @@ Each step contains:
 - **Compensation**: A rollback operation that undoes the action if later steps fail
 
 Steps execute sequentially. If any step fails, all previous steps are automatically
-compensated in reverse order, ensuring system consistency
+compensated, ensuring system consistency.
 
 # <img src=".github/assets/sage_usage_1.png" alt="drawing"  width="700" />
 
 Example:
 ```go
-// Use StepBuilder for more complex configuration
-// This approach provides access to all library features:
-// - Panic recovery
-// - Retry policies
-// - Custom backoff strategies
-// - Jitter for load distribution
 steps := []saga.Step{
-	saga.NewStep("first_step").
-		WithAction(
-			// Add action with decorators
-			saga.NewAction(func(ctx context.Context) error {
-				// Simulate error to demonstrate retry
-				return fmt.Errorf("first_step_Error")
-			}).
-				// Protection against panics — important for production!
-				// If the action panics, the panic will be caught
-				// and returned as an error with ErrPanicRecovered
-				WithPanicRecovery().
-				// Add retry for action
-				WithRetry(
-					// 2 attempts, 1s between attempts
-					saga.NewBaseRetryOpt(2, 1*time.Second).
-						// Return all errors  which arise during retries
-						WithReturnAllAroseErr(), ), ).
-		// Add compensation
-		WithCompensation(
-			saga.NewCompensation(func(ctx context.Context, aroseErr error) error {
-				// Compensation logic.
-				// aroseErr — error from action that triggered compensation
-				// This can be useful for logging or strategy selection
-				return nil
-			}).
-				// Compensation can also have retry logic
-				WithRetry(
-					saga.NewAdvanceRetryPolicy(
-						2,                            // max attempts
-						1*time.Second,                // initial delay
-						saga.NewExponentialBackoff(), // exponential backoff
-						).
-						// Jitter prevents "thundering herd"
-						WithJitter(
-							// random delay
-							saga.NewFullJitter(),
-							).
-						// maximum delay
-						WithMaxDelay(10 * time.Second), ), ),}
+    saga.NewStep("first_step").
+        WithAction(
+            // Add action with decorators
+            saga.NewAction(func(ctx context.Context, track saga.Track) error {
+                err := fmt.Errorf("first_step_Error")
+                return err
+            }).
+                // Protection against panics — important for production!
+                // If the action panics, the panic will be caught
+                // and returned as an error with ErrPanicRecovered
+                WithPanicRecovery().
+                // Add retry for action
+                WithRetry(
+                    // 2 attempts, 1s between attempts
+                    saga.NewBaseRetryOpt(2, 1*time.Second),
+                ),
+        ).
+        // Add compensation
+        WithCompensation(
+            saga.NewCompensation(func(ctx context.Context, track saga.Track) error {
+                // Compensation logic.
+                // Use track.GetData() to inspect what failed
+                data := track.GetData()
+                if len(data.Action.Errors) > 0 {
+                    log.Printf("Compensating for error: %v", data.Action.Errors[0])
+                }
+                return performCompensation(ctx)
+            }).
+                // Compensation can also have retry logic
+                WithRetry(
+                    saga.NewAdvanceRetryPolicy(
+                        2,                            // max attempts
+                        1*time.Second,                // initial delay
+                        saga.NewExponentialBackoff(), // exponential backoff
+                    ).
+                        // Jitter prevents "thundering herd" during mass failures
+                        WithJitter(
+                            saga.NewFullJitter(), // random delay
+                        ).
+                        // maximum delay cap
+                        WithMaxDelay(10*time.Second),
+                ),
+        ).
+        WithCompensationRequired(),
+}
 
 // Execute the saga
 //
 // With this approach:
-// 1. If action fails, there will be 2 attempts with exponential backoff
+// 1. If action fails, it will be retried according to the retry policy
 // 2. If all attempts fail, compensations will run
-// 3. Compensations will also retry on failure
-// 4. Jitter distributes load during mass failures
-err := saga.NewSaga(steps).Execute(context.Background())
-
+// 3. Compensations will also retry on failure with exponential backoff
+// 4. Jitter distributes load during mass failure scenarios
+result, err := saga.NewSaga(steps).Execute(context.Background())
 if err != nil {
-	// Handle error
+    // Handle the `Result` and errors
 }
 ```
 

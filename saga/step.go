@@ -24,8 +24,8 @@ type Step struct {
 	// multiple times in failure scenarios.
 	Compensation CompensationFunc
 
-	// CompensationOnFail needs to add the current compensation to the list of compensations.
-	CompensationOnFail bool
+	// CompensationRequired needs to add the current compensation to the list of compensations.
+	CompensationRequired bool
 }
 
 // NewStep creates a new Step with the given name.
@@ -45,8 +45,8 @@ func (s Step) WithCompensation(fn CompensationFunc) Step {
 	return s
 }
 
-// WithCompensationOnFail enables compensation for this step on failure.
-func (s Step) WithCompensationOnFail() Step {
-	s.CompensationOnFail = true
+// WithCompensationRequired enables compensation for this step on failure.
+func (s Step) WithCompensationRequired() Step {
+	s.CompensationRequired = true
 	return s
 }
