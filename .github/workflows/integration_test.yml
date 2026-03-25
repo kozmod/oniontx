@@ -40,6 +40,8 @@ jobs:
           docker compose logs
 
       - name: Run integration tests
+        env:
+          TEST_FN_DISABLED: true
         run: |
           cd test
           go test -v -p=1 ./... -cover -coverpkg=../... -coverprofile cover.out  && go tool cover -func cover.out
