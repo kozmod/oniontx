@@ -9,6 +9,7 @@ import (
 
 func printResult(t *testing.T, res saga.Result, err error) {
 	t.Helper()
+
 	t.Logf("\nresult:\n%v", res)
 	fmt.Printf("\nexecution error: %v\n", err)
 

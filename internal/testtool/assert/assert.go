@@ -37,6 +37,7 @@ func NoError(t *testing.T, err error) {
 	}
 }
 
+// Equal asserts that two objects are equal.
 func Equal[T comparable](t *testing.T, expected, target T) {
 	t.Helper()
 	if expected != target {
@@ -44,7 +45,7 @@ func Equal[T comparable](t *testing.T, expected, target T) {
 	}
 }
 
-// ErrorIs asserts that at least one of the errors in err's chain matches target.
+// ErrorIs asserts that the error chain contains the target error.
 // This is a wrapper for errors.Is.
 func ErrorIs(t *testing.T, err, target error) {
 	t.Helper()
@@ -53,6 +54,7 @@ func ErrorIs(t *testing.T, err, target error) {
 	}
 }
 
+// ErrorIsNot asserts that the error chain does NOT contain the target error.
 func ErrorIsNot(t *testing.T, err, target error) {
 	t.Helper()
 	if errors.Is(err, target) {

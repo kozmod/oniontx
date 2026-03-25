@@ -6,15 +6,14 @@ import (
 	"testing"
 )
 
-const (
-	envTestLoggerDisabled = "TEST_FN_DISABLED"
-)
-
 var (
 	disableTestLogger = false
 )
 
 func init() {
+	const (
+		envTestLoggerDisabled = "TEST_FN_DISABLED"
+	)
 	dtl := os.Getenv(envTestLoggerDisabled)
 	if strings.TrimSpace(strings.ToLower(dtl)) == "true" {
 		disableTestLogger = true
