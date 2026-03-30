@@ -1,4 +1,4 @@
-package bech
+package bench
 
 import (
 	"fmt"
