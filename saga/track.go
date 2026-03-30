@@ -2,6 +2,7 @@ package saga
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -48,15 +49,15 @@ type ExecutionData struct {
 }
 
 // String returns a compact representation of ExecutionData.
-func (t ExecutionData) String() string {
+func (ed ExecutionData) String() string {
 	var builder strings.Builder
 
-	builder.WriteString(fmt.Sprintf("{Status: %s, Calls: %d", t.Status, t.Calls))
-	if len(t.Errors) > 0 {
-		builder.WriteString(fmt.Sprintf(", Errors: %d", len(t.Errors)))
+	builder.WriteString(fmt.Sprintf("{Status: %s, Calls: %d", ed.Status, ed.Calls))
+	if len(ed.Errors) > 0 {
+		builder.WriteString(fmt.Sprintf(", Errors: %d", len(ed.Errors)))
 		// @TODO: add errors output
-		//if len(t.Errors) == 1 {
-		//	builder.WriteString(fmt.Sprintf(" [%v]", t.Errors[0]))
+		//if len(ed.Errors) == 1 {
+		//	builder.WriteString(fmt.Sprintf(" [%v]", ed.Errors[0]))
 		//}
 	}
 
@@ -65,13 +66,11 @@ func (t ExecutionData) String() string {
 }
 
 // Clone creates a deep copy of ExecutionData.
-func (t ExecutionData) Clone() ExecutionData {
-	errors := make([]error, len(t.Errors))
-	copy(errors, t.Errors)
+func (ed ExecutionData) Clone() ExecutionData {
 	return ExecutionData{
-		Calls:  t.Calls,
-		Errors: errors,
-		Status: t.Status,
+		Calls:  ed.Calls,
+		Errors: slices.Clone(ed.Errors),
+		Status: ed.Status,
 	}
 }
 
