@@ -18,6 +18,7 @@ func Benchmark_copy(b *testing.B) {
 	var (
 		generator = rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), uint64(time.Now().UnixNano())))
 		genFn     = func() saga.ExecutionData {
+			b.Helper()
 			errors := make([]error, errorsLen)
 			for i := 0; i < errorsLen; i++ {
 				b := make([]byte, 10)
@@ -35,6 +36,7 @@ func Benchmark_copy(b *testing.B) {
 		}
 
 		slicesClone = func(in saga.ExecutionData) saga.ExecutionData {
+			b.Helper()
 			return saga.ExecutionData{
 				Calls:  in.Calls,
 				Errors: slices.Clone(in.Errors),
@@ -43,6 +45,7 @@ func Benchmark_copy(b *testing.B) {
 		}
 
 		oldCopy = func(in saga.ExecutionData) saga.ExecutionData {
+			b.Helper()
 			errors := make([]error, len(in.Errors))
 			copy(errors, in.Errors)
 			return saga.ExecutionData{
