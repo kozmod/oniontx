@@ -69,7 +69,7 @@ func Test_Saga_example(t *testing.T) {
 				//   - track.GetData().Action.Status — status of the action
 				Compensation: func(ctx context.Context, track saga.Track) error {
 					// Get execution data to make decisions based on error type
-					data := track.GetData()
+					data := track.GetStepData()
 
 					// Example: conditional compensation based on error
 					if len(data.Action.Errors) > 0 {
@@ -140,8 +140,8 @@ func Test_Saga_example(t *testing.T) {
 						data := track.GetData()
 
 						// Log the error that triggered compensation
-						if len(data.Action.Errors) > 0 {
-							fmt.Printf("Compensating for error: %v\n", data.Action.Errors[0])
+						if len(data.Action.errors) > 0 {
+							fmt.Printf("Compensating for error: %v\n", data.Action.errors[0])
 						}
 
 						// Perform compensation

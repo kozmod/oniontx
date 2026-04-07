@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"sync"
 )
 
 // ExecutionStatus represents the current state of an action or compensation execution.
@@ -21,14 +20,36 @@ const (
 	ExecutionStatusUnset ExecutionStatus = "Unset"
 )
 
+type (
+	// Tracker provides access to step data for a specific saga step.
+	Tracker interface {
+		GetStepData() StepData
+	}
+
+	// Track represents an executable operation within a saga step.
+	Track interface {
+		Call()
+		SetStatus(ExecutionStatus)
+		SetParentError(error)
+		AddError(error)
+
+		GetStepData() StepData
+		GetTrackData() TrackData
+	}
+)
+
 // StepData contains the complete execution history for a single saga step.
-// It includes information about both the main action and its compensation.
 type StepData struct {
+	// StepPosition is the index of this step in the saga.
 	StepPosition uint32
 	StepName     string
 
-	Action               ExecutionData
-	Compensation         ExecutionData
+	// Action is the execution data for the main action.
+	Action TrackData
+	// Compensation is the xecution data for the compensation operation.
+	Compensation TrackData
+
+	// CompensationRequired define when compensation should be triggered on failure.
 	CompensationRequired bool
 }
 
@@ -38,158 +59,154 @@ func (s StepData) String() string {
 		s.StepPosition,
 		s.StepName,
 		s.Action.String(),
-		s.Compensation.String())
+		s.Compensation.String(),
+	)
 }
 
-// ExecutionData holds execution details for a single operation (action or compensation).
-type ExecutionData struct {
+// TrackData contains immutable execution metrics for a single operation.
+type TrackData struct {
 	Calls  uint32
 	Errors []error
 	Status ExecutionStatus
 }
 
-// String returns a compact representation of ExecutionData.
-func (ed ExecutionData) String() string {
+// String returns a compact representation of TrackData.
+func (ed *TrackData) String() string {
 	var builder strings.Builder
+	switch {
+	case ed == nil:
+		builder.WriteString(fmt.Sprintf("{Status: %s, Calls: %d", "nil", -1))
+	default:
+		builder.WriteString(fmt.Sprintf("{Status: %s, Calls: %d", ed.Status, ed.Calls))
+		if len(ed.Errors) > 0 {
+			builder.WriteString(fmt.Sprintf(", Errors: %d", len(ed.Errors)))
+			// @TODO: add errors output
+			//if len(ed.Errors) == 1 {
+			//	builder.WriteString(fmt.Sprintf(" [%v]", ed.Errors[0]))
+			//}
+		}
 
-	builder.WriteString(fmt.Sprintf("{Status: %s, Calls: %d", ed.Status, ed.Calls))
-	if len(ed.Errors) > 0 {
-		builder.WriteString(fmt.Sprintf(", Errors: %d", len(ed.Errors)))
-		// @TODO: add errors output
-		//if len(ed.Errors) == 1 {
-		//	builder.WriteString(fmt.Sprintf(" [%v]", ed.Errors[0]))
-		//}
 	}
 
 	builder.WriteString("}")
 	return builder.String()
 }
 
-// Clone creates a deep copy of ExecutionData.
-func (ed ExecutionData) Clone() ExecutionData {
-	return ExecutionData{
-		Calls:  ed.Calls,
-		Errors: slices.Clone(ed.Errors),
-		Status: ed.Status,
+// ExecutionTrack holds execution details for a single operation.
+type ExecutionTrack struct {
+	calls       uint32
+	parentError error
+	errors      []error
+	status      ExecutionStatus
+
+	tracker Tracker
+}
+
+// NewExecutionTrack creates a new ExecutionTrack.
+func NewExecutionTrack(tracker Tracker) *ExecutionTrack {
+	return &ExecutionTrack{
+		status:  ExecutionStatusUncalled,
+		tracker: tracker,
 	}
 }
 
-// inMemoryTrack manages the execution state for a single saga step.
-// It implements the Track interface and provides thread-safe state management.
-type inMemoryTrack struct {
-	StepName     string
-	StepPosition uint32
+// Calls returns the number of times this operation has been invoked.
+func (ed *ExecutionTrack) Calls() uint32 {
+	return ed.calls
+}
 
-	mx *sync.RWMutex
+// Errors returns the list of errors that occurred during execution.
+func (ed *ExecutionTrack) Errors() []error {
+	return ed.errors
+}
 
-	action       *ExecutionData
-	compensation *ExecutionData
-	current      *ExecutionData
+// Call increments the call counter for this execution track.
+func (ed *ExecutionTrack) Call() {
+	ed.calls++
+}
 
-	CompensationRequired bool
-	compensationFn       CompensationFunc
+// SetStatus updates the execution status of this track.
+func (ed *ExecutionTrack) SetStatus(status ExecutionStatus) {
+	ed.status = status
+}
+
+// SetParentError sets a parent error that will be wrapped with any subsequent errors added.
+func (ed *ExecutionTrack) SetParentError(err error) {
+	ed.parentError = err
+}
+
+// AddError appends an error to the track's error list.
+// If a parent error is set, it will be wrapped with the new error.
+// Nil errors are silently ignored.
+func (ed *ExecutionTrack) AddError(err error) {
+	if err == nil || ed == nil {
+		return
+	}
+	if ed.parentError != nil {
+		err = fmt.Errorf("%w: %w", ed.parentError, err)
+	}
+	ed.errors = append(ed.errors, err)
+}
+
+// GetStepData returns the StepData from the associated tracker.
+func (ed *ExecutionTrack) GetStepData() StepData {
+	return ed.tracker.GetStepData()
+}
+
+// GetTrackData creates a deep copy of TrackData.
+func (ed *ExecutionTrack) GetTrackData() TrackData {
+	return TrackData{
+		Calls:  ed.calls,
+		Errors: slices.Clone(ed.errors),
+		Status: ed.status,
+	}
+}
+
+// inMemoryTracker manages the execution state for a single saga step.
+type inMemoryTracker struct {
+	stepName     string
+	stepPosition uint32
+
+	action       Track
+	compensation Track
+
+	compensationRequired bool
 	parentErr            error
+
+	compensationFunc CompensationFunc
 }
 
-// newInMemoryTrack creates a new inMemoryTrack for a given step.
-func newInMemoryTrack(position uint32, step Step) *inMemoryTrack {
-	track := inMemoryTrack{
-		StepName:     step.Name,
-		StepPosition: position,
-		mx:           new(sync.RWMutex),
-		action: &ExecutionData{
-			Status: ExecutionStatusUncalled,
-		},
-		compensation: &ExecutionData{
-			Status: ExecutionStatusUncalled,
-		},
-		CompensationRequired: step.CompensationRequired,
-		compensationFn:       step.Compensation,
+// newInMemoryTrack creates a new inMemoryTracker for a given step.
+func newInMemoryTrack(position uint32, step Step, trackFactory func(Tracker) Track) *inMemoryTracker {
+
+	tracker := &inMemoryTracker{
+		stepName:             step.Name,
+		stepPosition:         position,
+		compensationRequired: step.CompensationRequired,
+		compensationFunc:     step.Compensation,
 	}
+
+	tracker.action = trackFactory(tracker)
+	tracker.compensation = trackFactory(tracker)
 
 	if step.Compensation == nil {
-		track.compensation.Status = ExecutionStatusUnset
+		tracker.compensation.SetStatus(ExecutionStatusUnset)
 	}
 
 	if step.Action == nil {
-		track.action.Status = ExecutionStatusUnset
+		tracker.action.SetStatus(ExecutionStatusUnset)
 	}
 
-	return &track
+	return tracker
 }
 
-// actionTrack switches the current execution context to the action.
-// Returns the track for method chaining.
-func (t *inMemoryTrack) actionTrack() *inMemoryTrack {
-	t.mx.Lock()
-	defer t.mx.Unlock()
-	t.current = t.action
-	return t
-}
-
-// compensationTrack switches the current execution context to the compensation.
-// Returns the track for method chaining.
-func (t *inMemoryTrack) compensationTrack() *inMemoryTrack {
-	t.mx.Lock()
-	defer t.mx.Unlock()
-	t.current = t.compensation
-	return t
-}
-
-// call increments the call counter for the current execution context.
-// Should be called before each invocation of the operation.
-func (t *inMemoryTrack) call() {
-	t.mx.Lock()
-	defer t.mx.Unlock()
-	t.current.Calls = t.current.Calls + 1
-}
-
-// setParentError sets a parent error that will be wrapped with subsequent errors.
-// Used to provide context about which retry attempt or operation triggered an error.
-func (t *inMemoryTrack) setParentError(err error) {
-	t.mx.Lock()
-	defer t.mx.Unlock()
-	t.parentErr = err
-}
-
-// SetStatus sets the status of the current execution context.
-func (t *inMemoryTrack) SetStatus(status ExecutionStatus) {
-	t.mx.Lock()
-	defer t.mx.Unlock()
-	t.current.Status = status
-}
-
-// getStatus returns the status of the current execution context.
-func (t *inMemoryTrack) getStatus() ExecutionStatus {
-	t.mx.RLock()
-	defer t.mx.RUnlock()
-	return t.current.Status
-}
-
-// SetFailedOnError marks the current execution as failed and records the error.
-// If a parent error exists, it will be wrapped with the new error.
-func (t *inMemoryTrack) SetFailedOnError(err error) {
-	t.mx.Lock()
-	defer t.mx.Unlock()
-	if err == nil {
-		return
-	}
-	if t.parentErr != nil {
-		err = fmt.Errorf("%w: %w", t.parentErr, err)
-	}
-	t.current.Status = ExecutionStatusFail
-	t.current.Errors = append(t.current.Errors, err)
-}
-
-// GetData returns a snapshot of the current execution state for this step.
-func (t *inMemoryTrack) GetData() StepData {
-	t.mx.RLock()
-	defer t.mx.RUnlock()
+// GetStepData returns a snapshot of the current step state.
+func (t *inMemoryTracker) GetStepData() StepData {
 	return StepData{
-		StepName:             t.StepName,
-		StepPosition:         t.StepPosition,
-		Action:               t.action.Clone(),
-		Compensation:         t.compensation.Clone(),
-		CompensationRequired: t.CompensationRequired,
+		StepName:             t.stepName,
+		StepPosition:         t.stepPosition,
+		Action:               t.action.GetTrackData(),
+		Compensation:         t.compensation.GetTrackData(),
+		CompensationRequired: t.compensationRequired,
 	}
 }

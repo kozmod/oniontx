@@ -144,7 +144,7 @@ func Test_Saga_multi_Facade(t *testing.T) {
 					return err
 				},
 				Compensation: func(ctx context.Context, track saga.Track) error {
-					data := track.GetData()
+					data := track.GetStepData()
 					assert.Len(t, data.Action.Errors, 0)
 
 					err := sqlTransactor.WithinTx(ctx, func(ctx context.Context) error {
@@ -164,7 +164,7 @@ func Test_Saga_multi_Facade(t *testing.T) {
 					return err
 				},
 				Compensation: func(ctx context.Context, track saga.Track) error {
-					data := track.GetData()
+					data := track.GetStepData()
 					assert.Len(t, data.Action.Errors, 0)
 
 					t.Log(data)
@@ -273,7 +273,7 @@ func Test_Saga_multi_Facade(t *testing.T) {
 					// Compensation logic.
 					//
 					// Check an error type and call compensation only for Mongo.
-					trackData := track.GetData()
+					trackData := track.GetStepData()
 					if len(trackData.Action.Errors) > 0 && errors.Is(trackData.Action.Errors[0], entity.ErrExpected) {
 						err = mongoRepo.Delete(ctx, mongoTestDataValA)
 						assert.NoError(t, err)

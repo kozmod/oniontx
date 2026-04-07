@@ -152,18 +152,19 @@ func WithRetry(opt RetryPolicy, fn func(ctx context.Context, track Track) error)
 		case attempts == 0:
 			return err
 		case err != nil:
-			track.SetFailedOnError(err)
-
+			track.SetStatus(ExecutionStatusFail)
+			track.AddError(err)
 		}
 
 		// retries
 	stop:
 		for i := uint32(0); i < attempts; i++ {
-			track.call()
-			track.setParentError(fmt.Errorf("retry [%d]", i))
+			track.Call()
+			track.SetParentError(fmt.Errorf("retry [%d]", i))
 			select {
 			case <-ctx.Done():
-				track.SetFailedOnError(
+				track.SetStatus(ExecutionStatusFail)
+				track.AddError(
 					errors.Join(ErrRetryContextDone, ctx.Err()),
 				)
 				break stop
@@ -173,14 +174,15 @@ func WithRetry(opt RetryPolicy, fn func(ctx context.Context, track Track) error)
 					track.SetStatus(ExecutionStatusSuccess)
 					break stop
 				}
-				track.SetFailedOnError(err)
+				track.SetStatus(ExecutionStatusFail)
+				track.AddError(err)
 				if i < attempts-1 {
 					time.Sleep(opt.Delay(i))
 				}
 			}
 		}
 
-		track.setParentError(nil)
+		track.SetParentError(nil)
 		return nil
 	}
 }

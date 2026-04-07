@@ -13,54 +13,54 @@ import (
 func Benchmark_copy(b *testing.B) {
 	const (
 		letters   = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-		errorsLen = 100
+		ErrorsLen = 100
 	)
 	var (
 		generator = rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), uint64(time.Now().UnixNano())))
-		genFn     = func() saga.ExecutionData {
+		genFn     = func() saga.TrackData {
 			b.Helper()
-			errors := make([]error, errorsLen)
-			for i := 0; i < errorsLen; i++ {
+			Errors := make([]error, ErrorsLen)
+			for i := 0; i < ErrorsLen; i++ {
 				b := make([]byte, 10)
 				for i := range b {
 					b[i] = letters[generator.IntN(len(letters))]
 				}
-				errors[i] = fmt.Errorf("%s", string(b))
+				Errors[i] = fmt.Errorf("%s", string(b))
 			}
 
-			return saga.ExecutionData{
+			return saga.TrackData{
 				Calls:  generator.Uint32(),
-				Errors: errors,
+				Errors: Errors,
 				Status: saga.ExecutionStatusSuccess,
 			}
 		}
 
-		slicesClone = func(in saga.ExecutionData) saga.ExecutionData {
+		slicesClone = func(in saga.TrackData) saga.TrackData {
 			b.Helper()
-			return saga.ExecutionData{
+			return saga.TrackData{
 				Calls:  in.Calls,
 				Errors: slices.Clone(in.Errors),
 				Status: in.Status,
 			}
 		}
 
-		oldCopy = func(in saga.ExecutionData) saga.ExecutionData {
+		oldCopy = func(in saga.TrackData) saga.TrackData {
 			b.Helper()
-			errors := make([]error, len(in.Errors))
-			copy(errors, in.Errors)
-			return saga.ExecutionData{
+			Errors := make([]error, len(in.Errors))
+			copy(Errors, in.Errors)
+			return saga.TrackData{
 				Calls:  in.Calls,
-				Errors: errors,
+				Errors: Errors,
 				Status: in.Status,
 			}
 		}
 	)
 
-	b.Run(fmt.Sprintf("size_%d", errorsLen), func(b *testing.B) {
+	b.Run(fmt.Sprintf("size_%d", ErrorsLen), func(b *testing.B) {
 		b.Run("copy", func(b *testing.B) {
 			var (
 				in  = genFn()
-				res saga.ExecutionData
+				res saga.TrackData
 			)
 
 			b.ResetTimer()
@@ -75,7 +75,7 @@ func Benchmark_copy(b *testing.B) {
 		b.Run("slices.Clone", func(b *testing.B) {
 			var (
 				in  = genFn()
-				res saga.ExecutionData
+				res saga.TrackData
 			)
 
 			b.ResetTimer()
@@ -92,7 +92,7 @@ func Benchmark_copy(b *testing.B) {
 		b.Run("copy", func(b *testing.B) {
 			var (
 				in  = genFn()
-				res saga.ExecutionData
+				res saga.TrackData
 			)
 
 			b.ResetTimer()
@@ -108,7 +108,7 @@ func Benchmark_copy(b *testing.B) {
 		b.Run("slices.Clone", func(b *testing.B) {
 			var (
 				in  = genFn()
-				res saga.ExecutionData
+				res saga.TrackData
 			)
 
 			b.ResetTimer()
@@ -122,12 +122,12 @@ func Benchmark_copy(b *testing.B) {
 		})
 	})
 
-	b.Run(fmt.Sprintf("empty_with_cap_%d", errorsLen), func(b *testing.B) {
+	b.Run(fmt.Sprintf("empty_with_cap_%d", ErrorsLen), func(b *testing.B) {
 		b.Run("copy", func(b *testing.B) {
 
 			var (
 				in  = genFn()
-				res saga.ExecutionData
+				res saga.TrackData
 			)
 			res.Errors = nil
 
@@ -144,7 +144,7 @@ func Benchmark_copy(b *testing.B) {
 		b.Run("slices.Clone", func(b *testing.B) {
 			var (
 				in  = genFn()
-				res saga.ExecutionData
+				res saga.TrackData
 			)
 			b.ResetTimer()
 			b.ReportAllocs()

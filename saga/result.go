@@ -57,7 +57,7 @@ func (r Result) String() string {
 // Returns:
 //   - Result: aggregated execution data for all steps
 //   - error: descriptive error with categorized lists of failed/compensated steps
-func prepareResult(tracks []*inMemoryTrack) (Result, error) {
+func prepareResult(tracks []*inMemoryTracker) (Result, error) {
 	var (
 		result = Result{
 			Steps:  make([]StepData, 0, len(tracks)),
@@ -88,7 +88,7 @@ func prepareResult(tracks []*inMemoryTrack) (Result, error) {
 	)
 
 	for _, tr := range tracks {
-		data := tr.GetData()
+		data := tr.GetStepData()
 		result.Steps = append(result.Steps, data)
 
 		stepID := prepareStateStrFn(data.StepPosition, data.StepName)

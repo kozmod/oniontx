@@ -84,7 +84,8 @@ func (a ActionFunc) WithAfterHook(after func(ctx context.Context, track Track) e
 	return func(ctx context.Context, track Track) error {
 		err := a(ctx, track)
 		if err != nil {
-			track.SetFailedOnError(err)
+			track.SetStatus(ExecutionStatusFail)
+			track.AddError(err)
 		}
 		err = after(ctx, track)
 		if err != nil {
@@ -225,7 +226,8 @@ func (c CompensationFunc) WithAfterHook(after func(ctx context.Context, track Tr
 	return func(ctx context.Context, track Track) error {
 		err := c(ctx, track)
 		if err != nil {
-			track.SetFailedOnError(err)
+			track.SetStatus(ExecutionStatusFail)
+			track.AddError(err)
 		}
 		err = after(ctx, track)
 		if err != nil {
