@@ -417,9 +417,9 @@ func main() {
 }
 ```
 
-### <a name="saga"><a/>Package `saga` - Distributed Transactions
+### <a name="saga"><a/>Package `saga` - in-progress workflow engine
 Use `saga` when coordinating operations across **multiple** services, databases,
-or external systems. It implements the **In-Progress Saga** pattern with compensating actions
+or external systems. It implements the **In-Progress workflow engine** pattern with compensating actions
 to maintain data consistency in distributed environments.
 
 Unlike **Distributed Sagas** that require a centralized orchestrator or choreography
