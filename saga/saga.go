@@ -40,16 +40,13 @@ var (
 	// interrupted by context cancellation, meaning the operation was not completed
 	// and no more retries will be attempted.
 	ErrRetryContextDone = fmt.Errorf("retry context done")
+
+	// ErrRetryFailed indicates that all retry attempts have been exhausted without success.
+	// This error is returned when the maximum number of retry attempts configured in
+	// the RetryPolicy has been reached and every attempt failed. The original errors
+	// from each attempt are preserved in the Track's error list for debugging.
+	ErrRetryFailed = fmt.Errorf("retry failed")
 )
-
-type Track interface {
-	call()
-	setParentError(error)
-
-	SetStatus(ExecutionStatus)
-	SetFailedOnError(error)
-	GetData() StepData
-}
 
 // Saga coordinates a distributed transaction using the `Saga` pattern.
 type Saga struct {
@@ -68,9 +65,8 @@ func NewSaga(steps []Step) *Saga {
 // If any step fails, compensating actions are triggered for all successfully completed steps.
 func (s *Saga) Execute(ctx context.Context) (Result, error) {
 	var (
-		tracks         []*inMemoryTrack
-		completedTrack []*inMemoryTrack
-		err            error
+		tracks         []*simpleTracker
+		completedTrack []*simpleTracker
 	)
 
 stop:
@@ -79,22 +75,25 @@ stop:
 			tr = newInMemoryTrack(
 				uint32(i),
 				step,
+				func(tracker Tracker) Track {
+					return NewExecutionTrack(tracker)
+				},
 			)
 		)
 
-		tr.actionTrack()
 		tracks = append(tracks, tr)
 		select {
 		case <-ctx.Done():
-			tr.SetFailedOnError(
-				fmt.Errorf("action failed [%d#%s]: %w", i, tr.StepName,
+			tr.action.SetStatus(ExecutionStatusFail)
+			tr.action.AddError(
+				fmt.Errorf("action failed [%d#%s]: %w", i, tr.stepName,
 					errors.Join(ctx.Err(), ErrExecuteActionsContextDone),
 				),
 			)
 			break stop
 		default:
 			if step.Action == nil {
-				tr.action.Status = ExecutionStatusUnset
+				tr.action.SetStatus(ExecutionStatusUnset)
 				continue
 			}
 
@@ -102,18 +101,20 @@ stop:
 				completedTrack = append(completedTrack, tr)
 			}
 
-			tr.call()
-			err = step.Action(ctx, tr)
+			tr.action.Call()
+			err := step.Action(ctx, tr.action)
 
-			switch status := tr.getStatus(); {
+			switch status := tr.action.GetTrackData().Status; {
 			case err == nil && status != ExecutionStatusFail:
-				tr.SetStatus(ExecutionStatusSuccess)
+				tr.action.SetStatus(ExecutionStatusSuccess)
 			case err != nil || status == ExecutionStatusFail:
 				if err != nil {
+					tr.action.SetStatus(ExecutionStatusFail)
 					err = errors.Join(err, ErrActionFailed)
-					tr.SetFailedOnError(
-						fmt.Errorf("action failed [%d#%s]: %w", i, tr.StepName, err),
+					tr.action.AddError(
+						fmt.Errorf("action failed [%d#%s]: %w", i, tr.stepName, err),
 					)
+
 				}
 				// Run compensation when error arise.
 				s.compensate(ctx, completedTrack)
@@ -131,34 +132,31 @@ stop:
 }
 
 // compensate triggers compensating actions for all steps in reverse order.
-func (s *Saga) compensate(ctx context.Context, tracks []*inMemoryTrack) {
+func (s *Saga) compensate(ctx context.Context, tracks []*simpleTracker) {
 stop:
 	for i, tr := range tracks {
-		if tr.compensationFn == nil {
+		if tr.compensationFunc == nil {
 			continue
 		}
-		tr.compensationTrack()
 		select {
 		case <-ctx.Done():
-			tr.SetFailedOnError(
-				fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.StepName,
+			tr.compensation.SetStatus(ExecutionStatusFail)
+			tr.compensation.AddError(
+				fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.stepName,
 					errors.Join(ctx.Err(), ErrExecuteCompensationContextDone),
 				),
 			)
+
 			break stop
 		default:
-			tr.call()
-			err := tr.compensationFn(ctx, tr)
+			tr.compensation.Call()
+			err := tr.compensationFunc(ctx, tr.compensation)
 			switch {
 			case err == nil:
-				// Determine final status based on error count vs calls
-				if uint32(len(tr.current.Errors)) == tr.current.Calls {
-					tr.SetStatus(ExecutionStatusFail)
-				} else {
-					tr.SetStatus(ExecutionStatusSuccess)
-				}
+				tr.compensation.SetStatus(ExecutionStatusSuccess)
 			case err != nil:
-				tr.SetFailedOnError(fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.StepName, err))
+				tr.compensation.SetStatus(ExecutionStatusFail)
+				tr.compensation.AddError(fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.stepName, err))
 			}
 		}
 	}

@@ -265,7 +265,7 @@ func Test_Saga_panic_recovery(t *testing.T) {
 						return testtool.ErrExpTestA
 					}),
 					Compensation: CompensationFunc(func(ctx context.Context, track Track) error {
-						str := track.GetData()
+						str := track.GetStepData()
 						assert.Equal(t, 1, len(str.Action.Errors))
 						assert.Equal(t, 1, str.Action.Calls)
 						assert.Equal(t, ExecutionStatusFail, str.Action.Status)
@@ -341,7 +341,7 @@ func Test_execute_context(t *testing.T) {
 	t.Run("action_ctx_cancel", func(t *testing.T) {
 		var (
 			ctx, cancel = context.WithCancel(context.Background())
-			calls       = make([]string, 0, 2)
+			Calls       = make([]string, 0, 2)
 		)
 
 		steps := []Step{
@@ -349,18 +349,18 @@ func Test_execute_context(t *testing.T) {
 				WithAction(nil),
 			NewStep("step1").
 				WithAction(func(ctx context.Context, _ Track) error {
-					calls = append(calls, "action1")
+					Calls = append(Calls, "action1")
 					return nil
 				}),
 			NewStep("step2").
 				WithAction(func(ctx context.Context, _ Track) error {
-					calls = append(calls, "action2")
+					Calls = append(Calls, "action2")
 					cancel() // cancel context for test
 					return nil
 				}),
 			NewStep("step3").
 				WithAction(func(ctx context.Context, _ Track) error {
-					calls = append(calls, "action3")
+					Calls = append(Calls, "action3")
 					t.Fatalf("should not have been called")
 					return nil
 				}),
@@ -398,7 +398,7 @@ func Test_execute_context(t *testing.T) {
 		assert.Equal(t, 0, len(res.Steps[3].Compensation.Errors))
 		assert.Equal(t, false, res.Steps[3].CompensationRequired)
 
-		assert.True(t, slices.Equal([]string{"action1", "action2"}, calls))
+		assert.True(t, slices.Equal([]string{"action1", "action2"}, Calls))
 	})
 	t.Run("retry_ctx_cancel", func(t *testing.T) {
 		var (
@@ -409,7 +409,7 @@ func Test_execute_context(t *testing.T) {
 			NewStep("step0").
 				WithAction(
 					NewAction(func(ctx context.Context, track Track) error {
-						data := track.GetData()
+						data := track.GetStepData()
 						if data.Action.Calls >= 2 {
 							cancel() // cancel context for test
 						}
@@ -426,10 +426,11 @@ func Test_execute_context(t *testing.T) {
 		assert.Equal(t, 0, res.Steps[0].StepPosition)
 		assert.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
 		assert.Equal(t, ExecutionStatusUnset, res.Steps[0].Compensation.Status)
-		assert.Equal(t, 3, len(res.Steps[0].Action.Errors))
+		assert.Equal(t, 4, len(res.Steps[0].Action.Errors))
 		assert.ErrorIs(t, res.Steps[0].Action.Errors[0], testtool.ErrExpTestA)
 		assert.ErrorIs(t, res.Steps[0].Action.Errors[1], testtool.ErrExpTestA)
 		assert.ErrorIs(t, res.Steps[0].Action.Errors[2], ErrRetryContextDone)
+		assert.ErrorIs(t, res.Steps[0].Action.Errors[3], ErrRetryFailed)
 	})
 	//
 	t.Run("compensation_ctx_cancel", func(t *testing.T) {
@@ -541,9 +542,10 @@ func Test_hooks(t *testing.T) {
 			assert.Equal(t, 1, len(res.Steps))
 			assert.Equal(t, 2, res.Steps[0].Action.Calls)
 			assert.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
-			assert.Equal(t, 2, len(res.Steps[0].Action.Errors))
+			assert.Equal(t, 3, len(res.Steps[0].Action.Errors))
 			assert.ErrorIs(t, res.Steps[0].Action.Errors[0], testtool.ErrExpTestA)
 			assert.ErrorIs(t, res.Steps[0].Action.Errors[1], testtool.ErrExpTestA)
+			assert.ErrorIs(t, res.Steps[0].Action.Errors[2], ErrRetryFailed)
 			assert.True(t,
 				slices.Equal(
 					[]string{
@@ -577,7 +579,7 @@ func Test_hooks(t *testing.T) {
 						}).WithAfterHook(func(ctx context.Context, track Track) error {
 							executed = append(executed, "hook1")
 
-							data := track.GetData()
+							data := track.GetStepData()
 							assert.Equal(t, 1, data.Action.Calls)
 							assert.Equal(t, 1, len(data.Action.Errors))
 							assert.ErrorIs(t, data.Action.Errors[0], testtool.ErrExpTestA)
@@ -587,7 +589,7 @@ func Test_hooks(t *testing.T) {
 						}).WithAfterHook(func(ctx context.Context, track Track) error {
 							executed = append(executed, "hook2")
 
-							data := track.GetData()
+							data := track.GetStepData()
 							assert.Equal(t, 1, data.Action.Calls)
 							assert.Equal(t, 2, len(data.Action.Errors))
 							assert.ErrorIs(t, data.Action.Errors[0], testtool.ErrExpTestA)
@@ -626,7 +628,7 @@ func Test_hooks(t *testing.T) {
 						NewAction(func(ctx context.Context, track Track) error {
 							executed = append(executed, "action1")
 
-							data := track.GetData()
+							data := track.GetStepData()
 							switch data.Action.Calls {
 							case 1:
 								return testtool.ErrExpTestA
@@ -641,7 +643,7 @@ func Test_hooks(t *testing.T) {
 						}).WithAfterHook(func(ctx context.Context, track Track) error {
 							executed = append(executed, "hook1")
 
-							data := track.GetData()
+							data := track.GetStepData()
 							switch data.Action.Calls {
 							case 1:
 								assert.Equal(t, 1, len(data.Action.Errors))
@@ -673,7 +675,7 @@ func Test_hooks(t *testing.T) {
 						}).WithAfterHook(func(ctx context.Context, track Track) error {
 							executed = append(executed, "hook2")
 
-							data := track.GetData()
+							data := track.GetStepData()
 							switch data.Action.Calls {
 							case 1:
 								assert.Equal(t, 2, len(data.Action.Errors))
@@ -710,22 +712,24 @@ func Test_hooks(t *testing.T) {
 							WithAfterHook(func(ctx context.Context, track Track) error {
 								executed = append(executed, "retry_hook1")
 
-								data := track.GetData()
+								data := track.GetStepData()
 								assert.Equal(t, 3, data.Action.Calls)
-								assert.Equal(t, 9, len(data.Action.Errors))
+								assert.Equal(t, 10, len(data.Action.Errors))
 								assert.ErrorIs(t, data.Action.Errors[8], errHook2)
 								assert.True(t, checkRetryStr(1, data.Action.Errors[8]))
+								assert.ErrorIs(t, data.Action.Errors[9], ErrRetryFailed)
 								return errHook3
 							}).
 							WithAfterHook(func(ctx context.Context, track Track) error {
 								executed = append(executed, "retry_hook2")
 
-								data := track.GetData()
+								data := track.GetStepData()
 								assert.Equal(t, 3, data.Action.Calls)
-								assert.Equal(t, 10, len(data.Action.Errors))
+								assert.Equal(t, 11, len(data.Action.Errors))
 								assert.ErrorIs(t, data.Action.Errors[8], errHook2)
 								assert.True(t, checkRetryStr(1, data.Action.Errors[8]))
-								assert.ErrorIs(t, data.Action.Errors[9], errHook3)
+								assert.ErrorIs(t, data.Action.Errors[9], ErrRetryFailed)
+								assert.ErrorIs(t, data.Action.Errors[10], errHook3)
 								return errHook4
 							}),
 					),
@@ -760,7 +764,7 @@ func Test_hooks(t *testing.T) {
 			action := res.Steps[0].Action
 			assert.Equal(t, 3, res.Steps[0].Action.Calls)
 			assert.Equal(t, ExecutionStatusFail, action.Status)
-			assert.Equal(t, 11, len(action.Errors))
+			assert.Equal(t, 12, len(action.Errors))
 			assert.ErrorIs(t, action.Errors[0], testtool.ErrExpTestA)
 			assert.ErrorIs(t, action.Errors[1], errHook1)
 			assert.ErrorIs(t, action.Errors[2], errHook2)
@@ -774,6 +778,12 @@ func Test_hooks(t *testing.T) {
 			assert.True(t, checkRetryStr(1, action.Errors[6]))
 			assert.ErrorIs(t, action.Errors[7], errHook1)
 			assert.True(t, checkRetryStr(1, action.Errors[7]))
+			assert.ErrorIs(t, action.Errors[8], errHook2)
+			assert.True(t, checkRetryStr(1, action.Errors[8]))
+			assert.ErrorIs(t, action.Errors[9], ErrRetryFailed)
+			assert.ErrorIs(t, action.Errors[10], errHook3)
+			assert.ErrorIs(t, action.Errors[11], errHook4)
+
 		})
 	})
 	t.Run("compensation_hooks", func(t *testing.T) {
@@ -794,7 +804,7 @@ func Test_hooks(t *testing.T) {
 					NewCompensation(func(ctx context.Context, track Track) error {
 						executed = append(executed, "comp1")
 
-						data := track.GetData()
+						data := track.GetStepData()
 						assert.Equal(t, 1, data.Action.Calls)
 						assert.Equal(t, 1, data.Compensation.Calls)
 						assert.Equal(t, 1, len(data.Action.Errors))
@@ -804,7 +814,7 @@ func Test_hooks(t *testing.T) {
 					}).WithBeforeHook(func(ctx context.Context, track Track) error {
 						executed = append(executed, "comp_hook1")
 
-						data := track.GetData()
+						data := track.GetStepData()
 						assert.Equal(t, 1, data.Action.Calls)
 						assert.Equal(t, 1, data.Compensation.Calls)
 						assert.Equal(t, 1, len(data.Action.Errors))
@@ -813,7 +823,7 @@ func Test_hooks(t *testing.T) {
 					}).WithBeforeHook(func(ctx context.Context, track Track) error {
 						executed = append(executed, "comp_hook2")
 
-						data := track.GetData()
+						data := track.GetStepData()
 						assert.Equal(t, 1, data.Action.Calls)
 						assert.Equal(t, 1, data.Compensation.Calls)
 						assert.Equal(t, 1, len(data.Action.Errors))
@@ -864,7 +874,7 @@ func Test_hooks(t *testing.T) {
 					}).WithAfterHook(func(ctx context.Context, track Track) error {
 						executed = append(executed, "comp_hook1")
 
-						data := track.GetData()
+						data := track.GetStepData()
 						assert.Equal(t, 1, data.Action.Calls)
 						assert.Equal(t, 1, data.Compensation.Calls)
 						assert.Equal(t, 1, len(data.Action.Errors))
@@ -876,7 +886,7 @@ func Test_hooks(t *testing.T) {
 					}).WithAfterHook(func(ctx context.Context, track Track) error {
 						executed = append(executed, "comp_hook2")
 
-						data := track.GetData()
+						data := track.GetStepData()
 						assert.Equal(t, 1, data.Action.Calls)
 						assert.Equal(t, 1, data.Compensation.Calls)
 						assert.Equal(t, 1, len(data.Action.Errors))
@@ -906,20 +916,20 @@ func Test_wrapper(t *testing.T) {
 	)
 	t.Run("action", func(t *testing.T) {
 		var (
-			calls = make([]string, 0, 3)
+			Calls = make([]string, 0, 3)
 		)
 
 		steps := []Step{
 			NewStep("step1").
 				WithAction(
 					NewAction(func(ctx context.Context, _ Track) error {
-						calls = append(calls, "action1")
+						Calls = append(Calls, "action1")
 						return nil
 					}).WithWrapper(func(ctx context.Context, track Track, action ActionFunc) error {
-						calls = append(calls, "before1")
+						Calls = append(Calls, "before1")
 						err := action(ctx, track)
 						assert.NoError(t, err)
-						calls = append(calls, "after1")
+						Calls = append(Calls, "after1")
 						return nil
 					}),
 				),
@@ -934,43 +944,43 @@ func Test_wrapper(t *testing.T) {
 		assert.Equal(t, 0, res.Steps[0].Compensation.Calls)
 		assert.Equal(t, ExecutionStatusUnset, res.Steps[0].Compensation.Status)
 
-		assert.True(t, slices.Equal([]string{"before1", "action1", "after1"}, calls))
+		assert.True(t, slices.Equal([]string{"before1", "action1", "after1"}, Calls))
 	})
 	t.Run("compensation", func(t *testing.T) {
 		var (
 			expErr = testtool.ErrExpTestA
-			calls  = make([]string, 0, 6)
+			Calls  = make([]string, 0, 6)
 		)
 
 		steps := []Step{
 			NewStep("step1").
 				WithAction(
 					NewAction(func(ctx context.Context, _ Track) error {
-						calls = append(calls, "action1")
+						Calls = append(Calls, "action1")
 						return expErr
 					}).WithWrapper(func(ctx context.Context, track Track, action ActionFunc) error {
-						calls = append(calls, "before_action1")
+						Calls = append(Calls, "before_action1")
 						err := action(ctx, track) // call action
 						assert.Error(t, err)
 						assert.ErrorIs(t, err, expErr)
-						calls = append(calls, "after_action1")
+						Calls = append(Calls, "after_action1")
 						return err
 					}),
 				).WithCompensation(
 				NewCompensation(func(ctx context.Context, track Track) error {
-					calls = append(calls, "com1")
-					actionErr := track.GetData().Action.Errors[0]
+					Calls = append(Calls, "com1")
+					actionErr := track.GetStepData().Action.Errors[0]
 					assert.Error(t, actionErr)
 					assert.ErrorIs(t, actionErr, expErr)
 					return nil
 				}).WithWrapper(func(ctx context.Context, track Track, comp CompensationFunc) error {
-					calls = append(calls, "before_comp1")
-					actionErr := track.GetData().Action.Errors[0]
+					Calls = append(Calls, "before_comp1")
+					actionErr := track.GetStepData().Action.Errors[0]
 					assert.Error(t, actionErr)
 					assert.ErrorIs(t, actionErr, expErr)
 					err := comp(ctx, track) // call compensation
 					assert.NoError(t, err)
-					calls = append(calls, "after_comp1")
+					Calls = append(Calls, "after_comp1")
 					return nil
 				}),
 			).WithCompensationRequired(),
@@ -991,7 +1001,7 @@ func Test_wrapper(t *testing.T) {
 				[]string{
 					"before_action1", "action1", "after_action1",
 					"before_comp1", "com1", "after_comp1",
-				}, calls))
+				}, Calls))
 	})
 }
 
@@ -1113,7 +1123,7 @@ func Test_steps(t *testing.T) {
 					).
 					WithCompensation(
 						NewCompensation(func(ctx context.Context, track Track) error {
-							str := track.GetData()
+							str := track.GetStepData()
 							assert.Equal(t, "step1", str.StepName)
 							assert.Equal(t, 0, str.StepPosition)
 							assert.Equal(t, ExecutionStatusFail, str.Action.Status)
@@ -1159,7 +1169,7 @@ func Test_steps(t *testing.T) {
 					).
 					WithCompensation(
 						NewCompensation(func(ctx context.Context, track Track) error {
-							str := track.GetData()
+							str := track.GetStepData()
 							assert.Equal(t, "step1", str.StepName)
 							assert.Equal(t, 0, str.StepPosition)
 							assert.Equal(t, ExecutionStatusFail, str.Action.Status)
@@ -1255,7 +1265,7 @@ func Test_steps(t *testing.T) {
 					).
 					WithCompensation(
 						NewCompensation(func(ctx context.Context, track Track) error {
-							str := track.GetData()
+							str := track.GetStepData()
 							assert.Equal(t, "step1", str.StepName)
 							assert.Equal(t, 0, str.StepPosition)
 							assert.Equal(t, ExecutionStatusFail, str.Action.Status)
@@ -1315,7 +1325,7 @@ func Test_retry(t *testing.T) {
 				).
 				WithCompensation(
 					NewCompensation(func(ctx context.Context, track Track) error {
-						str := track.GetData()
+						str := track.GetStepData()
 						if str.Compensation.Calls < retries+1 {
 							return fmt.Errorf("comp err [%d]: %w", len(str.Compensation.Errors), testtool.ErrExpTestA)
 						}
@@ -1336,11 +1346,15 @@ func Test_retry(t *testing.T) {
 		assert.Equal(t, 0, res.Steps[0].StepPosition)
 		assert.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
 		assert.Equal(t, 5, res.Steps[0].Action.Calls)
-		assert.Equal(t, 5, len(res.Steps[0].Action.Errors))
+		assert.Equal(t, 6, len(res.Steps[0].Action.Errors))
 
-		for _, e := range res.Steps[0].Action.Errors {
+		// check all errors except on [ErrRetryFailed]
+		for i := 0; i < len(res.Steps[0].Action.Errors)-1; i++ {
+			e := res.Steps[0].Action.Errors[i]
 			assert.ErrorIs(t, e, testtool.ErrExpTestA)
 		}
+		// check last [ErrRetryFailed] error
+		assert.ErrorIs(t, res.Steps[0].Action.Errors[len(res.Steps[0].Action.Errors)-1], ErrRetryFailed)
 
 		assert.Equal(t, ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
 		assert.Equal(t, 5, res.Steps[0].Compensation.Calls)
@@ -1370,7 +1384,7 @@ func Test_retry(t *testing.T) {
 				).
 				WithCompensation(
 					NewCompensation(func(ctx context.Context, track Track) error {
-						str := track.GetData()
+						str := track.GetStepData()
 						return fmt.Errorf("comp err [%d]: %w", len(str.Compensation.Errors), testtool.ErrExpTestB)
 					}).WithRetry(NewBaseRetryOpt(4, 5*time.Nanosecond)),
 				).WithCompensationRequired(),
@@ -1388,18 +1402,27 @@ func Test_retry(t *testing.T) {
 		assert.Equal(t, 0, res.Steps[0].StepPosition)
 		assert.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
 		assert.Equal(t, 5, res.Steps[0].Action.Calls)
-		assert.Equal(t, 5, len(res.Steps[0].Action.Errors))
+		assert.Equal(t, 6, len(res.Steps[0].Action.Errors))
 
-		for _, e := range res.Steps[0].Action.Errors {
+		// check all errors except on [ErrRetryFailed]
+		for i := 0; i < len(res.Steps[0].Action.Errors)-1; i++ {
+			e := res.Steps[0].Action.Errors[i]
 			assert.ErrorIs(t, e, testtool.ErrExpTestA)
 		}
+		// check last [ErrRetryFailed] error
+		assert.ErrorIs(t, res.Steps[0].Action.Errors[len(res.Steps[0].Action.Errors)-1], ErrRetryFailed)
 
 		assert.Equal(t, ExecutionStatusFail, res.Steps[0].Compensation.Status)
 		assert.Equal(t, 5, res.Steps[0].Compensation.Calls)
-		assert.Equal(t, 5, len(res.Steps[0].Compensation.Errors))
-		for _, e := range res.Steps[0].Compensation.Errors {
+		assert.Equal(t, 6, len(res.Steps[0].Compensation.Errors))
+
+		// check all errors except on [ErrRetryFailed]
+		for i := 0; i < len(res.Steps[0].Compensation.Errors)-1; i++ {
+			e := res.Steps[0].Compensation.Errors[i]
 			assert.ErrorIs(t, e, testtool.ErrExpTestB)
 		}
+		// check last [ErrRetryFailed] error
+		assert.ErrorIs(t, res.Steps[0].Compensation.Errors[len(res.Steps[0].Compensation.Errors)-1], ErrRetryFailed)
 
 		testtool.TestFn(t, func() {
 			t.Log(
