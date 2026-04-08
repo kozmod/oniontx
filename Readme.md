@@ -27,7 +27,7 @@ level while repositories remain focused on data access.
 - **Type-Safe**: Full generics support for compile-time safety
 - **Context-Aware**: Proper context propagation throughout transaction boundaries
 
-### Package mtx - Local Transactions
+### Package `mtx`: Local Transactions
 
 # <img src=".github/assets/clean_arch+uml.png" alt="drawing"  width="700" />
 🔴 **NOTE:** Use `mtx` when working with a **single** database instance. 
@@ -417,7 +417,7 @@ func main() {
 }
 ```
 
-### <a name="saga"><a/>Package `saga` - In-progress Workflow Engine
+### <a name="saga"><a/>Package `saga`: In-progress Workflow Engine
 Use `saga` when coordinating operations across **multiple** services, databases,
 or external systems. It implements the **In-Progress Workflow Engine** (or **In-Progress Local Saga**) pattern with compensating actions
 to maintain data consistency in distributed environments.
