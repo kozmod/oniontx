@@ -57,7 +57,7 @@ func (r Result) String() string {
 // Returns:
 //   - Result: aggregated execution data for all steps
 //   - error: descriptive error with categorized lists of failed/compensated steps
-func prepareResult(tracks []*inMemoryTracker) (Result, error) {
+func prepareResult(tracks []*simpleTracker) (Result, error) {
 	var (
 		result = Result{
 			Steps:  make([]StepData, 0, len(tracks)),

@@ -162,28 +162,26 @@ func (ed *ExecutionTrack) GetTrackData() TrackData {
 	}
 }
 
-// inMemoryTracker manages the execution state for a single saga step.
-type inMemoryTracker struct {
+// simpleTracker manages the execution state for a single saga step.
+type simpleTracker struct {
 	stepName     string
 	stepPosition uint32
 
 	action       Track
 	compensation Track
 
+	compensationFunc     CompensationFunc
 	compensationRequired bool
-	parentErr            error
-
-	compensationFunc CompensationFunc
 }
 
-// newInMemoryTrack creates a new inMemoryTracker for a given step.
-func newInMemoryTrack(position uint32, step Step, trackFactory func(Tracker) Track) *inMemoryTracker {
+// newInMemoryTrack creates a new simpleTracker for a given step.
+func newInMemoryTrack(position uint32, step Step, trackFactory func(Tracker) Track) *simpleTracker {
 
-	tracker := &inMemoryTracker{
+	tracker := &simpleTracker{
 		stepName:             step.Name,
 		stepPosition:         position,
-		compensationRequired: step.CompensationRequired,
 		compensationFunc:     step.Compensation,
+		compensationRequired: step.CompensationRequired,
 	}
 
 	tracker.action = trackFactory(tracker)
@@ -201,7 +199,7 @@ func newInMemoryTrack(position uint32, step Step, trackFactory func(Tracker) Tra
 }
 
 // GetStepData returns a snapshot of the current step state.
-func (t *inMemoryTracker) GetStepData() StepData {
+func (t *simpleTracker) GetStepData() StepData {
 	return StepData{
 		StepName:             t.stepName,
 		StepPosition:         t.stepPosition,

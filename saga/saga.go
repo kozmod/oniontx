@@ -65,8 +65,8 @@ func NewSaga(steps []Step) *Saga {
 // If any step fails, compensating actions are triggered for all successfully completed steps.
 func (s *Saga) Execute(ctx context.Context) (Result, error) {
 	var (
-		tracks         []*inMemoryTracker
-		completedTrack []*inMemoryTracker
+		tracks         []*simpleTracker
+		completedTrack []*simpleTracker
 	)
 
 stop:
@@ -132,7 +132,7 @@ stop:
 }
 
 // compensate triggers compensating actions for all steps in reverse order.
-func (s *Saga) compensate(ctx context.Context, tracks []*inMemoryTracker) {
+func (s *Saga) compensate(ctx context.Context, tracks []*simpleTracker) {
 stop:
 	for i, tr := range tracks {
 		if tr.compensationFunc == nil {

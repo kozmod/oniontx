@@ -463,11 +463,13 @@ steps := []saga.Step{
         WithCompensation(
             saga.NewCompensation(func(ctx context.Context, track saga.Track) error {
                 // Compensation logic.
-                // Use track.GetData() to inspect what failed
-                data := track.GetData()
+                // Get data to understand what failed
+                data := track.GetStepData()
+
+                // Log the error that triggered compensation
                 if len(data.Action.Errors) > 0 {
-                    log.Printf("Compensating for error: %v", data.Action.Errors[0])
-                }
+                    fmt.Printf("Compensating for error: %v\n", data.Action.Errors[0])
+				}
                 return performCompensation(ctx)
             }).
                 // Compensation can also have retry logic
