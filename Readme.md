@@ -417,13 +417,13 @@ func main() {
 }
 ```
 
-### <a name="saga"><a/>Package `saga` - in-progress workflow engine
+### <a name="saga"><a/>Package `saga` - In-progress Workflow Engine
 Use `saga` when coordinating operations across **multiple** services, databases,
-or external systems. It implements the **In-Progress workflow engine** pattern with compensating actions
+or external systems. It implements the **In-Progress Workflow Engine** (or **In-Progress Local Saga**) pattern with compensating actions
 to maintain data consistency in distributed environments.
 
 Unlike **Distributed Sagas** that require a centralized orchestrator or choreography
-between services, this implementation is designed as an **In-Progress Saga** where:
+between services, this implementation is designed as an **In-Progress Workflow Engine** where:
 - The saga execution happens within a single process/monolith
 - All steps are defined and executed locally
 - Compensations are called within the same process
