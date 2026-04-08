@@ -40,6 +40,12 @@ var (
 	// interrupted by context cancellation, meaning the operation was not completed
 	// and no more retries will be attempted.
 	ErrRetryContextDone = fmt.Errorf("retry context done")
+
+	// ErrRetryFailed indicates that all retry attempts have been exhausted without success.
+	// This error is returned when the maximum number of retry attempts configured in
+	// the RetryPolicy has been reached and every attempt failed. The original errors
+	// from each attempt are preserved in the Track's error list for debugging.
+	ErrRetryFailed = fmt.Errorf("retry failed")
 )
 
 // Saga coordinates a distributed transaction using the `Saga` pattern.
@@ -147,13 +153,7 @@ stop:
 			err := tr.compensationFunc(ctx, tr.compensation)
 			switch {
 			case err == nil:
-				comp := tr.compensation.GetTrackData()
-				// Determine final status based on error count vs calls
-				if uint32(len(comp.Errors)) == comp.Calls {
-					tr.compensation.SetStatus(ExecutionStatusFail)
-				} else {
-					tr.compensation.SetStatus(ExecutionStatusSuccess)
-				}
+				tr.compensation.SetStatus(ExecutionStatusSuccess)
 			case err != nil:
 				tr.compensation.SetStatus(ExecutionStatusFail)
 				tr.compensation.AddError(fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.stepName, err))

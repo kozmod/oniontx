@@ -128,15 +128,19 @@ func (o AdvanceRetryPolicy) Delay(i uint32) time.Duration {
 // The function respects context cancellation and will return context.Err() if done.
 //
 // Behavior:
-//   - If Attempts() = 0, the function immediately returns nil without executing fn
-//   - Before each attempt, it waits for the delay provided by opt.Delay(attempt)
-//   - The function stops retrying on first successful execution
-//   - Context cancellation is respected between attempts (checked before each attempt)
-//   - All Errors from failed attempts are collected
+//   - If attempts = 0, the function executes fn once and returns its result
+//   - On first successful execution, returns nil and sets status to ExecutionStatusSuccess
+//   - On failure, retries up to attempts times with delays between attempts
+//   - Context cancellation is respected before each attempt
+//   - All errors from failed attempts are collected in Track.Errors
+//   - Each retry attempt is wrapped with a "retry [N]" prefix for error context
 //
-// If all attempts fail, behavior depends on ReturnAllAroseErr():
-//   - if true - returns all Errors via Errors.Join(...)
-//   - if false - returns only the last error that occurred
+// Return values:
+//   - nil if any attempt succeeds
+//   - ErrRetryContextDone if context is cancelled during retry waiting
+//   - ErrRetryFailed if all attempts fail (including the initial call)
+//
+// The original error from the final attempt is NOT returned directly;
 func WithRetry(opt RetryPolicy, fn func(ctx context.Context, track Track) error) func(context.Context, Track) error {
 	return func(ctx context.Context, track Track) error {
 		// first call
@@ -163,10 +167,12 @@ func WithRetry(opt RetryPolicy, fn func(ctx context.Context, track Track) error)
 			track.SetParentError(fmt.Errorf("retry [%d]", i))
 			select {
 			case <-ctx.Done():
+				err = ctx.Err()
 				track.SetStatus(ExecutionStatusFail)
 				track.AddError(
-					errors.Join(ErrRetryContextDone, ctx.Err()),
+					errors.Join(ErrRetryContextDone, err),
 				)
+
 				break stop
 			default:
 				err = fn(ctx, track)
@@ -183,6 +189,9 @@ func WithRetry(opt RetryPolicy, fn func(ctx context.Context, track Track) error)
 		}
 
 		track.SetParentError(nil)
+		if err != nil {
+			return ErrRetryFailed
+		}
 		return nil
 	}
 }
