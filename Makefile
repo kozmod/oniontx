@@ -10,10 +10,10 @@ godoc: ## Install and run godoc
 tools: ## Run tools (vet, gofmt, goimports, tidy, etc.)
 	@go version
 	@(for sub in ${SUBMODULES} ; do \
-		pushd "$$sub" && gofmt -w . && goimports -w . && go mod tidy && go mod download && popd; \
+		pushd "$$sub" && gofmt -w . && goimports -w . && go mod tidy && GIT_TRACE=1 GIT_CURL_VERBOSE=1 go mod download -x && popd; \
 	done)
 	@go mod tidy
-	@go mod download
+	@GIT_TRACE=1 GIT_CURL_VERBOSE=1 go mod download -x
 
 .PHONY: tools.update
 tools.update: ## Update or install tools
