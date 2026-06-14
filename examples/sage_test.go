@@ -19,12 +19,12 @@ func Test_Saga_example(t *testing.T) {
 	t.Skip()
 
 	var (
-		// ErrPaymentFailed is an example error type for demonstration
+		// ErrPaymentFailed is an example error type for demonstration.
 		ErrPaymentFailed = fmt.Errorf("payment failed")
 
-		// refundPayment is an example compensation function
+		// refundPayment is an example compensation function.
 		refundPayment = func(ctx context.Context) error {
-			// Implementation would refund a payment
+			// Implementation would refund a payment.
 			return nil
 		}
 	)
@@ -52,7 +52,8 @@ func Test_Saga_example(t *testing.T) {
 						//
 						// Use track to record intermediate errors:
 						// if err := someOperation(ctx); err != nil {
-						//     track.SetFailedOnError(err)
+						//     track.SetStatus(saga.ExecutionStatusFail)
+						//     track.AddError(err)
 						//     return err
 						// }
 						return nil
@@ -78,9 +79,9 @@ func Test_Saga_example(t *testing.T) {
 					// Default compensation logic
 					return nil
 				})).
-				// CompensationRequired determines whether this step needs compensation
-				// true: if step changes state and requires rollback
-				// false: for read-only operations or non-compensatable actions (email, notifications)
+				// WithCompensationRequired determines whether this step can compensate
+				// its own action failure. Without it, only successfully completed
+				// steps are compensated after a later step fails.
 				WithCompensationRequired(),
 		}
 
@@ -99,7 +100,7 @@ func Test_Saga_example(t *testing.T) {
 	})
 
 	t.Run("second_example: advanced approach with builder", func(t *testing.T) {
-		// Use StepBuilder for more complex configuration
+		// Use the builder API for more complex configuration.
 		// This approach provides access to all library features:
 		// - Panic recovery
 		// - Retry policies
@@ -114,7 +115,7 @@ func Test_Saga_example(t *testing.T) {
 						// Record the error in track
 						err := fmt.Errorf("first_step_Error")
 						track.SetStatus(saga.ExecutionStatusFail)
-						// add the error to the errors list
+						// Add the error to the errors list.
 						track.AddError(err)
 						return err
 					}).
@@ -173,7 +174,7 @@ func Test_Saga_example(t *testing.T) {
 		result, err := saga.NewSaga(steps).Execute(context.Background())
 
 		if err != nil {
-			// Handle error with full context
+			// Handle error with full context.
 			fmt.Printf("Saga execution failed: %v\n", err)
 			fmt.Printf("Result status: %s\n", result.Status)
 		}

@@ -58,7 +58,7 @@ func Test_Saga_retry(t *testing.T) {
 			}
 		})
 		t.Run("builders", func(t *testing.T) {
-			t.Run("success_ActionFunc", func(t *testing.T) {
+			t.Run("success_Operation", func(t *testing.T) {
 				var (
 					errCounter  = 0
 					actionCalls = 0

@@ -12,7 +12,7 @@ to the `Application` (service) layer using an owner-defined contract.
 
 The library provides **two complementary approaches** that can be used independently or together:
 - **`mtx` package**: Local ACID transactions for single-resource operations
-- **`saga` package**: Distributed compensating transactions for multi-resource coordination
+- **`saga` package**: Local compensating workflows for multi-resource coordination
 
 Both packages maintain clean architecture principles by keeping transaction control at the application 
 level while repositories remain focused on data access.
@@ -21,7 +21,7 @@ level while repositories remain focused on data access.
 - **Clean Architecture First**: Transactions managed at the application layer, not in repositories
 - **Dual Transaction Support**:
     - `mtx` package for local ACID transactions (single database)
-    - `saga` package for distributed compensating transactions (multiple services/databases)
+    - `saga` package for in-process compensating workflows (multiple services/databases)
 - **Database Agnostic**: Ready-to-use implementations for popular databases and libraries
 - **Testability First**: Built-in support for major testing frameworks
 - **Type-Safe**: Full generics support for compile-time safety
@@ -420,7 +420,7 @@ func main() {
 ### <a name="saga"><a/>Package `saga`: In-progress Workflow Engine
 Use `saga` when coordinating operations across **multiple** services, databases,
 or external systems. It implements the **In-Progress Workflow Engine** (or **In-Progress Local Saga**) pattern with compensating actions
-to maintain data consistency in distributed environments.
+to maintain consistency within a single process.
 
 Unlike **Distributed Sagas** that require a centralized orchestrator or choreography
 between services, this implementation is designed as an **In-Progress Workflow Engine** where:
@@ -435,7 +435,7 @@ Each step contains:
 - **Compensation**: A rollback operation that undoes the action if later steps fail
 
 Steps execute sequentially. If any step fails, all previous steps are automatically
-compensated, ensuring system consistency.
+compensated in reverse completion order.
 
 # <img src=".github/assets/sage_usage_1.png" alt="drawing"  width="700" />
 
@@ -445,7 +445,7 @@ steps := []saga.Step{
     saga.NewStep("first_step").
         WithAction(
             // Add action with decorators
-            saga.NewAction(func(ctx context.Context, track saga.Track) error {
+            saga.NewOperation(func(ctx context.Context, track saga.Track) error {
                 err := fmt.Errorf("first_step_Error")
                 return err
             }).
@@ -461,7 +461,7 @@ steps := []saga.Step{
         ).
         // Add compensation
         WithCompensation(
-            saga.NewCompensation(func(ctx context.Context, track saga.Track) error {
+            saga.NewOperation(func(ctx context.Context, track saga.Track) error {
                 // Compensation logic.
                 // Get data to understand what failed
                 data := track.GetStepData()
@@ -469,13 +469,13 @@ steps := []saga.Step{
                 // Log the error that triggered compensation
                 if len(data.Action.Errors) > 0 {
                     fmt.Printf("Compensating for error: %v\n", data.Action.Errors[0])
-				}
+                }
                 return performCompensation(ctx)
             }).
                 // Compensation can also have retry logic
                 WithRetry(
                     saga.NewAdvanceRetryPolicy(
-                        2,                            // max attempts
+                        2,                            // retry attempts after the initial call
                         1*time.Second,                // initial delay
                         saga.NewExponentialBackoff(), // exponential backoff
                     ).
