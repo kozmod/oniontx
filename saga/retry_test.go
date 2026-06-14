@@ -127,4 +127,32 @@ func Test_Saga_retry(t *testing.T) {
 			})
 		})
 	})
+	t.Run("context_cancel_during_delay", func(t *testing.T) {
+		var (
+			ctx, cancel = context.WithCancel(context.Background())
+			actionCalls = 0
+		)
+
+		steps := []Step{
+			NewStep("step0").
+				WithAction(
+					NewOperation(func(ctx context.Context, _ Track) error {
+						actionCalls++
+						if actionCalls == 1 {
+							cancel()
+						}
+						return testtool.ErrExpTestA
+					}).WithRetry(NewBaseRetryOpt(3, time.Hour)),
+				),
+		}
+
+		resp, err := NewSaga(steps).Execute(ctx)
+		assert.Error(t, err)
+		assert.Equal(t, StageResultFail, resp.Status)
+		assert.Equal(t, 1, actionCalls)
+		assert.Equal(t, 3, len(resp.Steps[0].Action.Errors))
+		assert.ErrorIs(t, resp.Steps[0].Action.Errors[0], testtool.ErrExpTestA)
+		assert.ErrorIs(t, resp.Steps[0].Action.Errors[1], ErrRetryContextDone)
+		assert.ErrorIs(t, resp.Steps[0].Action.Errors[2], ErrRetryFailed)
+	})
 }
