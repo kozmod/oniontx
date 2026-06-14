@@ -191,6 +191,46 @@ func TestSaga_Execute(t *testing.T) {
 			assert.True(t, slices.Equal([]string{"action1"}, executedActions))
 			assert.True(t, slices.Equal([]string{"comp1"}, executedCompensation))
 		})
+
+		t.Run("reverse_order", func(t *testing.T) {
+			var executedCompensation []string
+
+			steps := []Step{
+				NewStep("step0").
+					WithAction(NewOperation(func(ctx context.Context, _ Track) error {
+						return nil
+					})).
+					WithCompensation(NewOperation(func(ctx context.Context, _ Track) error {
+						executedCompensation = append(executedCompensation, "comp0")
+						return nil
+					})),
+				NewStep("step1").
+					WithAction(NewOperation(func(ctx context.Context, _ Track) error {
+						return nil
+					})).
+					WithCompensation(NewOperation(func(ctx context.Context, _ Track) error {
+						executedCompensation = append(executedCompensation, "comp1")
+						return nil
+					})),
+				NewStep("step2").
+					WithAction(NewOperation(func(ctx context.Context, _ Track) error {
+						return nil
+					})).
+					WithCompensation(NewOperation(func(ctx context.Context, _ Track) error {
+						executedCompensation = append(executedCompensation, "comp2")
+						return nil
+					})),
+				NewStep("step3").
+					WithAction(NewOperation(func(ctx context.Context, _ Track) error {
+						return testtool.ErrExpTestA
+					})),
+			}
+
+			res, err := NewSaga(steps).Execute(ctx)
+			assert.Error(t, err)
+			assert.Equal(t, StageResultCompensated, res.Status)
+			assert.True(t, slices.Equal([]string{"comp2", "comp1", "comp0"}, executedCompensation))
+		})
 	})
 }
 
