@@ -133,7 +133,8 @@ stop:
 // compensate triggers compensating actions for all steps in reverse order.
 func (s *Saga) compensate(ctx context.Context, tracks []*simpleTracker) {
 stop:
-	for i, tr := range tracks {
+	for i := len(tracks) - 1; i >= 0; i-- {
+		tr := tracks[i]
 		if tr.compensationFunc == nil {
 			continue
 		}
