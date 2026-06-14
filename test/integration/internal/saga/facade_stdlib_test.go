@@ -50,7 +50,7 @@ func Test_Saga_stdlib_Facade(t *testing.T) {
 					return nil
 				})).
 				WithCompensation(saga.NewOperation(func(ctx context.Context, track saga.Track) error {
-					//data := track.GetData()
+					//data := track.GetStepData()
 					//assert.Len(t, data.Action.Errors, 1)
 					//assert.ErrorIs(t, data.Action.Errors[0], entity.ErrExpected)
 

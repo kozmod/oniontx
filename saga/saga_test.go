@@ -261,7 +261,7 @@ func Test_Saga_panic_recovery(t *testing.T) {
 		})
 	})
 	t.Run("builder_stile", func(t *testing.T) {
-		t.Run("success_ActionFunc", func(t *testing.T) {
+		t.Run("success_Operation", func(t *testing.T) {
 			steps := []Step{
 				NewStep("step0").
 					WithAction(

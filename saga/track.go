@@ -46,10 +46,10 @@ type StepData struct {
 
 	// Action is the execution data for the main action.
 	Action TrackData
-	// Compensation is the xecution data for the compensation operation.
+	// Compensation is the execution data for the compensation operation.
 	Compensation TrackData
 
-	// CompensationRequired define when compensation should be triggered on failure.
+	// CompensationRequired reports whether this step can compensate its own action failure.
 	CompensationRequired bool
 }
 
@@ -63,7 +63,7 @@ func (s StepData) String() string {
 	)
 }
 
-// TrackData contains immutable execution metrics for a single operation.
+// TrackData contains execution metrics for a single operation snapshot.
 type TrackData struct {
 	Calls  uint32
 	Errors []error
@@ -115,7 +115,7 @@ func (ed *ExecutionTrack) Calls() uint32 {
 	return ed.calls
 }
 
-// Errors returns the list of errors that occurred during execution.
+// Errors returns the collected execution errors.
 func (ed *ExecutionTrack) Errors() []error {
 	return ed.errors
 }
@@ -153,7 +153,7 @@ func (ed *ExecutionTrack) GetStepData() StepData {
 	return ed.tracker.GetStepData()
 }
 
-// GetTrackData creates a deep copy of TrackData.
+// GetTrackData returns a copy of the current TrackData.
 func (ed *ExecutionTrack) GetTrackData() TrackData {
 	return TrackData{
 		Calls:  ed.calls,
@@ -178,7 +178,7 @@ type simpleTracker struct {
 func newInMemoryTrack(position uint32, step Step, trackFactory func(Tracker) Track) *simpleTracker {
 
 	tracker := &simpleTracker{
-		stepName:             step.Name,
+		stepName:             step.name,
 		stepPosition:         position,
 		compensationFunc:     step.compensation.fn,
 		compensationRequired: step.compensationRequired,

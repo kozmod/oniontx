@@ -12,13 +12,12 @@ type StageStatus string
 const (
 	// StageResultUnknown indicates the saga result cannot be determined.
 	StageResultUnknown StageStatus = "Unknown"
-	// StageResultFail indicates the saga failed and no compensation was applied
-	// (or compensation also failed).
+	// StageResultFail indicates the saga failed and compensation did not fully recover it.
 	StageResultFail StageStatus = "Fail"
-	// StageResultSuccess indicates all actions completed successfully
+	// StageResultSuccess indicates all actions completed successfully.
 	StageResultSuccess StageStatus = "Success"
-	// StageResultCompensated indicates some actions failed and successful
-	// compensations were applied.
+	// StageResultCompensated indicates at least one action failed and configured
+	// compensations completed successfully.
 	StageResultCompensated StageStatus = "Compensated"
 )
 
@@ -43,14 +42,13 @@ func (r Result) String() string {
 }
 
 // prepareResult analyzes execution tracks and produces a final Result.
-// It evaluates the state of all steps and determines the overall saga outcome
-// based on action failures, compensation requirements, and compensation outcomes.
+// It evaluates all step tracks and determines the overall saga outcome based on
+// action failures, compensation requirements, and compensation outcomes.
 //
 // The function implements the following logic:
 //   - If no actions failed -> StageResultSuccess
-//   - If any compensation that was required to run failed -> StageResultFail
-//   - If there were failed actions requiring compensation but all compensations
-//     succeeded -> StageResultCompensated
+//   - If any required compensation failed -> StageResultFail
+//   - If there were failed actions and all required compensations succeeded -> StageResultCompensated
 //   - Special case: when no compensations were required, no successful steps,
 //     and no successful compensations -> StageResultFail
 //

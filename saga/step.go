@@ -1,51 +1,46 @@
 package saga
 
-// Step represents a single unit of work within a Saga transaction.
-// Each step consists of an action (the main operation) and an optional
-// compensation (the undo operation). Steps are executed in order, and if any
-// step fails, the compensation of all successfully executed steps that have
-// compensation enabled will be called in reverse order.
+// Step represents a single unit of work within a local saga.
+// Each step consists of an action and an optional compensation operation.
+// Steps are executed in order. If any step fails, compensations for completed
+// steps are called in reverse order.
 type Step struct {
-	// Name of the step.
-	Name string
+	// name of the step.
+	name string
 
-	// Operation is the main operation executed within a step's transaction.
+	// action is the main operation executed for the step.
 	action Operation
 
-	// compensation - a compensating action that undoes the Operation (if possible).
-	// Called upon failure in subsequent steps.
-	// Invoked when a subsequent step fails.
-	//
-	// Parameters:
-	//   - ctx: context for cancellation and deadlines (context that is passed through the action)
-	//   - aroseErr: error from the previous action that needs compensation
-	//
-	// Note: Compensations should be idempotent as they might be called
-	// multiple times in failure scenarios.
+	// compensation is an optional operation that attempts to undo the action.
+	// Compensation should be idempotent because recovery code may be retried by
+	// callers after a failed saga execution.
 	compensation Operation
 
-	// compensationRequired needs to add the current compensation to the list of compensations.
+	// compensationRequired adds this step to the compensation list before its
+	// action runs, so the step can compensate itself if its own action fails.
 	compensationRequired bool
 }
 
 // NewStep creates a new Step with the given name.
 func NewStep(name string) Step {
-	return Step{Name: name}
+	return Step{name: name}
 }
 
-// WithAction sets the action function for the step and returns the modified step.
+// WithAction sets the action operation for the step.
 func (s Step) WithAction(op Operation) Step {
 	s.action = op
 	return s
 }
 
-// WithCompensation sets the compensation function for the step and returns the modified step.
+// WithCompensation sets the compensation operation for the step.
 func (s Step) WithCompensation(op Operation) Step {
 	s.compensation = op
 	return s
 }
 
-// WithCompensationRequired enables compensation for this step on failure.
+// WithCompensationRequired enables compensation for this step even if its own
+// action fails. Without this flag, only successfully completed steps are
+// considered for compensation.
 func (s Step) WithCompensationRequired() Step {
 	s.compensationRequired = true
 	return s
