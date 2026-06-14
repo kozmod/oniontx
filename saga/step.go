@@ -9,10 +9,10 @@ type Step struct {
 	// Name of the step.
 	Name string
 
-	// Action is the main operation executed within a step's transaction.
-	Action ActionFunc
+	// Operation is the main operation executed within a step's transaction.
+	action Operation
 
-	// Compensation - a compensating action that undoes the Action (if possible).
+	// compensation - a compensating action that undoes the Operation (if possible).
 	// Called upon failure in subsequent steps.
 	// Invoked when a subsequent step fails.
 	//
@@ -22,10 +22,10 @@ type Step struct {
 	//
 	// Note: Compensations should be idempotent as they might be called
 	// multiple times in failure scenarios.
-	Compensation CompensationFunc
+	compensation Operation
 
-	// CompensationRequired needs to add the current compensation to the list of compensations.
-	CompensationRequired bool
+	// compensationRequired needs to add the current compensation to the list of compensations.
+	compensationRequired bool
 }
 
 // NewStep creates a new Step with the given name.
@@ -34,19 +34,19 @@ func NewStep(name string) Step {
 }
 
 // WithAction sets the action function for the step and returns the modified step.
-func (s Step) WithAction(fn ActionFunc) Step {
-	s.Action = fn
+func (s Step) WithAction(op Operation) Step {
+	s.action = op
 	return s
 }
 
 // WithCompensation sets the compensation function for the step and returns the modified step.
-func (s Step) WithCompensation(fn CompensationFunc) Step {
-	s.Compensation = fn
+func (s Step) WithCompensation(op Operation) Step {
+	s.compensation = op
 	return s
 }
 
 // WithCompensationRequired enables compensation for this step on failure.
 func (s Step) WithCompensationRequired() Step {
-	s.CompensationRequired = true
+	s.compensationRequired = true
 	return s
 }

@@ -170,7 +170,7 @@ type simpleTracker struct {
 	action       Track
 	compensation Track
 
-	compensationFunc     CompensationFunc
+	compensationFunc     OperationFunc
 	compensationRequired bool
 }
 
@@ -180,18 +180,18 @@ func newInMemoryTrack(position uint32, step Step, trackFactory func(Tracker) Tra
 	tracker := &simpleTracker{
 		stepName:             step.Name,
 		stepPosition:         position,
-		compensationFunc:     step.Compensation,
-		compensationRequired: step.CompensationRequired,
+		compensationFunc:     step.compensation.fn,
+		compensationRequired: step.compensationRequired,
 	}
 
 	tracker.action = trackFactory(tracker)
 	tracker.compensation = trackFactory(tracker)
 
-	if step.Compensation == nil {
+	if step.compensation.fn == nil {
 		tracker.compensation.SetStatus(ExecutionStatusUnset)
 	}
 
-	if step.Action == nil {
+	if step.action.fn == nil {
 		tracker.action.SetStatus(ExecutionStatusUnset)
 	}
 

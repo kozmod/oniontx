@@ -70,37 +70,32 @@ func Test_Saga_multi_Facade(t *testing.T) {
 			mongoRepo       = mongo.NewRepository(mongoCollectionA, mongoTransactor, false)
 		)
 		res, err := saga.NewSaga([]saga.Step{
-			{
-				Name: "step_sql_0",
-				Action: func(ctx context.Context, _ saga.Track) error {
+			saga.NewStep("step_sql_0").
+				WithAction(saga.NewOperation(func(ctx context.Context, _ saga.Track) error {
 					err := sqlTransactor.WithinTx(ctx, func(ctx context.Context) error {
 						return sqlRepo.Insert(ctx, sqlTextRecord)
 					})
 					assert.NoError(t, err)
 					return nil
-				},
-				Compensation: func(ctx context.Context, _ saga.Track) error {
+				})).
+				WithCompensation(saga.NewOperation(func(ctx context.Context, _ saga.Track) error {
 					assert.Fail(t, "should not call (sql)")
 					return nil
-				},
-			},
-			{
-				Name: "step_mongo_0",
-				Action: func(ctx context.Context, _ saga.Track) error {
+				})),
+			saga.NewStep("step_mongo_0").
+				WithAction(saga.NewOperation(func(ctx context.Context, _ saga.Track) error {
 					err := mongoTransactor.WithinTx(ctx, func(ctx context.Context) error {
 						return mongoRepo.Save(ctx, mongoTestDataValA)
 					})
 					assert.NoError(t, err)
 					return nil
-				},
-				Compensation: func(ctx context.Context, _ saga.Track) error {
+				})).
+				WithCompensation(saga.NewOperation(func(ctx context.Context, _ saga.Track) error {
 					assert.Fail(t, "should not call (mongo)")
 					return nil
-				},
-			},
-			{
-				Name: "step_check_all",
-				Action: func(ctx context.Context, _ saga.Track) error {
+				})),
+			saga.NewStep("step_check_all").
+				WithAction(saga.NewOperation(func(ctx context.Context, _ saga.Track) error {
 					records, err := stdlib.GetTextRecords(sqlDB)
 					assert.NoError(t, err)
 					assert.Len(t, records, 1)
@@ -111,8 +106,7 @@ func Test_Saga_multi_Facade(t *testing.T) {
 					assert.NoError(t, err)
 
 					return nil
-				},
-			},
+				})),
 		}).Execute(ctx)
 
 		assert.NoError(t, err)
@@ -134,16 +128,15 @@ func Test_Saga_multi_Facade(t *testing.T) {
 			mongoRepo       = mongo.NewRepository(mongoCollectionA, mongoTransactor, false)
 		)
 		res, err := saga.NewSaga([]saga.Step{
-			{
-				Name: "step_sql_0",
-				Action: func(ctx context.Context, _ saga.Track) error {
+			saga.NewStep("step_sql_0").
+				WithAction(saga.NewOperation(func(ctx context.Context, _ saga.Track) error {
 					err := sqlTransactor.WithinTx(ctx, func(ctx context.Context) error {
 						return sqlRepo.Insert(ctx, sqlTextRecord)
 					})
 					assert.NoError(t, err)
 					return err
-				},
-				Compensation: func(ctx context.Context, track saga.Track) error {
+				})).
+				WithCompensation(saga.NewOperation(func(ctx context.Context, track saga.Track) error {
 					data := track.GetStepData()
 					assert.Len(t, data.Action.Errors, 0)
 
@@ -152,18 +145,16 @@ func Test_Saga_multi_Facade(t *testing.T) {
 					})
 					assert.NoError(t, err)
 					return err
-				},
-			},
-			{
-				Name: "step_mongo_0",
-				Action: func(ctx context.Context, _ saga.Track) error {
+				})),
+			saga.NewStep("step_mongo_0").
+				WithAction(saga.NewOperation(func(ctx context.Context, _ saga.Track) error {
 					err := mongoTransactor.WithinTx(ctx, func(ctx context.Context) error {
 						return mongoRepo.Save(ctx, mongoTestDataValA)
 					})
 					assert.NoError(t, err)
 					return err
-				},
-				Compensation: func(ctx context.Context, track saga.Track) error {
+				})).
+				WithCompensation(saga.NewOperation(func(ctx context.Context, track saga.Track) error {
 					data := track.GetStepData()
 					assert.Len(t, data.Action.Errors, 0)
 
@@ -171,11 +162,9 @@ func Test_Saga_multi_Facade(t *testing.T) {
 					err := mongoRepo.Delete(ctx, mongoTestDataValA)
 					assert.NoError(t, err)
 					return err
-				},
-			},
-			{
-				Name: "step_check_all",
-				Action: func(ctx context.Context, _ saga.Track) error {
+				})),
+			saga.NewStep("step_check_all").
+				WithAction(saga.NewOperation(func(ctx context.Context, _ saga.Track) error {
 					records, err := stdlib.GetTextRecords(sqlDB)
 					assert.NoError(t, err)
 					assert.Len(t, records, 1)
@@ -186,14 +175,11 @@ func Test_Saga_multi_Facade(t *testing.T) {
 					assert.NoError(t, err)
 
 					return nil
-				},
-			},
-			{
-				Name: "step_error",
-				Action: func(ctx context.Context, _ saga.Track) error {
+				})),
+			saga.NewStep("step_error").
+				WithAction(saga.NewOperation(func(ctx context.Context, _ saga.Track) error {
 					return entity.ErrExpected
-				},
-			},
+				})),
 		}).Execute(ctx)
 
 		assert.Error(t, err)
@@ -228,9 +214,8 @@ func Test_Saga_multi_Facade(t *testing.T) {
 			mongoRepo       = mongo.NewRepository(mongoCollectionA, mongoTransactor, false)
 		)
 		res, err := saga.NewSaga([]saga.Step{
-			{
-				Name: "step_sql_0",
-				Action: func(ctx context.Context, _ saga.Track) error {
+			saga.NewStep("step_sql_0").
+				WithAction(saga.NewOperation(func(ctx context.Context, _ saga.Track) error {
 					// The parent [Transactor] which maintain SQL transactions.
 					err := sqlTransactor.WithinTx(ctx, func(ctx context.Context) error {
 						err := sqlRepo.Insert(ctx, sqlTextRecord)
@@ -256,10 +241,9 @@ func Test_Saga_multi_Facade(t *testing.T) {
 					})
 					assert.Error(t, err)
 					return err
-				},
+				})).
 				// Need to add current compensation to list of compensations.
-				CompensationRequired: true,
-				Compensation: func(ctx context.Context, track saga.Track) error {
+				WithCompensation(saga.NewOperation(func(ctx context.Context, track saga.Track) error {
 					// check Mongo entities (commit).
 					data, err := mongo.GetDataByID(ctx, t, mongoCollectionA, mongoTestID)
 					assert.NoError(t, err)
@@ -281,8 +265,8 @@ func Test_Saga_multi_Facade(t *testing.T) {
 					}
 					assert.Fail(t, "should not have been called")
 					return nil
-				},
-			},
+				})).
+				WithCompensationRequired(),
 		}).Execute(ctx)
 
 		assert.ErrorIs(t, err, saga.ErrActionFailed)
