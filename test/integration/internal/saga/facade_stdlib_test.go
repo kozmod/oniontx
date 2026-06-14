@@ -41,16 +41,15 @@ func Test_Saga_stdlib_Facade(t *testing.T) {
 			repoB      = stdlib.NewTextRepository(transactor, true)
 		)
 		res, err := saga.NewSaga([]saga.Step{
-			{
-				Name: "step_0",
-				Action: func(ctx context.Context, _ saga.Track) error {
+			saga.NewStep("step_0").
+				WithAction(saga.NewOperation(func(ctx context.Context, _ saga.Track) error {
 					err := transactor.WithinTx(ctx, func(ctx context.Context) error {
 						return repoA.Insert(ctx, textRecord)
 					})
 					assert.NoError(t, err)
 					return nil
-				},
-				Compensation: func(ctx context.Context, track saga.Track) error {
+				})).
+				WithCompensation(saga.NewOperation(func(ctx context.Context, track saga.Track) error {
 					//data := track.GetData()
 					//assert.Len(t, data.Action.Errors, 1)
 					//assert.ErrorIs(t, data.Action.Errors[0], entity.ErrExpected)
@@ -58,22 +57,18 @@ func Test_Saga_stdlib_Facade(t *testing.T) {
 					err := repoA.Delete(ctx, textRecord)
 					assert.NoError(t, err)
 					return err
-				},
-			},
-			{
-				Name: "step_1",
-				Action: func(ctx context.Context, _ saga.Track) error {
+				})),
+			saga.NewStep("step_1").
+				WithAction(saga.NewOperation(func(ctx context.Context, _ saga.Track) error {
 					records, err := stdlib.GetTextRecords(db)
 					assert.NoError(t, err)
 					assert.Len(t, records, 1)
 					assert.ElementsMatch(t, []string{textRecord}, records)
 
 					return nil
-				},
-			},
-			{
-				Name: "step_2",
-				Action: func(ctx context.Context, _ saga.Track) error {
+				})),
+			saga.NewStep("step_2").
+				WithAction(saga.NewOperation(func(ctx context.Context, _ saga.Track) error {
 					err := transactor.WithinTx(ctx, func(ctx context.Context) error {
 						err := repoA.Insert(ctx, textRecord)
 						if err != nil {
@@ -91,8 +86,7 @@ func Test_Saga_stdlib_Facade(t *testing.T) {
 					assert.Error(t, err)
 					assert.ErrorIs(t, err, entity.ErrExpected)
 					return err
-				},
-			},
+				})),
 		}).Execute(ctx)
 
 		assert.Error(t, err)

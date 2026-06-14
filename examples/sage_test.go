@@ -12,9 +12,9 @@ import (
 
 // Test_Saga_example demonstrates two approaches to creating sagas:
 //
-// 1. Simple, declarative — for straightforward, linear processes
+// 1. Simple builder style — for straightforward, linear processes
 //
-// 2. Advanced, using builder — for complex scenarios with retry and recovery
+// 2. Advanced builder style — for complex scenarios with retry and recovery
 func Test_Saga_example(t *testing.T) {
 	t.Skip()
 
@@ -29,45 +29,41 @@ func Test_Saga_example(t *testing.T) {
 		}
 	)
 
-	t.Run("first_example: simple declarative approach", func(t *testing.T) {
-		// Create saga steps as simple structs
+	t.Run("first_example: simple builder approach", func(t *testing.T) {
+		// Create saga steps with the public builder API.
 		// This approach is ideal when:
 		// - You have simple actions and compensation logic
 		// - You want maximum readability
 		// - You don't need additional decorators (retry, panic recovery)
 		steps := []saga.Step{
-			{
-				// Name is used for logging and debugging
-				// Best practice: give meaningful names
-				Name: "first_step",
-
-				// Action — the main function of the step
-				// Executes business logic and returns an error on failure
-				// The track parameter provides access to execution context:
-				//   - track.GetData() — retrieve step execution data
-				//   - track.SetFailedOnError(err) — record errors
-				//   - track.AddError(err) — append errors without changing status
-				Action: func(ctx context.Context, track saga.Track) error {
-					// This could be:
-					// - Database query via mtx.Transactor
-					// - External API call
-					// - Any other operation
-					//
-					// Use track to record intermediate errors:
-					// if err := someOperation(ctx); err != nil {
-					//     track.SetFailedOnError(err)
-					//     return err
-					// }
-					return nil
-				},
-
+			saga.NewStep("first_step").
+				WithAction(saga.NewOperation(
+					// Action — the main function of the step
+					// Executes business logic and returns an error on failure
+					// The track parameter provides access to execution context:
+					//   - track.GetStepData() — retrieve step execution data
+					//   - track.SetStatus(status) — update execution status
+					//   - track.AddError(err) — append errors without changing status
+					func(ctx context.Context, track saga.Track) error {
+						// This could be:
+						// - Database query via mtx.Transactor
+						// - External API call
+						// - Any other operation
+						//
+						// Use track to record intermediate errors:
+						// if err := someOperation(ctx); err != nil {
+						//     track.SetFailedOnError(err)
+						//     return err
+						// }
+						return nil
+					})).
 				// Compensation — rollback function
 				// Called if subsequent steps fail
 				// Important: compensation must be idempotent!
 				// The track contains information about the failed action:
-				//   - track.GetData().Action.Errors — errors from the action
-				//   - track.GetData().Action.Status — status of the action
-				Compensation: func(ctx context.Context, track saga.Track) error {
+				//   - track.GetStepData().Action.Errors — errors from the action
+				//   - track.GetStepData().Action.Status — status of the action
+				WithCompensation(saga.NewOperation(func(ctx context.Context, track saga.Track) error {
 					// Get execution data to make decisions based on error type
 					data := track.GetStepData()
 
@@ -81,13 +77,11 @@ func Test_Saga_example(t *testing.T) {
 
 					// Default compensation logic
 					return nil
-				},
-
+				})).
 				// CompensationRequired determines whether this step needs compensation
 				// true: if step changes state and requires rollback
 				// false: for read-only operations or non-compensatable actions (email, notifications)
-				CompensationRequired: true,
-			},
+				WithCompensationRequired(),
 		}
 
 		// Create and execute the Saga.
@@ -115,7 +109,7 @@ func Test_Saga_example(t *testing.T) {
 			saga.NewStep("first_step").
 				WithAction(
 					// Add action with decorators
-					saga.NewAction(func(ctx context.Context, track saga.Track) error {
+					saga.NewOperation(func(ctx context.Context, track saga.Track) error {
 						// Simulate error to demonstrate retry
 						// Record the error in track
 						err := fmt.Errorf("first_step_Error")
@@ -136,7 +130,7 @@ func Test_Saga_example(t *testing.T) {
 				).
 				// Add compensation
 				WithCompensation(
-					saga.NewCompensation(func(ctx context.Context, track saga.Track) error {
+					saga.NewOperation(func(ctx context.Context, track saga.Track) error {
 						// Compensation logic.
 						// Get data to understand what failed
 						data := track.GetStepData()

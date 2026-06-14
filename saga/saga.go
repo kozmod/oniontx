@@ -92,17 +92,16 @@ stop:
 			)
 			break stop
 		default:
-			if step.Action == nil {
+			if step.action.fn == nil {
 				tr.action.SetStatus(ExecutionStatusUnset)
 				continue
 			}
 
-			if step.CompensationRequired {
+			if step.compensationRequired {
 				completedTrack = append(completedTrack, tr)
 			}
 
-			tr.action.Call()
-			err := step.Action(ctx, tr.action)
+			err := step.action.fn(ctx, tr.action)
 
 			switch status := tr.action.GetTrackData().Status; {
 			case err == nil && status != ExecutionStatusFail:
@@ -121,7 +120,7 @@ stop:
 				break stop
 			}
 
-			if !step.CompensationRequired {
+			if !step.compensationRequired {
 				completedTrack = append(completedTrack, tr)
 			}
 		}
@@ -149,7 +148,6 @@ stop:
 
 			break stop
 		default:
-			tr.compensation.Call()
 			err := tr.compensationFunc(ctx, tr.compensation)
 			switch {
 			case err == nil:

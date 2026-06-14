@@ -33,19 +33,17 @@ func Test_Saga_retry(t *testing.T) {
 				actionCalls = 0
 			)
 			steps := []Step{
-				{
-					Name: "step0",
-					Action: WithRetry(
-						NewBaseRetryOpt(3, time.Nanosecond),
-						func(ctx context.Context, _ Track) error {
+				NewStep("step0").
+					WithAction(
+						NewOperation(func(ctx context.Context, _ Track) error {
 							actionCalls++
 							errCounter++
 							if errCounter < 3 {
 								return testtool.ErrExpTestA
 							}
 							return nil
-						}),
-				},
+						}).WithRetry(NewBaseRetryOpt(3, time.Nanosecond)),
+					),
 			}
 
 			resp, err := NewSaga(steps).Execute(ctx)
@@ -66,19 +64,19 @@ func Test_Saga_retry(t *testing.T) {
 					actionCalls = 0
 				)
 				steps := []Step{
-					{
-						Name: "step0",
-						Action: ActionFunc(func(ctx context.Context, _ Track) error {
-							actionCalls++
-							errCounter++
-							if errCounter < 3 {
-								return testtool.ErrExpTestA
-							}
-							return nil
-						}).WithRetry(
-							NewBaseRetryOpt(3, time.Nanosecond),
+					NewStep("step0").
+						WithAction(
+							NewOperation(func(ctx context.Context, _ Track) error {
+								actionCalls++
+								errCounter++
+								if errCounter < 3 {
+									return testtool.ErrExpTestA
+								}
+								return nil
+							}).WithRetry(
+								NewBaseRetryOpt(3, time.Nanosecond),
+							),
 						),
-					},
 				}
 
 				resp, err := NewSaga(steps).Execute(ctx)
@@ -92,31 +90,33 @@ func Test_Saga_retry(t *testing.T) {
 					assert.ErrorIs(t, e, testtool.ErrExpTestA)
 				}
 			})
-			t.Run("success_CompensationFunc", func(t *testing.T) {
+			t.Run("success_OperationFunc", func(t *testing.T) {
 				var (
 					errCounter        = 0
 					actionCalls       = 0
 					compensationCalls = 0
 				)
 				steps := []Step{
-					{
-						Name: "step0",
-						Action: ActionFunc(func(ctx context.Context, track Track) error {
-							actionCalls++
-							return testtool.ErrExpTestA
-						}),
-						Compensation: CompensationFunc(func(ctx context.Context, track Track) error {
-							compensationCalls++
-							errCounter++
-							if errCounter < 3 {
+					NewStep("step0").
+						WithAction(
+							NewOperation(func(ctx context.Context, track Track) error {
+								actionCalls++
 								return testtool.ErrExpTestA
-							}
-							return nil
-						}).WithRetry(
-							NewBaseRetryOpt(3, time.Nanosecond),
-						),
-						CompensationRequired: true,
-					},
+							}),
+						).
+						WithCompensation(
+							NewOperation(func(ctx context.Context, track Track) error {
+								compensationCalls++
+								errCounter++
+								if errCounter < 3 {
+									return testtool.ErrExpTestA
+								}
+								return nil
+							}).WithRetry(
+								NewBaseRetryOpt(3, time.Nanosecond),
+							),
+						).
+						WithCompensationRequired(),
 				}
 
 				resp, err := NewSaga(steps).Execute(ctx)
