@@ -231,6 +231,24 @@ func TestSaga_Execute(t *testing.T) {
 			assert.Equal(t, StageResultCompensated, res.Status)
 			assert.True(t, slices.Equal([]string{"comp2", "comp1", "comp0"}, executedCompensation))
 		})
+
+		t.Run("required_without_compensation", func(t *testing.T) {
+			steps := []Step{
+				NewStep("step0").
+					WithAction(NewOperation(func(ctx context.Context, _ Track) error {
+						return testtool.ErrExpTestA
+					})).
+					WithCompensationRequired(),
+			}
+
+			res, err := NewSaga(steps).Execute(ctx)
+			assert.Error(t, err)
+			assert.ErrorIs(t, err, ErrActionFailed)
+			assert.ErrorIs(t, err, ErrCompensationFailed)
+			assert.Equal(t, StageResultFail, res.Status)
+			assert.Equal(t, 1, len(res.Steps[0].Compensation.Errors))
+			assert.ErrorIs(t, res.Steps[0].Compensation.Errors[0], ErrCompensationRequired)
+		})
 	})
 }
 
@@ -613,6 +631,39 @@ func Test_hooks(t *testing.T) {
 
 			assert.True(t, slices.Equal([]string{"action1"}, executed))
 
+		})
+		t.Run("after_on_success", func(t *testing.T) {
+			var (
+				ctx      = context.Background()
+				executed []string
+			)
+
+			steps := []Step{
+				NewStep("step1").
+					WithAction(
+						NewOperation(func(ctx context.Context, track Track) error {
+							executed = append(executed, "action1")
+							return nil
+						}).WithAfterHook(func(ctx context.Context, track Track) error {
+							executed = append(executed, "hook1")
+							data := track.GetStepData()
+							assert.Equal(t, 1, data.Action.Calls)
+							return nil
+						}).WithAfterHook(func(ctx context.Context, track Track) error {
+							executed = append(executed, "hook2")
+							data := track.GetStepData()
+							assert.Equal(t, 1, data.Action.Calls)
+							return nil
+						}),
+					),
+			}
+
+			res, err := NewSaga(steps).Execute(ctx)
+			assert.NoError(t, err)
+			assert.Equal(t, StageResultSuccess, res.Status)
+			assert.Equal(t, 1, res.Steps[0].Action.Calls)
+			assert.Equal(t, ExecutionStatusSuccess, res.Steps[0].Action.Status)
+			assert.True(t, slices.Equal([]string{"action1", "hook1", "hook2"}, executed))
 		})
 		t.Run("after_with_retry___complicated_v1", func(t *testing.T) {
 			var (

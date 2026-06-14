@@ -44,6 +44,10 @@ var (
 	// the RetryPolicy has been reached and every attempt failed. The original errors
 	// from each attempt are preserved in the Track's error list for debugging.
 	ErrRetryFailed = fmt.Errorf("retry failed")
+
+	// ErrCompensationRequired indicates that a step was marked as compensation
+	// required but no compensation operation was configured.
+	ErrCompensationRequired = fmt.Errorf("compensation required")
 )
 
 // Saga coordinates a local compensating workflow using the saga pattern.
@@ -135,6 +139,12 @@ stop:
 	for i := len(tracks) - 1; i >= 0; i-- {
 		tr := tracks[i]
 		if tr.compensationFunc == nil {
+			if tr.compensationRequired {
+				tr.compensation.SetStatus(ExecutionStatusFail)
+				tr.compensation.AddError(
+					fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.stepName, ErrCompensationRequired),
+				)
+			}
 			continue
 		}
 		select {

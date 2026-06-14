@@ -124,19 +124,20 @@ func (o AdvanceRetryPolicy) Delay(i uint32) time.Duration {
 // WithRetry returns a function with retry logic for execution.
 // It makes the initial call and then up to opt.Attempts() retry calls until fn succeeds.
 // Between attempts, it waits for the delay determined by the RetryPolicy strategy.
-// Context cancellation is checked before each retry attempt.
+// Context cancellation is checked before each retry attempt and while waiting
+// between attempts.
 //
 // Behavior:
 //   - If attempts = 0, the function executes fn once and returns its result
 //   - On first successful execution, returns nil and sets status to ExecutionStatusSuccess
 //   - On failure, retries up to opt.Attempts() times with delays between attempts
-//   - Context cancellation is respected before each attempt
+//   - Context cancellation is respected before each attempt and during retry delays
 //   - All errors from failed attempts are collected in Track.Errors
 //   - Each retry attempt is wrapped with a "retry [N]" prefix for error context
 //
 // Return values:
 //   - nil if any attempt succeeds
-//   - ErrRetryContextDone if context is cancelled before a retry attempt
+//   - ErrRetryContextDone if context is cancelled before a retry attempt or during a retry delay
 //   - ErrRetryFailed if all attempts fail (including the initial call)
 //
 // The original error from the final attempt is stored in the track and ErrRetryFailed is returned.
@@ -181,7 +182,16 @@ func WithRetry(opt RetryPolicy, fn func(ctx context.Context, track Track) error)
 				track.SetStatus(ExecutionStatusFail)
 				track.AddError(err)
 				if i < attempts-1 {
-					time.Sleep(opt.Delay(i))
+					select {
+					case <-ctx.Done():
+						err = ctx.Err()
+						track.SetStatus(ExecutionStatusFail)
+						track.AddError(
+							errors.Join(ErrRetryContextDone, err),
+						)
+						break stop
+					case <-time.After(opt.Delay(i)):
+					}
 				}
 			}
 		}
