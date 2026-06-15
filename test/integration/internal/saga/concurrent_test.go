@@ -68,7 +68,7 @@ func Test_Concurrent(t *testing.T) {
 					executedCompensation = append(executedCompensation, "comp2")
 					return nil
 				})),
-			saga.NewStep("check_async_sttep").
+			saga.NewStep("check_async_step").
 				WithAction(saga.NewOperation(func(ctx context.Context, _ saga.Track) error {
 					wg.Wait()
 					close(errChan)

@@ -37,12 +37,12 @@ For multiple repositories, use `mtx.Transactor` with `saga.Saga`[<sup>**ⓘ**</s
 The core entity is **`Transactor`** — it provides a clean abstraction over database transactions and offers:
  - [**simple implementation for `stdlib`**](#libs)
  - [**simple implementation for popular libraries**](#libs)
- - [**custom implementation's contract**](#custom)
+ - [**custom implementation contract**](#custom)
  - [**simple testing with testing frameworks**](#testing)
 
 ---
 ### <a name="libs"><a/>Default implementation examples for libs
-[test/integration](https://github.com/kozmod/oniontx/tree/master/test) module contains  examples 
+[test/integration](https://github.com/kozmod/oniontx/tree/master/test) module contains examples
 of default `Transactor` implementations (stdlib, sqlx, pgx, gorm, redis, mongo):
 - [stdlib](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/stdlib)
 - [sqlx](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/sqlx)
@@ -71,7 +71,7 @@ type (
 		Commit(ctx context.Context) error
 	}
 
-	// Optional - using to putting/getting transaction from `context.Context` 
+	// Optional - used to put/get transactions from `context.Context`
 	// (library contains default `CtxOperator` implementation)
 	CtxOperator[T Tx] interface {
 		Inject(ctx context.Context, tx T) context.Context
