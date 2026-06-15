@@ -35,23 +35,9 @@ It manages ACID transactions across multiple repositories.
 For multiple repositories, use `mtx.Transactor` with `saga.Saga`[<sup>**ⓘ**</sup>](#saga).
 
 The core entity is **`Transactor`** — it provides a clean abstraction over database transactions and offers:
- - [**simple implementation for `stdlib`**](#libs)
- - [**simple implementation for popular libraries**](#libs)
+ - [**simple implementation examples for `stdlib` and popular libraries**](#libs)
  - [**custom implementation contract**](#custom)
  - [**simple testing with testing frameworks**](#testing)
-
----
-### <a name="libs"><a/>Default implementation examples for libs
-[test/integration](https://github.com/kozmod/oniontx/tree/master/test) module contains examples
-of default `Transactor` implementations (stdlib, sqlx, pgx, gorm, redis, mongo):
-- [stdlib](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/stdlib)
-- [sqlx](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/sqlx)
-- [pgx](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/pgx)
-- [gorm](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/gorm)
-- [redis](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/redis)
-- [mongo](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/mongo)
-
----
 
 ####  <a name="custom"><a/>Custom implementation
 If required, `oniontx` provides the ability to 
@@ -79,363 +65,54 @@ type (
 	}
 )
 ```
-### Examples 
-`❗` ️***These examples are based on the `stdlib` package.***
+### Usage
 
-`TxBeginner` and `Tx` implementations:
+Create a `Transactor` from a concrete transaction beginner and a context operator:
+
 ```go
-// Prepared contracts for execution
-package db
+type txKey struct{}
 
-import (
-	"context"
-	"database/sql"
-
-	"github.com/kozmod/oniontx/mtx"
-)
-
-// Executor represents common methods of sql.DB and sql.Tx.
-type Executor interface {
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-}
-
-// DB is sql.DB wrapper, implements mtx.TxBeginner.
-type DB struct {
-	*sql.DB
-}
-
-// TxOption configures sql.TxOptions before a transaction starts.
-type TxOption func(*sql.TxOptions)
-
-func ReadOnly(readOnly bool) TxOption {
-	return func(options *sql.TxOptions) {
-		options.ReadOnly = readOnly
-	}
-}
-
-func Isolation(level sql.IsolationLevel) TxOption {
-	return func(options *sql.TxOptions) {
-		options.Isolation = level
-	}
-}
-
-var opts = []TxOption{
-	ReadOnly(false),
-	Isolation(sql.LevelReadCommitted),
-}
-
-func (db *DB) BeginTx(ctx context.Context) (*Tx, error) {
-	var txOptions sql.TxOptions
-	for _, opt := range opts {
-		opt(&txOptions)
-	}
-	tx, err := db.DB.BeginTx(ctx, &txOptions)
-	return &Tx{Tx: tx}, err
-}
-
-// Tx is sql.Tx wrapper, implements mtx.Tx.
-type Tx struct {
-	*sql.Tx
-}
-
-func (t *Tx) Rollback(_ context.Context) error {
-	return t.Tx.Rollback()
-}
-
-func (t *Tx) Commit(_ context.Context) error {
-	return t.Tx.Commit()
-}
+operator := mtx.NewContextOperator[txKey, *Tx](txKey{})
+transactor := mtx.NewTransactor[*DB, *Tx](db, operator)
 ```
-`Repositories` implementation:
+
+Application services run business operations inside `WithinTx`:
+
 ```go
-package repoA
-
-import (
-	"context"
-	"fmt"
-
-	"github.com/kozmod/oniontx/mtx"
-
-	"github.com/user/some_project/internal/db"
-)
-
-type RepositoryA struct {
-	Transactor *mtx.Transactor[*db.DB, *db.Tx]
-}
-
-func (r RepositoryA) Insert(ctx context.Context, val int) error {
-	var executor db.Executor
-	executor, ok  := r.Transactor.TryGetTx(ctx)
-	if !ok {
-		executor = r.Transactor.TxBeginner()
+err := transactor.WithinTx(ctx, func(ctx context.Context) error {
+	if err := repoA.Insert(ctx, value); err != nil {
+		return fmt.Errorf("insert A: %w", err)
 	}
-	_, err := executor.ExecContext(ctx, "UPDATE some_A SET value = $1", val)
-	if err != nil {
-		return fmt.Errorf("update 'some_A': %w", err)
+	if err := repoB.Insert(ctx, value); err != nil {
+		return fmt.Errorf("insert B: %w", err)
 	}
 	return nil
-}
+})
 ```
+
+Repositories can reuse an active transaction from context and fall back to the
+base connection when no transaction is active:
+
 ```go
-package repoB
-
-import (
-	"context"
-	"fmt"
-	
-	"github.com/kozmod/oniontx/mtx"
-	
-	"github.com/user/some_project/internal/db"
-)
-
-type RepositoryB struct {
-	Transactor *mtx.Transactor[*db.DB, *db.Tx]
-}
-
-func (r RepositoryB) Insert(ctx context.Context, val int) error {
-	var executor db.Executor
-	executor, ok := r.Transactor.TryGetTx(ctx)
-	if !ok {
-		executor = r.Transactor.TxBeginner()
-	}
-	_, err := executor.ExecContext(ctx, "UPDATE some_A SET value = $1", val)
-	if err != nil {
-		return fmt.Errorf("update 'some_A': %w", err)
-	}
-	return nil
+executor, ok := transactor.TryGetTx(ctx)
+if !ok {
+	executor = transactor.TxBeginner()
 }
 ```
-`UseCase` implementation:
-```go
-package usecase
 
-import (
-	"context"
-	"fmt"
-)
+Nested `WithinTx` calls reuse the transaction already stored in context, so
+multiple use cases can participate in the same transaction without passing the
+transaction object through repository APIs.
 
-type (
-	// transactor is the contract of  the mtx.Transactor
-	transactor interface {
-		WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error)
-	}
+<a name="libs"><a/> The [test/integration](https://github.com/kozmod/oniontx/tree/master/test) module contains working `Transactor`
+implementations for `stdlib`, `sqlx`, `pgx`, `gorm`, `redis`, `mongo`:
 
-	// Repo is the contract of repositories
-	repo interface {
-		Insert(ctx context.Context, val int) error
-	}
-)
-
-type UseCase struct {
-	RepoA repo
-	RepoB repo
-
-	Transactor transactor
-}
-
-func (s *UseCase) Exec(ctx context.Context, insert int) error {
-	err := s.Transactor.WithinTx(ctx, func(ctx context.Context) error {
-		if err := s.RepoA.Insert(ctx, insert); err != nil {
-			return fmt.Errorf("call repository A: %w", err)
-		}
-		if err := s.RepoB.Insert(ctx, insert); err != nil {
-			return fmt.Errorf("call repository B: %w", err)
-		}
-		return nil
-	})
-	if err != nil {
-		return fmt.Errorf(" execute: %w", err)
-	}
-	return nil
-}
-```
-Configuring:
-```go
-package main
-
-import (
-	"context"
-	"database/sql"
-	"os"
-
-	"github.com/kozmod/oniontx/mtx"
-	
-	"github.com/user/some_project/internal/repoA"
-	"github.com/user/some_project/internal/repoB"
-	"github.com/user/some_project/internal/usecase"
-)
-
-
-func main() {
-	var (
-		database *sql.DB // database pointer
-
-		wrapper    = &db.DB{DB: database}
-		operator   = mtx.NewContextOperator[*db.DB, *db.Tx](&wrapper)
-		transactor = mtx.NewTransactor[*db.DB, *db.Tx](wrapper, operator)
-
-		repositoryA = repoA.RepositoryA{
-			Transactor: transactor,
-		}
-		repositoryB = repoB.RepositoryB{
-			Transactor: transactor,
-		}
-
-		useCase = usecase.UseCase{
-			RepoA: &repositoryA,
-			RepoB: &repositoryB,
-			Transactor:  transactor,
-		}
-	)
-
-	err := useCase.Exec(context.Background(), 1)
-	if err != nil {
-		os.Exit(1)
-	}
-}
-```
----
-#### Execution transaction in the different use cases
-***Executing the same transaction for different `UseCases` using the same `Transactor` instance***
-
-UseCases:
-```go
-package a
-
-import (
-	"context"
-	"fmt"
-)
-
-type (
-	// transactor is the contract of  the mtx.Transactor
-	transactor interface {
-		WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error)
-	}
-
-	// Repo is the contract of repositories
-	repoA interface {
-		Insert(ctx context.Context, val int) error
-		Delete(ctx context.Context, val float64) error
-	}
-)
-
-type UseCaseA struct {
-	Repo repoA
-
-	Transactor transactor
-}
-
-func (s *UseCaseA) Exec(ctx context.Context, insert int, delete float64) error {
-	err := s.Transactor.WithinTx(ctx, func(ctx context.Context) error {
-		if err := s.Repo.Insert(ctx, insert); err != nil {
-			return fmt.Errorf("call repository - insert: %w", err)
-		}
-		if err := s.Repo.Delete(ctx, delete); err != nil {
-			return fmt.Errorf("call repository - delete: %w", err)
-		}
-		return nil
-	})
-	if err != nil {
-		return fmt.Errorf("usecaseA - execute: %w", err)
-	}
-	return nil
-}
-```
-```go
-package b
-
-import (
-	"context"
-	"fmt"
-)
-
-type (
-	// transactor is the contract of  the mtx.Transactor
-	transactor interface {
-		WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error)
-	}
-
-	// Repo is the contract of repositories
-	repoB interface {
-		Insert(ctx context.Context, val string) error
-	}
-
-	// Repo is the contract of the useCase
-	useCaseA interface {
-		Exec(ctx context.Context, insert int, delete float64) error
-	}
-)
-
-type UseCaseB struct {
-	Repo     repoB
-	UseCaseA useCaseA
-
-	Transactor transactor
-}
-
-func (s *UseCaseB) Exec(ctx context.Context, insertA string, insertB int, delete float64) error {
-	err := s.Transactor.WithinTx(ctx, func(ctx context.Context) error {
-		if err := s.Repo.Insert(ctx, insertA); err != nil {
-			return fmt.Errorf("call repository - insert: %w", err)
-		}
-		if err := s.UseCaseA.Exec(ctx, insertB, delete); err != nil {
-			return fmt.Errorf("call usecaseB - exec: %w", err)
-		}
-		return nil
-	})
-	if err != nil {
-		return fmt.Errorf("execute: %w", err)
-	}
-	return nil
-}
-```
-Main:
-```go
-package main
-
-import (
-	"context"
-	"database/sql"
-	"os"
-
-	"github.com/kozmod/oniontx/mtx"
-
-	"github.com/user/some_project/internal/db"
-	"github.com/user/some_project/internal/repoA"
-	"github.com/user/some_project/internal/repoB"
-	"github.com/user/some_project/internal/usecase/a"
-	"github.com/user/some_project/internal/usecase/b"
-)
-
-func main() {
-	var (
-		database *sql.DB // database pointer
-
-		wrapper    = &db.DB{DB: database}
-		operator   = mtx.NewContextOperator[*db.DB, *db.Tx](&wrapper)
-		transactor = mtx.NewTransactor[*db.DB, *db.Tx](wrapper, operator)
-
-		useCaseA = a.UseCaseA{
-			Repo: repoA.RepositoryA{
-				Transactor: transactor,
-			},
-		}
-
-		useCaseB = b.UseCaseB{
-			Repo: repoB.RepositoryB{
-				Transactor: transactor,
-			},
-			UseCaseA: &useCaseA,
-		}
-	)
-
-	err := useCaseB.Exec(context.Background(), "some_to_insert_useCase_A", 1, 1.1)
-	if err != nil {
-		os.Exit(1)
-	}
-}
-```
+- [stdlib](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/stdlib)
+- [sqlx](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/sqlx)
+- [pgx](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/pgx)
+- [gorm](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/gorm)
+- [redis](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/redis)
+- [mongo](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/mongo)
 
 ### <a name="saga"><a/>Package `saga`: In-progress Workflow Engine
 Use `saga` when coordinating operations across **multiple** services, databases,
