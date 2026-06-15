@@ -1,7 +1,8 @@
 package saga
 
 import (
-	"math/rand"
+	"crypto/rand"
+	"math/big"
 	"time"
 )
 
@@ -15,10 +16,8 @@ func NewFullJitter() FullJitter {
 
 // Jitter applies full jitter to the base delay.
 func (o FullJitter) Jitter(base time.Duration) time.Duration {
-	var (
-		r = rand.New(rand.NewSource(time.Now().UnixNano()))
-	)
-	return time.Duration(r.Int63n(int64(base)))
+	jitter := randomDuration(base)
+	return jitter
 }
 
 // EqualJitter provides equal jitter strategy for retry delays.
@@ -32,12 +31,21 @@ func NewEqualJitter() EqualJitter {
 // Jitter applies equal jitter to the base delay.
 func (o EqualJitter) Jitter(base time.Duration) time.Duration {
 	var (
-		r    = rand.New(rand.NewSource(time.Now().UnixNano()))
-		temp = base / 2
+		temp   = base / 2
+		jitter = temp + randomDuration(temp)
 	)
-	if temp <= 0 {
+	return jitter
+}
+
+func randomDuration(max time.Duration) time.Duration {
+	if max <= 0 {
 		return 0
 	}
-	jitter := temp + time.Duration(r.Int63n(int64(temp)))
-	return jitter
+
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(max)))
+	if err != nil {
+		return max
+	}
+
+	return time.Duration(n.Int64())
 }

@@ -9,7 +9,7 @@ import (
 var (
 	// ErrActionFailed indicates that an action execution has failed.
 	// This error is typically returned when a business operation or step
-	// in a workflow cannot be completed successfully
+	// in a workflow cannot be completed successfully.
 	ErrActionFailed = fmt.Errorf("action failed")
 
 	// ErrCompensationFailed indicates that a compensation operation has failed.
@@ -29,10 +29,8 @@ var (
 	// client cancellation or deadline exceeded.
 	ErrExecuteActionsContextDone = fmt.Errorf("execute actions context done")
 
-	// ErrExecuteCompensationContextDone indicates that the context was cancelled or
-	// timed out during the execution of saga action compensation. This error is returned
-	// when the saga is interrupted before completing all steps, typically due to
-	// client cancellation or deadline exceeded.
+	// ErrExecuteCompensationContextDone indicates that the context was cancelled
+	// or timed out during compensation execution.
 	ErrExecuteCompensationContextDone = fmt.Errorf("execute compensation context done")
 
 	// ErrRetryContextDone indicates that the context was cancelled or timed out
@@ -46,14 +44,19 @@ var (
 	// the RetryPolicy has been reached and every attempt failed. The original errors
 	// from each attempt are preserved in the Track's error list for debugging.
 	ErrRetryFailed = fmt.Errorf("retry failed")
+
+	// ErrCompensationRequired indicates that a step was marked as compensation
+	// required but no compensation operation was configured.
+	ErrCompensationRequired = fmt.Errorf("compensation required")
 )
 
-// Saga coordinates a distributed transaction using the `Saga` pattern.
+// Saga coordinates a local compensating workflow using the saga pattern.
+// It does not persist execution state or coordinate distributed participants.
 type Saga struct {
 	steps []Step
 }
 
-// NewSaga creates a new [Saga] instance.
+// NewSaga creates a new Saga instance.
 func NewSaga(steps []Step) *Saga {
 	return &Saga{
 		steps: steps,
@@ -62,7 +65,7 @@ func NewSaga(steps []Step) *Saga {
 
 // Execute runs all Saga steps.
 //
-// If any step fails, compensating actions are triggered for all successfully completed steps.
+// If any step fails, compensations are triggered for completed steps in reverse order.
 func (s *Saga) Execute(ctx context.Context) (Result, error) {
 	var (
 		tracks         []*simpleTracker
@@ -92,17 +95,16 @@ stop:
 			)
 			break stop
 		default:
-			if step.Action == nil {
+			if step.action.fn == nil {
 				tr.action.SetStatus(ExecutionStatusUnset)
 				continue
 			}
 
-			if step.CompensationRequired {
+			if step.compensationRequired {
 				completedTrack = append(completedTrack, tr)
 			}
 
-			tr.action.Call()
-			err := step.Action(ctx, tr.action)
+			err := step.action.fn(ctx, tr.action)
 
 			switch status := tr.action.GetTrackData().Status; {
 			case err == nil && status != ExecutionStatusFail:
@@ -116,12 +118,12 @@ stop:
 					)
 
 				}
-				// Run compensation when error arise.
+				// Run compensation when an action error arises.
 				s.compensate(ctx, completedTrack)
 				break stop
 			}
 
-			if !step.CompensationRequired {
+			if !step.compensationRequired {
 				completedTrack = append(completedTrack, tr)
 			}
 		}
@@ -131,11 +133,18 @@ stop:
 	return result, err
 }
 
-// compensate triggers compensating actions for all steps in reverse order.
+// compensate triggers compensation operations in reverse completion order.
 func (s *Saga) compensate(ctx context.Context, tracks []*simpleTracker) {
 stop:
-	for i, tr := range tracks {
+	for i := len(tracks) - 1; i >= 0; i-- {
+		tr := tracks[i]
 		if tr.compensationFunc == nil {
+			if tr.compensationRequired {
+				tr.compensation.SetStatus(ExecutionStatusFail)
+				tr.compensation.AddError(
+					fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.stepName, ErrCompensationRequired),
+				)
+			}
 			continue
 		}
 		select {
@@ -149,7 +158,6 @@ stop:
 
 			break stop
 		default:
-			tr.compensation.Call()
 			err := tr.compensationFunc(ctx, tr.compensation)
 			switch {
 			case err == nil:

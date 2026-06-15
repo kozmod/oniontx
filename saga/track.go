@@ -46,10 +46,10 @@ type StepData struct {
 
 	// Action is the execution data for the main action.
 	Action TrackData
-	// Compensation is the xecution data for the compensation operation.
+	// Compensation is the execution data for the compensation operation.
 	Compensation TrackData
 
-	// CompensationRequired define when compensation should be triggered on failure.
+	// CompensationRequired reports whether this step can compensate its own action failure.
 	CompensationRequired bool
 }
 
@@ -63,7 +63,7 @@ func (s StepData) String() string {
 	)
 }
 
-// TrackData contains immutable execution metrics for a single operation.
+// TrackData contains execution metrics for a single operation snapshot.
 type TrackData struct {
 	Calls  uint32
 	Errors []error
@@ -73,13 +73,13 @@ type TrackData struct {
 // String returns a compact representation of TrackData.
 func (ed *TrackData) String() string {
 	var builder strings.Builder
-	switch {
-	case ed == nil:
-		builder.WriteString(fmt.Sprintf("{Status: %s, Calls: %d", "nil", -1))
+	switch ed {
+	case nil:
+		_, _ = fmt.Fprintf(&builder, "{Status: %s, Calls: %d", "nil", -1)
 	default:
-		builder.WriteString(fmt.Sprintf("{Status: %s, Calls: %d", ed.Status, ed.Calls))
+		_, _ = fmt.Fprintf(&builder, "{Status: %s, Calls: %d", ed.Status, ed.Calls)
 		if len(ed.Errors) > 0 {
-			builder.WriteString(fmt.Sprintf(", Errors: %d", len(ed.Errors)))
+			fmt.Fprintf(&builder, ", Errors: %d", len(ed.Errors))
 			// @TODO: add errors output
 			//if len(ed.Errors) == 1 {
 			//	builder.WriteString(fmt.Sprintf(" [%v]", ed.Errors[0]))
@@ -115,7 +115,7 @@ func (ed *ExecutionTrack) Calls() uint32 {
 	return ed.calls
 }
 
-// Errors returns the list of errors that occurred during execution.
+// Errors returns the collected execution errors.
 func (ed *ExecutionTrack) Errors() []error {
 	return ed.errors
 }
@@ -153,7 +153,7 @@ func (ed *ExecutionTrack) GetStepData() StepData {
 	return ed.tracker.GetStepData()
 }
 
-// GetTrackData creates a deep copy of TrackData.
+// GetTrackData returns a copy of the current TrackData.
 func (ed *ExecutionTrack) GetTrackData() TrackData {
 	return TrackData{
 		Calls:  ed.calls,
@@ -170,7 +170,7 @@ type simpleTracker struct {
 	action       Track
 	compensation Track
 
-	compensationFunc     CompensationFunc
+	compensationFunc     OperationFunc
 	compensationRequired bool
 }
 
@@ -178,20 +178,20 @@ type simpleTracker struct {
 func newInMemoryTrack(position uint32, step Step, trackFactory func(Tracker) Track) *simpleTracker {
 
 	tracker := &simpleTracker{
-		stepName:             step.Name,
+		stepName:             step.name,
 		stepPosition:         position,
-		compensationFunc:     step.Compensation,
-		compensationRequired: step.CompensationRequired,
+		compensationFunc:     step.compensation.fn,
+		compensationRequired: step.compensationRequired,
 	}
 
 	tracker.action = trackFactory(tracker)
 	tracker.compensation = trackFactory(tracker)
 
-	if step.Compensation == nil {
+	if step.compensation.fn == nil {
 		tracker.compensation.SetStatus(ExecutionStatusUnset)
 	}
 
-	if step.Action == nil {
+	if step.action.fn == nil {
 		tracker.action.SetStatus(ExecutionStatusUnset)
 	}
 

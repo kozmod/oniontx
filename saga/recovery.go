@@ -7,22 +7,20 @@ import (
 	"github.com/kozmod/oniontx/internal/tool"
 )
 
-// WithPanicRecovery returns a wrapped function that includes panic recovery logic.
-// The returned function will recover from any panic that occurs during execution of fn
-// and convert it to an error that includes both the original panic value and ErrPanicRecovered.
-// This is particularly useful for long-running goroutines or when calling code that
-// might panic and you want to handle it gracefully.
+// WithPanicRecovery returns an OperationFunc with panic recovery logic.
+// The returned function recovers from panics raised by fn and converts them to
+// an error that includes both ErrPanicRecovered and the original panic value.
 //
 // Example:
 //
-//	fn := func(ctx context.Context) error {
+//	fn := func(ctx context.Context, track Track) error {
 //	    panic("something went wrong")
 //	}
 //	safeFn := WithPanicRecovery(fn)
-//	err := safeFn(ctx)
+//	err := safeFn(ctx, track)
 //
-// err will wrap "panic [something went wrong]" and ErrPanicRecovered
-func WithPanicRecovery(fn func(ctx context.Context, track Track) error) func(context.Context, Track) error {
+// err will wrap ErrPanicRecovered and the panic value.
+func WithPanicRecovery(fn func(ctx context.Context, track Track) error) OperationFunc {
 	return func(ctx context.Context, track Track) (err error) {
 		defer func() {
 			if p := recover(); p != nil {

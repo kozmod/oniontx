@@ -1,3 +1,4 @@
+//nolint:dupl
 package saga
 
 import (
@@ -33,19 +34,17 @@ func Test_Saga_retry(t *testing.T) {
 				actionCalls = 0
 			)
 			steps := []Step{
-				{
-					Name: "step0",
-					Action: WithRetry(
-						NewBaseRetryOpt(3, time.Nanosecond),
-						func(ctx context.Context, _ Track) error {
+				NewStep("step0").
+					WithAction(
+						NewOperation(func(ctx context.Context, _ Track) error {
 							actionCalls++
 							errCounter++
 							if errCounter < 3 {
 								return testtool.ErrExpTestA
 							}
 							return nil
-						}),
-				},
+						}).WithRetry(NewBaseRetryOpt(3, time.Nanosecond)),
+					),
 			}
 
 			resp, err := NewSaga(steps).Execute(ctx)
@@ -60,25 +59,25 @@ func Test_Saga_retry(t *testing.T) {
 			}
 		})
 		t.Run("builders", func(t *testing.T) {
-			t.Run("success_ActionFunc", func(t *testing.T) {
+			t.Run("success_Operation", func(t *testing.T) {
 				var (
 					errCounter  = 0
 					actionCalls = 0
 				)
 				steps := []Step{
-					{
-						Name: "step0",
-						Action: ActionFunc(func(ctx context.Context, _ Track) error {
-							actionCalls++
-							errCounter++
-							if errCounter < 3 {
-								return testtool.ErrExpTestA
-							}
-							return nil
-						}).WithRetry(
-							NewBaseRetryOpt(3, time.Nanosecond),
+					NewStep("step0").
+						WithAction(
+							NewOperation(func(ctx context.Context, _ Track) error {
+								actionCalls++
+								errCounter++
+								if errCounter < 3 {
+									return testtool.ErrExpTestA
+								}
+								return nil
+							}).WithRetry(
+								NewBaseRetryOpt(3, time.Nanosecond),
+							),
 						),
-					},
 				}
 
 				resp, err := NewSaga(steps).Execute(ctx)
@@ -92,31 +91,33 @@ func Test_Saga_retry(t *testing.T) {
 					assert.ErrorIs(t, e, testtool.ErrExpTestA)
 				}
 			})
-			t.Run("success_CompensationFunc", func(t *testing.T) {
+			t.Run("success_OperationFunc", func(t *testing.T) {
 				var (
 					errCounter        = 0
 					actionCalls       = 0
 					compensationCalls = 0
 				)
 				steps := []Step{
-					{
-						Name: "step0",
-						Action: ActionFunc(func(ctx context.Context, track Track) error {
-							actionCalls++
-							return testtool.ErrExpTestA
-						}),
-						Compensation: CompensationFunc(func(ctx context.Context, track Track) error {
-							compensationCalls++
-							errCounter++
-							if errCounter < 3 {
+					NewStep("step0").
+						WithAction(
+							NewOperation(func(ctx context.Context, track Track) error {
+								actionCalls++
 								return testtool.ErrExpTestA
-							}
-							return nil
-						}).WithRetry(
-							NewBaseRetryOpt(3, time.Nanosecond),
-						),
-						CompensationRequired: true,
-					},
+							}),
+						).
+						WithCompensation(
+							NewOperation(func(ctx context.Context, track Track) error {
+								compensationCalls++
+								errCounter++
+								if errCounter < 3 {
+									return testtool.ErrExpTestA
+								}
+								return nil
+							}).WithRetry(
+								NewBaseRetryOpt(3, time.Nanosecond),
+							),
+						).
+						WithCompensationRequired(),
 				}
 
 				resp, err := NewSaga(steps).Execute(ctx)
@@ -126,5 +127,33 @@ func Test_Saga_retry(t *testing.T) {
 				assert.Equal(t, 3, compensationCalls)
 			})
 		})
+	})
+	t.Run("context_cancel_during_delay", func(t *testing.T) {
+		var (
+			ctx, cancel = context.WithCancel(context.Background())
+			actionCalls = 0
+		)
+
+		steps := []Step{
+			NewStep("step0").
+				WithAction(
+					NewOperation(func(ctx context.Context, _ Track) error {
+						actionCalls++
+						if actionCalls == 1 {
+							cancel()
+						}
+						return testtool.ErrExpTestA
+					}).WithRetry(NewBaseRetryOpt(3, time.Hour)),
+				),
+		}
+
+		resp, err := NewSaga(steps).Execute(ctx)
+		assert.Error(t, err)
+		assert.Equal(t, StageResultFail, resp.Status)
+		assert.Equal(t, 1, actionCalls)
+		assert.Equal(t, 3, len(resp.Steps[0].Action.Errors))
+		assert.ErrorIs(t, resp.Steps[0].Action.Errors[0], testtool.ErrExpTestA)
+		assert.ErrorIs(t, resp.Steps[0].Action.Errors[1], ErrRetryContextDone)
+		assert.ErrorIs(t, resp.Steps[0].Action.Errors[2], ErrRetryFailed)
 	})
 }
