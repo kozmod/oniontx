@@ -73,13 +73,13 @@ type TrackData struct {
 // String returns a compact representation of TrackData.
 func (ed *TrackData) String() string {
 	var builder strings.Builder
-	switch {
-	case ed == nil:
-		builder.WriteString(fmt.Sprintf("{Status: %s, Calls: %d", "nil", -1))
+	switch ed {
+	case nil:
+		_, _ = fmt.Fprintf(&builder, "{Status: %s, Calls: %d", "nil", -1)
 	default:
-		builder.WriteString(fmt.Sprintf("{Status: %s, Calls: %d", ed.Status, ed.Calls))
+		_, _ = fmt.Fprintf(&builder, "{Status: %s, Calls: %d", ed.Status, ed.Calls)
 		if len(ed.Errors) > 0 {
-			builder.WriteString(fmt.Sprintf(", Errors: %d", len(ed.Errors)))
+			fmt.Fprintf(&builder, ", Errors: %d", len(ed.Errors))
 			// @TODO: add errors output
 			//if len(ed.Errors) == 1 {
 			//	builder.WriteString(fmt.Sprintf(" [%v]", ed.Errors[0]))

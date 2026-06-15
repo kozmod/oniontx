@@ -1,3 +1,4 @@
+//nolint:dupl,goconst
 package saga
 
 import (
@@ -12,8 +13,6 @@ import (
 	"github.com/kozmod/oniontx/internal/testtool"
 	"github.com/kozmod/oniontx/internal/testtool/assert"
 )
-
-// nolint: dupl
 
 func TestSaga_Execute(t *testing.T) {
 	var (

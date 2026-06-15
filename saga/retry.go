@@ -95,7 +95,7 @@ func (o AdvanceRetryPolicy) WithJitter(jitter Jitter) AdvanceRetryPolicy {
 
 // WithMaxDelay sets an upper bound for the delay duration.
 func (o AdvanceRetryPolicy) WithMaxDelay(delay time.Duration) AdvanceRetryPolicy {
-	o.baseRetryPolicy.maxDelay = delay
+	o.maxDelay = delay
 	return o
 }
 
@@ -109,7 +109,7 @@ func (o AdvanceRetryPolicy) Delay(i uint32) time.Duration {
 	var (
 		backoffTime = o.backoff.Backoff(i, o.delay)
 	)
-	if maxDelay := o.baseRetryPolicy.maxDelay; maxDelay > 0 && backoffTime > maxDelay {
+	if maxDelay := o.maxDelay; maxDelay > 0 && backoffTime > maxDelay {
 		if backoffTime > maxDelay {
 			backoffTime = maxDelay
 		}

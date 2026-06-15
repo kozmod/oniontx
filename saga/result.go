@@ -31,11 +31,11 @@ type Result struct {
 func (r Result) String() string {
 	var builder strings.Builder
 
-	builder.WriteString(fmt.Sprintf("Status: %s\n", r.Status))
-	builder.WriteString(fmt.Sprintf("Steps(%d):\n", len(r.Steps)))
+	_, _ = fmt.Fprintf(&builder, "Status: %s\n", r.Status)
+	_, _ = fmt.Fprintf(&builder, "Steps(%d):\n", len(r.Steps))
 
 	for i, track := range r.Steps {
-		builder.WriteString(fmt.Sprintf("  [%d] %s\n", i+1, track.String()))
+		_, _ = fmt.Fprintf(&builder, "  [%d] %s\n", i+1, track.String())
 	}
 
 	return builder.String()
