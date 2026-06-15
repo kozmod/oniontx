@@ -22,7 +22,8 @@ test: ## Run tests
 
 .PHONY: test.cover
 test.cover: ## Run tests with coverage
-	go test -v -p=1 ./... -cover -coverpkg=../... -coverprofile cover.out  && go tool cover -func cover.out.PHONY: test.cover
+	go test -v -p=1 ./... -cover -coverpkg=../... -coverprofile cover.out
+	go tool cover -func cover.out
 
 .PHONY: cover.html
 cover.html: ## Check coverage (html)

@@ -104,10 +104,30 @@ type DB struct {
 	*sql.DB
 }
 
+// TxOption configures sql.TxOptions before a transaction starts.
+type TxOption func(*sql.TxOptions)
+
+func ReadOnly(readOnly bool) TxOption {
+	return func(options *sql.TxOptions) {
+		options.ReadOnly = readOnly
+	}
+}
+
+func Isolation(level sql.IsolationLevel) TxOption {
+	return func(options *sql.TxOptions) {
+		options.Isolation = level
+	}
+}
+
+var opts = []TxOption{
+	ReadOnly(false),
+	Isolation(sql.LevelReadCommitted),
+}
+
 func (db *DB) BeginTx(ctx context.Context) (*Tx, error) {
 	var txOptions sql.TxOptions
 	for _, opt := range opts {
-		opt.Apply(&txOptions)
+		opt(&txOptions)
 	}
 	tx, err := db.DB.BeginTx(ctx, &txOptions)
 	return &Tx{Tx: tx}, err
