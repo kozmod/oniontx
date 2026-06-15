@@ -35,23 +35,9 @@ It manages ACID transactions across multiple repositories.
 For multiple repositories, use `mtx.Transactor` with `saga.Saga`[<sup>**ⓘ**</sup>](#saga).
 
 The core entity is **`Transactor`** — it provides a clean abstraction over database transactions and offers:
- - [**simple implementation for `stdlib`**](#libs)
- - [**simple implementation for popular libraries**](#libs)
+ - [**simple implementation examples for `stdlib` and popular libraries**](#libs)
  - [**custom implementation contract**](#custom)
  - [**simple testing with testing frameworks**](#testing)
-
----
-### <a name="libs"><a/>Default implementation examples for libs
-[test/integration](https://github.com/kozmod/oniontx/tree/master/test) module contains examples
-of default `Transactor` implementations (stdlib, sqlx, pgx, gorm, redis, mongo):
-- [stdlib](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/stdlib)
-- [sqlx](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/sqlx)
-- [pgx](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/pgx)
-- [gorm](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/gorm)
-- [redis](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/redis)
-- [mongo](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/mongo)
-
----
 
 ####  <a name="custom"><a/>Custom implementation
 If required, `oniontx` provides the ability to 
@@ -118,13 +104,15 @@ Nested `WithinTx` calls reuse the transaction already stored in context, so
 multiple use cases can participate in the same transaction without passing the
 transaction object through repository APIs.
 
-Working examples:
-- [stdlib transactor](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/stdlib)
-- [sqlx transactor](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/sqlx)
-- [pgx transactor](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/pgx)
-- [gorm transactor](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/gorm)
-- [redis transactor](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/redis)
-- [mongo transactor](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/mongo)
+<a name="libs"><a/> The [test/integration](https://github.com/kozmod/oniontx/tree/master/test) module contains working `Transactor`
+implementations for `stdlib`, `sqlx`, `pgx`, `gorm`, `redis`, `mongo`:
+
+- [stdlib](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/stdlib)
+- [sqlx](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/sqlx)
+- [pgx](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/pgx)
+- [gorm](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/gorm)
+- [redis](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/redis)
+- [mongo](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/mongo)
 
 ### <a name="saga"><a/>Package `saga`: In-progress Workflow Engine
 Use `saga` when coordinating operations across **multiple** services, databases,
