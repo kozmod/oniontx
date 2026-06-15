@@ -54,9 +54,9 @@ type (
 		Commit(ctx context.Context) error
 	}
 
-	// СtxOperator is responsible for transaction propagation through context.Context.
+	// CtxOperator is responsible for transaction propagation through context.Context.
 	// It provides methods to inject a transaction into context and extract it back.
-	СtxOperator[T Tx] interface {
+	CtxOperator[T Tx] interface {
 		Inject(ctx context.Context, tx T) context.Context
 		Extract(ctx context.Context) (T, bool)
 	}
@@ -71,13 +71,13 @@ type (
 // that satisfies the TxBeginner and Tx interfaces respectively.
 type Transactor[B TxBeginner[T], T Tx] struct {
 	beginner B
-	operator СtxOperator[T]
+	operator CtxOperator[T]
 }
 
 // NewTransactor returns new Transactor.
 func NewTransactor[B TxBeginner[T], T Tx](
 	beginner B,
-	operator СtxOperator[T]) *Transactor[B, T] {
+	operator CtxOperator[T]) *Transactor[B, T] {
 	return &Transactor[B, T]{
 		beginner: beginner,
 		operator: operator,
@@ -134,7 +134,7 @@ func NewTransactor[B TxBeginner[T], T Tx](
 func (t *Transactor[B, T]) WithinTx(ctx context.Context, fn func(ctx context.Context) error) (err error) {
 	var (
 		nilBeginner B
-		nilOperator СtxOperator[T] = nil
+		nilOperator CtxOperator[T] = nil
 	)
 	if t.beginner == nilBeginner {
 		return fmt.Errorf("transactor - can't begin: %w", ErrNilTxBeginner)

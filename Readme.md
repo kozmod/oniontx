@@ -72,8 +72,8 @@ type (
 	}
 
 	// Optional - using to putting/getting transaction from `context.Context` 
-	// (library contains default `СtxOperator` implementation)
-	СtxOperator[T Tx] interface {
+	// (library contains default `CtxOperator` implementation)
+	CtxOperator[T Tx] interface {
 		Inject(ctx context.Context, tx T) context.Context
 		Extract(ctx context.Context) (T, bool)
 	}
