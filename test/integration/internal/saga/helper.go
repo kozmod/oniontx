@@ -10,11 +10,13 @@ import (
 func printResult(t *testing.T, res saga.Result, err error) {
 	t.Helper()
 
-	t.Logf("\nresult:\n%v", res)
-	fmt.Printf("\nexecution error: %v\n", err)
+	t.Logf("\n")
+	fmt.Printf("[result]:\n")
+	fmt.Printf("%v\n", res)
+	fmt.Printf("[execution error]:\n%v\n", err)
+	fmt.Printf("\n[steps]:")
 
 	for _, step := range res.Steps {
-		fmt.Printf("-----")
 		fmt.Printf("\nstep [%d#%s]:\n", step.StepPosition, step.StepName)
 
 		switch {
