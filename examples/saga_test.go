@@ -179,4 +179,45 @@ func Test_Saga_example(t *testing.T) {
 			fmt.Printf("Result status: %s\n", result.Status)
 		}
 	})
+
+	t.Run("third_example: independent compensation context", func(t *testing.T) {
+		type compensationKey struct{}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		steps := []saga.Step{
+			saga.NewStep("payment").
+				WithAction(saga.NewOperation(func(context.Context, saga.Track) error {
+					// Simulate cancellation of a request while the action is running.
+					cancel()
+					return ErrPaymentFailed
+				})).
+				WithCompensation(
+					saga.NewOperation(func(ctx context.Context, _ saga.Track) error {
+						// The compensation context is not canceled and keeps its values.
+						if err := ctx.Err(); err != nil {
+							return fmt.Errorf("compensation context: %w", err)
+						}
+						fmt.Printf("Compensating %s\n", ctx.Value(compensationKey{}))
+						return refundPayment(ctx)
+					}).WithContext(func(ctx context.Context) context.Context {
+						// Add context data required only by this operation.
+						return context.WithValue(ctx, compensationKey{}, "payment")
+					}),
+				).
+				WithCompensationRequired(),
+		}
+
+		result, err := saga.NewSaga(steps).
+			// Preserve context values but detach compensations from action
+			// cancellation. Compensation operations should enforce their own
+			// execution limits where necessary.
+			WithCompensationContext(context.WithoutCancel).
+			Execute(ctx)
+
+		if err != nil {
+			fmt.Printf("Saga execution finished with status %s: %v\n", result.Status, err)
+		}
+	})
 }

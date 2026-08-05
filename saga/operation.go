@@ -23,9 +23,30 @@ func wrapCall(fn OperationFunc) OperationFunc {
 	}
 }
 
-// OperationFunc represents a function that performs an action and can return an error.
-// It is designed to be used as either the main step action or its compensation.
-type OperationFunc func(ctx context.Context, track Track) error
+type (
+	// OperationFunc represents a function that performs an action and can return an error.
+	// It is designed to be used as either the main step action or its compensation.
+	OperationFunc func(ctx context.Context, track Track) error
+)
+
+// CtxFactory derives an operation or compensation context from its parent.
+type CtxFactory func(ctx context.Context) context.Context
+
+// Apply transforms ctx using the factory.
+// If the factory or the context returned by it is nil, Apply returns the
+// original context unchanged.
+func (f CtxFactory) Apply(ctx context.Context) context.Context {
+	if f == nil {
+		return ctx
+	}
+
+	newCtx := f(ctx)
+	if newCtx == nil {
+		return ctx
+	}
+
+	return newCtx
+}
 
 // Operation wraps an OperationFunc with optional behavior such as retry,
 // panic recovery, and hooks.
@@ -46,17 +67,21 @@ func NewOperation(op OperationFunc) Operation {
 // If the original function panics, the panic is recovered and returned as an error
 // that wraps both the original panic value and ErrPanicRecovered.
 // Returns a new Operation with panic recovery enabled.
-func (a Operation) WithPanicRecovery() Operation {
-	a.fn = WithPanicRecovery(a.fn)
-	return a
+func (o Operation) WithPanicRecovery() Operation {
+	o.fn = WithPanicRecovery(o.fn)
+	return o
 }
 
 // WithRetry wraps the Operation with retry logic.
 // The function will be retried according to the provided RetryOptions.
 // Returns a new Operation with retry logic enabled.
-func (a Operation) WithRetry(opt RetryPolicy) Operation {
-	a.fn = WithRetry(opt, a.fn)
-	return a
+func (o Operation) WithRetry(opt RetryPolicy) Operation {
+	if opt == nil {
+		return o
+	}
+
+	o.fn = WithRetry(opt, o.fn)
+	return o
 }
 
 // WithBeforeHook adds a before-hook to the Operation.
@@ -76,16 +101,20 @@ func (a Operation) WithRetry(opt RetryPolicy) Operation {
 //	    log.Println("starting action")
 //	    return validateInput(ctx)
 //	})
-func (a Operation) WithBeforeHook(before OperationFunc) Operation {
-	fn := a.fn
-	a.fn = func(ctx context.Context, track Track) error {
+func (o Operation) WithBeforeHook(before OperationFunc) Operation {
+	if before == nil {
+		return o
+	}
+
+	fn := o.fn
+	o.fn = func(ctx context.Context, track Track) error {
 		err := before(ctx, track)
 		if err != nil {
 			return err
 		}
 		return fn(ctx, track)
 	}
-	return a
+	return o
 }
 
 // WithAfterHook adds an after-hook to the Operation.
@@ -108,9 +137,13 @@ func (a Operation) WithBeforeHook(before OperationFunc) Operation {
 //	    log.Println("action completed successfully")
 //	    return nil
 //	})
-func (a Operation) WithAfterHook(after OperationFunc) Operation {
-	fn := a.fn
-	a.fn = func(ctx context.Context, track Track) error {
+func (o Operation) WithAfterHook(after OperationFunc) Operation {
+	if after == nil {
+		return o
+	}
+
+	fn := o.fn
+	o.fn = func(ctx context.Context, track Track) error {
 		err := fn(ctx, track)
 		if err != nil {
 			return err
@@ -121,5 +154,44 @@ func (a Operation) WithAfterHook(after OperationFunc) Operation {
 		}
 		return nil
 	}
-	return a
+	return o
+}
+
+// WithContext wraps the Operation with a context transformation.
+// The factory receives the context passed to the operation, and its result is
+// passed to the wrapped function. If the factory or its result is nil, the
+// original context is used unchanged.
+//
+// This can be used to add operation-specific values or derive a context with
+// different cancellation behavior. A nil factory leaves the Operation unchanged.
+//
+// When used for an action, WithContext does not bypass Saga cancellation checks:
+// if the parent context is already done before the action starts, the action and
+// its context factory are not called. Using context.WithoutCancel detaches a
+// running action from subsequent parent cancellation, so the action may continue
+// after the Saga context is done. Use this behavior deliberately.
+//
+// WithContext does not manage resources owned by the derived context. In
+// particular, a factory must not discard a CancelFunc returned by
+// context.WithCancel, context.WithDeadline, or context.WithTimeout.
+//
+// Decorators are applied in call order. When WithContext is applied after
+// WithRetry, the context is created once for the entire retry sequence. When it
+// is applied before WithRetry, the factory is called for every retry attempt.
+//
+// Example:
+//
+//	op := NewOperation(fn).WithContext(func(ctx context.Context) context.Context {
+//		return context.WithValue(ctx, operationKey{}, operationID)
+//	})
+func (o Operation) WithContext(ctxFactory CtxFactory) Operation {
+	if ctxFactory == nil {
+		return o
+	}
+
+	fn := o.fn
+	o.fn = func(ctx context.Context, track Track) error {
+		return fn(ctxFactory.Apply(ctx), track)
+	}
+	return o
 }

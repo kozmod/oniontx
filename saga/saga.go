@@ -53,7 +53,8 @@ var (
 // Saga coordinates a local compensating workflow using the saga pattern.
 // It does not persist execution state or coordinate distributed participants.
 type Saga struct {
-	steps []Step
+	steps                      []Step
+	compensationContextFactory CtxFactory
 }
 
 // NewSaga creates a new Saga instance.
@@ -61,6 +62,15 @@ func NewSaga(steps []Step) *Saga {
 	return &Saga{
 		steps: steps,
 	}
+}
+
+// WithCompensationContext configures a context for compensation operations.
+//
+// The factory receives the action context, which may already be canceled.
+// Use context.WithoutCancel when compensations must outlive action cancellation.
+func (s *Saga) WithCompensationContext(factory CtxFactory) *Saga {
+	s.compensationContextFactory = factory
+	return s
 }
 
 // Execute runs all Saga steps.
@@ -93,6 +103,7 @@ stop:
 					errors.Join(ctx.Err(), ErrExecuteActionsContextDone),
 				),
 			)
+			s.compensate(ctx, completedTrack)
 			break stop
 		default:
 			if step.action.fn == nil {
@@ -135,6 +146,8 @@ stop:
 
 // compensate triggers compensation operations in reverse completion order.
 func (s *Saga) compensate(ctx context.Context, tracks []*simpleTracker) {
+	ctx = s.compensationContextFactory.Apply(ctx)
+
 stop:
 	for i := len(tracks) - 1; i >= 0; i-- {
 		tr := tracks[i]

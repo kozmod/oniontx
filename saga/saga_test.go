@@ -473,7 +473,6 @@ func Test_execute_context(t *testing.T) {
 		assert.ErrorIs(t, res.Steps[0].Action.Errors[2], ErrRetryContextDone)
 		assert.ErrorIs(t, res.Steps[0].Action.Errors[3], ErrRetryFailed)
 	})
-	//
 	t.Run("compensation_ctx_cancel", func(t *testing.T) {
 		var (
 			ctx, cancel = context.WithCancel(context.Background())
@@ -507,6 +506,142 @@ func Test_execute_context(t *testing.T) {
 		assert.Equal(t, 0, res.Steps[0].Compensation.Calls)
 		assert.Equal(t, 1, len(res.Steps[0].Compensation.Errors))
 		assert.ErrorIs(t, res.Steps[0].Compensation.Errors[0], ErrExecuteCompensationContextDone)
+	})
+
+	t.Run("with_compensation_context", func(t *testing.T) {
+		t.Run("operation_context_is_derived_from_compensation_context", func(t *testing.T) {
+			type contextKey string
+			const (
+				compensationKey contextKey = "compensation"
+				operationKey    contextKey = "operation"
+			)
+
+			var operationFactoryCalled bool
+			steps := []Step{
+				NewStep("step0").
+					WithAction(NewOperation(func(context.Context, Track) error {
+						return testtool.ErrExpTestA
+					})).
+					WithCompensation(
+						NewOperation(func(ctx context.Context, _ Track) error {
+							assert.Equal(t, "saga", ctx.Value(compensationKey))
+							assert.Equal(t, "operation", ctx.Value(operationKey))
+							return nil
+						}).WithContext(func(ctx context.Context) context.Context {
+							assert.Equal(t, "saga", ctx.Value(compensationKey))
+							operationFactoryCalled = true
+							return context.WithValue(ctx, operationKey, "operation")
+						}),
+					).
+					WithCompensationRequired(),
+			}
+
+			res, err := NewSaga(steps).
+				WithCompensationContext(func(ctx context.Context) context.Context {
+					return context.WithValue(ctx, compensationKey, "saga")
+				}).
+				Execute(context.Background())
+
+			assert.Error(t, err)
+			assert.Equal(t, StageResultCompensated, res.Status)
+			assert.True(t, operationFactoryCalled)
+			assert.Equal(t, ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
+			assert.Equal(t, 1, res.Steps[0].Compensation.Calls)
+		})
+
+		t.Run("nil_operation_context_factory_is_ignored", func(t *testing.T) {
+			var compensationCalled bool
+			steps := []Step{
+				NewStep("step0").
+					WithAction(NewOperation(func(context.Context, Track) error {
+						return testtool.ErrExpTestA
+					})).
+					WithCompensation(
+						NewOperation(func(context.Context, Track) error {
+							compensationCalled = true
+							return nil
+						}).WithContext(nil),
+					).
+					WithCompensationRequired(),
+			}
+
+			res, err := NewSaga(steps).Execute(context.Background())
+
+			assert.Error(t, err)
+			assert.Equal(t, StageResultCompensated, res.Status)
+			assert.True(t, compensationCalled)
+			assert.Equal(t, ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
+		})
+
+		t.Run("compensation_uses_own_context_after_action_ctx_cancel", func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			var compensationCalled bool
+
+			steps := []Step{
+				NewStep("step0").
+					WithAction(
+						NewOperation(func(context.Context, Track) error {
+							cancel()
+							return testtool.ErrExpTestA
+						}),
+					).
+					WithCompensation(
+						NewOperation(func(ctx context.Context, _ Track) error {
+							assert.NoError(t, ctx.Err())
+							compensationCalled = true
+							return nil
+						}),
+					).
+					WithCompensationRequired(),
+			}
+
+			res, err := NewSaga(steps).
+				WithCompensationContext(func(ctx context.Context) context.Context {
+					assert.ErrorIs(t, ctx.Err(), context.Canceled)
+					return context.WithoutCancel(ctx)
+				}).
+				Execute(ctx)
+
+			assert.Error(t, err)
+			assert.Equal(t, StageResultCompensated, res.Status)
+			assert.True(t, compensationCalled)
+			assert.Equal(t, ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
+			assert.Equal(t, 1, res.Steps[0].Compensation.Calls)
+		})
+		t.Run("completed_steps_are_compensated_when_action_ctx_is_done", func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			var compensationCalled bool
+
+			steps := []Step{
+				NewStep("step0").
+					WithAction(NewOperation(func(context.Context, Track) error {
+						cancel()
+						return nil
+					})).
+					WithCompensation(NewOperation(func(ctx context.Context, _ Track) error {
+						assert.NoError(t, ctx.Err())
+						compensationCalled = true
+						return nil
+					})),
+				NewStep("step1").
+					WithAction(NewOperation(func(context.Context, Track) error {
+						t.Fatal("should not have been called")
+						return nil
+					})),
+			}
+
+			res, err := NewSaga(steps).
+				WithCompensationContext(func(ctx context.Context) context.Context {
+					return context.WithoutCancel(ctx)
+				}).
+				Execute(ctx)
+
+			assert.Error(t, err)
+			assert.Equal(t, StageResultCompensated, res.Status)
+			assert.True(t, compensationCalled)
+			assert.Equal(t, ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
+			assert.ErrorIs(t, res.Steps[1].Action.Errors[0], ErrExecuteActionsContextDone)
+		})
 	})
 }
 
