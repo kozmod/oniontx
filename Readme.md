@@ -194,7 +194,13 @@ steps := []saga.Step{
 // 2. If all attempts fail, compensations will run
 // 3. Compensations will also retry on failure with exponential backoff
 // 4. Jitter distributes load during mass failure scenarios
-result, err := saga.NewSaga(steps).Execute(context.Background())
+ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+defer cancel()
+
+result, err := saga.NewSaga(steps).
+    // Compensations can continue if the action context is canceled.
+    WithCompensationContext(context.WithoutCancel).
+    Execute(ctx)
 if err != nil {
     // Handle the `Result` and errors
 }

@@ -27,10 +27,26 @@ type (
 	// OperationFunc represents a function that performs an action and can return an error.
 	// It is designed to be used as either the main step action or its compensation.
 	OperationFunc func(ctx context.Context, track Track) error
-
-	// CtxFactory derives an operation or compensation context from its parent.
-	CtxFactory func(ctx context.Context) context.Context
 )
+
+// CtxFactory derives an operation or compensation context from its parent.
+type CtxFactory func(ctx context.Context) context.Context
+
+// Apply transforms ctx using the factory.
+// If the factory or the context returned by it is nil, Apply returns the
+// original context unchanged.
+func (f CtxFactory) Apply(ctx context.Context) context.Context {
+	if f == nil {
+		return ctx
+	}
+
+	newCtx := f(ctx)
+	if newCtx == nil {
+		return ctx
+	}
+
+	return newCtx
+}
 
 // Operation wraps an OperationFunc with optional behavior such as retry,
 // panic recovery, and hooks.
@@ -142,8 +158,9 @@ func (o Operation) WithAfterHook(after OperationFunc) Operation {
 }
 
 // WithContext wraps the Operation with a context transformation.
-// The factory receives the context passed to the operation and must return a
-// non-nil context that is then passed to the wrapped function.
+// The factory receives the context passed to the operation, and its result is
+// passed to the wrapped function. If the factory or its result is nil, the
+// original context is used unchanged.
 //
 // This can be used to add operation-specific values or derive a context with
 // different cancellation behavior. A nil factory leaves the Operation unchanged.
@@ -174,12 +191,7 @@ func (o Operation) WithContext(ctxFactory CtxFactory) Operation {
 
 	fn := o.fn
 	o.fn = func(ctx context.Context, track Track) error {
-		ctx = ctxFactory(ctx)
-		err := fn(ctx, track)
-		if err != nil {
-			return err
-		}
-		return nil
+		return fn(ctxFactory.Apply(ctx), track)
 	}
 	return o
 }

@@ -146,9 +146,7 @@ stop:
 
 // compensate triggers compensation operations in reverse completion order.
 func (s *Saga) compensate(ctx context.Context, tracks []*simpleTracker) {
-	if s.compensationContextFactory != nil {
-		ctx = s.compensationContextFactory(ctx)
-	}
+	ctx = s.compensationContextFactory.Apply(ctx)
 
 stop:
 	for i := len(tracks) - 1; i >= 0; i-- {
