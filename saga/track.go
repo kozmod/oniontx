@@ -127,7 +127,7 @@ func (ed *ExecutionTrack) Calls() uint32 {
 
 // Errors returns the collected execution errors.
 func (ed *ExecutionTrack) Errors() []error {
-	return ed.errors
+	return slices.Clone(ed.errors)
 }
 
 // apply updates the execution track from an internal state transition.
