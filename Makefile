@@ -1,4 +1,3 @@
-TAG_REGEXP=^[v][0-9]+[.][0-9]+[.][0-9]+([-]{0}|[-]{1}[0-9a-zA-Z]+[.]?[0-9a-zA-Z]+)+$$
 SUBMODULES=test
 
 .PHONY: godoc
