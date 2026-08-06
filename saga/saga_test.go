@@ -126,6 +126,33 @@ func TestSaga_Execute(t *testing.T) {
 	})
 
 	t.Run("compensation_on_fail", func(t *testing.T) {
+		t.Run("failed_compensation_for_completed_step", func(t *testing.T) {
+			steps := []Step{
+				NewStep("completed_step").
+					WithAction(NewOperation(func(context.Context, Track) error {
+						return nil
+					})).
+					WithCompensation(NewOperation(func(context.Context, Track) error {
+						return testtool.ErrExpTestB
+					})),
+				NewStep("failed_step").
+					WithAction(NewOperation(func(context.Context, Track) error {
+						return testtool.ErrExpTestA
+					})),
+			}
+
+			res, err := NewSaga(steps).Execute(ctx)
+
+			assert.Error(t, err)
+			assert.ErrorIs(t, err, ErrActionFailed)
+			assert.ErrorIs(t, err, ErrCompensationFailed)
+			assert.Equal(t, StageResultFail, res.Status)
+			assert.Equal(t, ExecutionStatusSuccess, res.Steps[0].Action.Status)
+			assert.Equal(t, ExecutionStatusFail, res.Steps[0].Compensation.Status)
+			assert.ErrorIs(t, res.Steps[0].Compensation.Errors[0], testtool.ErrExpTestB)
+			assert.Equal(t, ExecutionStatusFail, res.Steps[1].Action.Status)
+		})
+
 		t.Run("skipped", func(t *testing.T) {
 			var (
 				executedActions      []string

@@ -63,6 +63,7 @@ func prepareResult(tracks []*simpleTracker) (Result, error) {
 		}
 		failed                          = make([]string, 0, len(tracks))
 		compensated                     = make([]string, 0, len(tracks))
+		failedCompensations             = make([]string, 0, len(tracks))
 		compensationNotRequired         = make([]string, 0, len(tracks))
 		failedWithCompensationReq       = make([]string, 0, len(tracks))
 		failedWithCompensationReqFailed = make([]string, 0, len(tracks))
@@ -75,9 +76,10 @@ func prepareResult(tracks []*simpleTracker) (Result, error) {
 		resultErrorFn = func(err error) error {
 			const comma = ", "
 			return fmt.Errorf(
-				"state failed - failed [%s], compensated [%s], compensation not required [%s], failed requiring compensation [%s]: %w",
+				"state failed - failed [%s], compensated [%s], failed compensations [%s], compensation not required [%s], failed requiring compensation [%s]: %w",
 				strings.Join(failed, comma),
 				strings.Join(compensated, comma),
+				strings.Join(failedCompensations, comma),
 				strings.Join(compensationNotRequired, comma),
 				strings.Join(failedWithCompensationReq, comma),
 				err,
@@ -90,6 +92,9 @@ func prepareResult(tracks []*simpleTracker) (Result, error) {
 		result.Steps = append(result.Steps, data)
 
 		stepID := prepareStateStrFn(data.StepPosition, data.StepName)
+		if data.Compensation.Status == ExecutionStatusFail {
+			failedCompensations = append(failedCompensations, stepID)
+		}
 
 		if data.Action.Status == ExecutionStatusSuccess {
 			hasSuccessfulStep = true
@@ -126,7 +131,7 @@ func prepareResult(tracks []*simpleTracker) (Result, error) {
 		result.Status = StageResultSuccess
 		return result, nil
 
-	case len(failedWithCompensationReqFailed) > 0:
+	case len(failedCompensations) > 0 || len(failedWithCompensationReqFailed) > 0:
 		result.Status = StageResultFail
 		return result, resultErrorFn(errors.Join(ErrActionFailed, ErrCompensationFailed))
 
