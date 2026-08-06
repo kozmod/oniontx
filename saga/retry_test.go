@@ -3,6 +3,7 @@ package saga
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -20,6 +21,11 @@ func Test_backoff(t *testing.T) {
 		if delay <= baseTime {
 			t.Fail()
 		}
+	})
+	t.Run("nil_backoff_uses_exponential_default", func(t *testing.T) {
+		policy := NewAdvanceRetryPolicy(1, time.Second, nil)
+
+		assert.Equal(t, 2*time.Second, policy.Delay(1))
 	})
 }
 
@@ -155,5 +161,19 @@ func Test_Saga_retry(t *testing.T) {
 		assert.ErrorIs(t, resp.Steps[0].Action.Errors[0], testtool.ErrExpTestA)
 		assert.ErrorIs(t, resp.Steps[0].Action.Errors[1], ErrRetryContextDone)
 		assert.ErrorIs(t, resp.Steps[0].Action.Errors[2], ErrRetryFailed)
+	})
+	t.Run("context_cancellation_is_returned", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		track := newInMemoryTrack(0, NewStep("step"))
+
+		err := WithRetry(NewBaseRetryOpt(1, time.Hour), func(context.Context, Track) error {
+			cancel()
+			return testtool.ErrExpTestA
+		})(ctx, track.action)
+
+		assert.True(t, errors.Is(err, ErrRetryFailed))
+		assert.True(t, errors.Is(err, ErrRetryContextDone))
+		assert.True(t, errors.Is(err, context.Canceled))
 	})
 }

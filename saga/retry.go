@@ -74,8 +74,12 @@ type AdvanceRetryPolicy struct {
 }
 
 // NewAdvanceRetryPolicy creates a new advanced retry policy with the specified
-// backoff strategy.
+// backoff strategy. A nil backoff uses ExponentialBackoff.
 func NewAdvanceRetryPolicy(attempts uint32, delay time.Duration, backoff Backoff) AdvanceRetryPolicy {
+	if backoff == nil {
+		backoff = NewExponentialBackoff()
+	}
+
 	return AdvanceRetryPolicy{
 		baseRetryPolicy: baseRetryPolicy{
 			attempts: attempts,
@@ -136,10 +140,11 @@ func (o AdvanceRetryPolicy) Delay(i uint32) time.Duration {
 //
 // Return values:
 //   - nil if any attempt succeeds
-//   - ErrRetryContextDone if context is cancelled before a retry attempt or during a retry delay
+//   - ErrRetryContextDone and the context error if context is cancelled before a retry attempt or during a retry delay
 //   - ErrRetryFailed if all attempts fail (including the initial call)
 //
-// The original error from the final attempt is stored in the track and ErrRetryFailed is returned.
+// A failure returns ErrRetryFailed joined with the cause of the final failed
+// attempt. This preserves context cancellation and lets callers use errors.Is.
 func WithRetry(opt RetryPolicy, fn func(ctx context.Context, track Track) error) func(context.Context, Track) error {
 	return func(ctx context.Context, track Track) error {
 		// first call
@@ -164,10 +169,8 @@ func WithRetry(opt RetryPolicy, fn func(ctx context.Context, track Track) error)
 			retryTrack := newExecutionRetryTrack(track, i)
 			select {
 			case <-ctx.Done():
-				err = ctx.Err()
-				retryTrack.apply(newTrackFailedAct(
-					errors.Join(ErrRetryContextDone, err),
-				))
+				err = errors.Join(ErrRetryContextDone, ctx.Err())
+				retryTrack.apply(newTrackFailedAct(err))
 
 				break stop
 			default:
@@ -180,10 +183,8 @@ func WithRetry(opt RetryPolicy, fn func(ctx context.Context, track Track) error)
 				if i < attempts-1 {
 					select {
 					case <-ctx.Done():
-						err = ctx.Err()
-						retryTrack.apply(newTrackFailedAct(
-							errors.Join(ErrRetryContextDone, err),
-						))
+						err = errors.Join(ErrRetryContextDone, ctx.Err())
+						retryTrack.apply(newTrackFailedAct(err))
 						break stop
 					case <-time.After(opt.Delay(i)):
 					}
@@ -192,7 +193,7 @@ func WithRetry(opt RetryPolicy, fn func(ctx context.Context, track Track) error)
 		}
 
 		if err != nil {
-			return ErrRetryFailed
+			return errors.Join(ErrRetryFailed, err)
 		}
 		return nil
 	}
