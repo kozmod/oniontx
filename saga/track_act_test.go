@@ -7,13 +7,13 @@ import (
 	"github.com/kozmod/oniontx/internal/testtool/assert"
 )
 
-func Test_ExecutionTrack_Apply(t *testing.T) {
+func TestExecutionTrack_apply(t *testing.T) {
 	t.Run("act_update_track_atomically", func(t *testing.T) {
 		expectedErr := errors.New("expected")
 		track := NewExecutionTrack(nil)
 
-		track.Apply(NewTrackCalledAct())
-		track.Apply(NewTrackFailedAct(expectedErr))
+		track.apply(newTrackCalledAct())
+		track.apply(newTrackFailedAct(expectedErr))
 
 		data := track.GetTrackData()
 		assert.Equal(t, 1, data.Calls)
@@ -25,7 +25,7 @@ func Test_ExecutionTrack_Apply(t *testing.T) {
 	t.Run("nil_failure_error_still_sets_failed_status", func(t *testing.T) {
 		track := NewExecutionTrack(nil)
 
-		track.Apply(NewTrackFailedAct(nil))
+		track.apply(newTrackFailedAct(nil))
 
 		data := track.GetTrackData()
 		assert.Equal(t, ExecutionStatusFail, data.Status)
@@ -41,13 +41,13 @@ func Test_ExecutionTrack_Apply(t *testing.T) {
 	})
 }
 
-func Test_ExecutionRetryTrack_Apply(t *testing.T) {
+func TestExecutionRetryTrack_apply(t *testing.T) {
 	t.Run("forwards_call_and_success_acts", func(t *testing.T) {
 		track := NewExecutionTrack(nil)
 		retryTrack := newExecutionRetryTrack(track, 2)
 
-		retryTrack.Apply(NewTrackCalledAct())
-		retryTrack.Apply(NewTrackSucceededAct())
+		retryTrack.apply(newTrackCalledAct())
+		retryTrack.apply(newTrackSucceededAct())
 
 		data := track.GetTrackData()
 		assert.Equal(t, 1, data.Calls)
@@ -59,7 +59,7 @@ func Test_ExecutionRetryTrack_Apply(t *testing.T) {
 		track := NewExecutionTrack(nil)
 		retryTrack := newExecutionRetryTrack(track, 2)
 
-		retryTrack.Apply(NewTrackFailedAct(expectedErr))
+		retryTrack.apply(newTrackFailedAct(expectedErr))
 
 		data := track.GetTrackData()
 		assert.Equal(t, ExecutionStatusFail, data.Status)
@@ -72,7 +72,7 @@ func Test_ExecutionRetryTrack_Apply(t *testing.T) {
 		track := NewExecutionTrack(nil)
 		retryTrack := newExecutionRetryTrack(track, 0)
 
-		retryTrack.Apply(NewTrackFailedAct(nil))
+		retryTrack.apply(newTrackFailedAct(nil))
 
 		data := track.GetTrackData()
 		assert.Equal(t, ExecutionStatusFail, data.Status)

@@ -150,12 +150,12 @@ func WithRetry(opt RetryPolicy, fn func(ctx context.Context, track Track) error)
 		err := fn(ctx, track)
 		switch {
 		case err == nil:
-			track.Apply(NewTrackSucceededAct())
+			applyTrackAct(track, newTrackSucceededAct())
 			return nil
 		case attempts == 0:
 			return err
 		case err != nil:
-			track.Apply(NewTrackFailedAct(err))
+			applyTrackAct(track, newTrackFailedAct(err))
 		}
 
 		// retries
@@ -165,7 +165,7 @@ func WithRetry(opt RetryPolicy, fn func(ctx context.Context, track Track) error)
 			select {
 			case <-ctx.Done():
 				err = ctx.Err()
-				retryTrack.Apply(NewTrackFailedAct(
+				retryTrack.apply(newTrackFailedAct(
 					errors.Join(ErrRetryContextDone, err),
 				))
 
@@ -173,15 +173,15 @@ func WithRetry(opt RetryPolicy, fn func(ctx context.Context, track Track) error)
 			default:
 				err = fn(ctx, retryTrack)
 				if err == nil {
-					retryTrack.Apply(NewTrackSucceededAct())
+					retryTrack.apply(newTrackSucceededAct())
 					break stop
 				}
-				retryTrack.Apply(NewTrackFailedAct(err))
+				retryTrack.apply(newTrackFailedAct(err))
 				if i < attempts-1 {
 					select {
 					case <-ctx.Done():
 						err = ctx.Err()
-						retryTrack.Apply(NewTrackFailedAct(
+						retryTrack.apply(newTrackFailedAct(
 							errors.Join(ErrRetryContextDone, err),
 						))
 						break stop

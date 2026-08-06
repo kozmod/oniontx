@@ -27,13 +27,23 @@ type (
 	}
 
 	// Track represents an executable operation within a saga step.
+	// Its state can be read by operations but is updated only by the Saga engine.
 	Track interface {
-		Apply(Act)
-
 		GetStepData() StepData
 		GetTrackData() TrackData
 	}
+
+	mutableTrack interface {
+		Track
+		apply(trackAct)
+	}
 )
+
+func applyTrackAct(track Track, act trackAct) {
+	if mutable, ok := track.(mutableTrack); ok {
+		mutable.apply(act)
+	}
+}
 
 // StepData contains the complete execution history for a single saga step.
 type StepData struct {
@@ -120,22 +130,21 @@ func (ed *ExecutionTrack) Errors() []error {
 	return ed.errors
 }
 
-// Apply applies an act to the execution track.
-// Failure acts set the status to failed and append a non-nil error.
-func (ed *ExecutionTrack) Apply(act Act) {
+// apply updates the execution track from an internal state transition.
+func (ed *ExecutionTrack) apply(act trackAct) {
 	if ed == nil {
 		return
 	}
 
-	switch act.Type {
-	case ActCalled:
+	switch act.typeID {
+	case trackActCalled:
 		ed.calls++
-	case ActSucceeded:
+	case trackActSucceeded:
 		ed.status = ExecutionStatusSuccess
-	case ActFailed:
+	case trackActFailed:
 		ed.status = ExecutionStatusFail
-		if act.Err != nil {
-			ed.errors = append(ed.errors, act.Err)
+		if act.err != nil {
+			ed.errors = append(ed.errors, act.err)
 		}
 	}
 }
@@ -154,27 +163,30 @@ func (ed *ExecutionTrack) GetTrackData() TrackData {
 	}
 }
 
-type ExecutionRetryTrack struct {
+type executionRetryTrack struct {
 	Track
+	mutable     mutableTrack
 	retryNumber uint32
 }
 
-func newExecutionRetryTrack(track Track, retry uint32) *ExecutionRetryTrack {
-	return &ExecutionRetryTrack{
+func newExecutionRetryTrack(track Track, retry uint32) *executionRetryTrack {
+	mutable, _ := track.(mutableTrack)
+	return &executionRetryTrack{
 		Track:       track,
+		mutable:     mutable,
 		retryNumber: retry,
 	}
 }
 
-func (ed *ExecutionRetryTrack) Apply(act Act) {
-	if ed == nil || ed.Track == nil {
+func (ed *executionRetryTrack) apply(act trackAct) {
+	if ed == nil || ed.mutable == nil {
 		return
 	}
 
-	if act.Type == ActFailed && act.Err != nil {
-		act.Err = fmt.Errorf("retry [%d]: %w", ed.retryNumber, act.Err)
+	if act.typeID == trackActFailed && act.err != nil {
+		act.err = fmt.Errorf("retry [%d]: %w", ed.retryNumber, act.err)
 	}
-	ed.Track.Apply(act)
+	ed.mutable.apply(act)
 }
 
 // simpleTracker manages the execution state for a single saga step.
@@ -182,8 +194,8 @@ type simpleTracker struct {
 	stepName     string
 	stepPosition uint32
 
-	action       Track
-	compensation Track
+	action       mutableTrack
+	compensation mutableTrack
 
 	compensationFunc     OperationFunc
 	compensationRequired bool

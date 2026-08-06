@@ -14,6 +14,14 @@ import (
 	"github.com/kozmod/oniontx/internal/testtool/assert"
 )
 
+var _ Track = readOnlyTrack{}
+
+type readOnlyTrack struct{}
+
+func (readOnlyTrack) GetStepData() StepData { return StepData{} }
+
+func (readOnlyTrack) GetTrackData() TrackData { return TrackData{} }
+
 func TestSaga_Execute(t *testing.T) {
 	var (
 		ctx = context.Background()

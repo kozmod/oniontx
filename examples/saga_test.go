@@ -40,18 +40,16 @@ func Test_Saga_example(t *testing.T) {
 				WithAction(saga.NewOperation(
 					// Action — the main function of the step
 					// Executes business logic and returns an error on failure
-					// The track parameter provides access to execution context:
+					// The track parameter provides read-only execution data:
 					//   - track.GetStepData() — retrieve step execution data
-					//   - track.Apply(act) — apply an execution state transition
 					func(ctx context.Context, track saga.Track) error {
 						// This could be:
 						// - Database query via mtx.Transactor
 						// - External API call
 						// - Any other operation
 						//
-						// Use track to record intermediate errors:
+						// Return errors to let the Saga update the track atomically:
 						// if err := someOperation(ctx); err != nil {
-						//     track.Apply(saga.NewTrackFailedAct(err))
 						//     return err
 						// }
 						return nil
@@ -110,10 +108,7 @@ func Test_Saga_example(t *testing.T) {
 					// Add action with decorators
 					saga.NewOperation(func(ctx context.Context, track saga.Track) error {
 						// Simulate error to demonstrate retry
-						// Record the error in track
 						err := fmt.Errorf("first_step_Error")
-						// Record failure and update the track atomically.
-						track.Apply(saga.NewTrackFailedAct(err))
 						return err
 					}).
 						// Protection against panics — important for production!

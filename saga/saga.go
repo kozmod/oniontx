@@ -89,8 +89,8 @@ stop:
 		tracks = append(tracks, tr)
 		select {
 		case <-ctx.Done():
-			tr.action.Apply(
-				NewTrackFailedAct(
+			tr.action.apply(
+				newTrackFailedAct(
 					fmt.Errorf("action failed [%d#%s]: %w", i, tr.stepName,
 						errors.Join(ctx.Err(), ErrExecuteActionsContextDone),
 					),
@@ -113,8 +113,8 @@ stop:
 			case err != nil || status == ExecutionStatusFail:
 				if err != nil {
 					err = errors.Join(err, ErrActionFailed)
-					tr.action.Apply(
-						NewTrackFailedAct(
+					tr.action.apply(
+						newTrackFailedAct(
 							fmt.Errorf("action failed [%d#%s]: %w", i, tr.stepName, err),
 						),
 					)
@@ -125,7 +125,7 @@ stop:
 				break stop
 			default:
 				if status != ExecutionStatusSuccess {
-					tr.action.Apply(NewTrackSucceededAct())
+					tr.action.apply(newTrackSucceededAct())
 				}
 			}
 
@@ -148,7 +148,7 @@ stop:
 		tr := tracks[i]
 		if tr.compensationFunc == nil {
 			if tr.compensationRequired {
-				tr.compensation.Apply(NewTrackFailedAct(
+				tr.compensation.apply(newTrackFailedAct(
 					fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.stepName, ErrCompensationRequired),
 				))
 			}
@@ -156,7 +156,7 @@ stop:
 		}
 		select {
 		case <-ctx.Done():
-			tr.compensation.Apply(NewTrackFailedAct(
+			tr.compensation.apply(newTrackFailedAct(
 				fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.stepName,
 					errors.Join(ctx.Err(), ErrExecuteCompensationContextDone),
 				),
@@ -166,11 +166,11 @@ stop:
 		default:
 			err := tr.compensationFunc(ctx, tr.compensation)
 			if err != nil {
-				tr.compensation.Apply(NewTrackFailedAct(
+				tr.compensation.apply(newTrackFailedAct(
 					fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.stepName, err),
 				))
 			} else if tr.compensation.GetTrackData().Status != ExecutionStatusSuccess {
-				tr.compensation.Apply(NewTrackSucceededAct())
+				tr.compensation.apply(newTrackSucceededAct())
 			}
 		}
 	}
