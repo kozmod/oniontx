@@ -1,6 +1,12 @@
 TAG_REGEXP=^[v][0-9]+[.][0-9]+[.][0-9]+([-]{0}|[-]{1}[0-9a-zA-Z]+[.]?[0-9a-zA-Z]+)+$$
 SUBMODULES=test
 
+.PHONY: delete.local.dependabot.branches
+delete.local.dependabot.branches: ## Delete local "dependabot" branches.
+	git for-each-ref --format='%(refname:short)' refs/heads \
+      | grep '^dependabot/' \
+      | xargs git branch -D
+
 .PHONY: godoc
 godoc: ## Install and run godoc
 	go install golang.org/x/tools/cmd/godoc@latest
