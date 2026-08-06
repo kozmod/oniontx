@@ -2,9 +2,8 @@ package saga
 
 import (
 	"context"
-	"errors"
 
-	"github.com/kozmod/oniontx/internal/tool"
+	"github.com/kozmod/oniontx/internal/errors"
 )
 
 // WithPanicRecovery returns an OperationFunc with panic recovery logic.
@@ -24,7 +23,7 @@ func WithPanicRecovery(fn func(ctx context.Context, track Track) error) Operatio
 	return func(ctx context.Context, track Track) (err error) {
 		defer func() {
 			if p := recover(); p != nil {
-				err = errors.Join(ErrPanicRecovered, tool.WrapPanic(p))
+				err = errors.Join(ErrPanicRecovered, errors.WrapPanic(p))
 			}
 		}()
 		err = fn(ctx, track)

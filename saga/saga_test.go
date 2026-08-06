@@ -1445,8 +1445,8 @@ func Test_retry(t *testing.T) {
 			t.Log(
 				res,
 				"+ error:", err,
-				"\n + Action errors: ", res.Steps[0].Action.Errors,
-				"\n + Compensation errors: ", res.Steps[0].Compensation.Errors,
+				"\n + Action errors: ", testtool.JoinString(", ", res.Steps[0].Action.Errors...),
+				"\n + Compensation errors: ", testtool.JoinString(", ", res.Steps[0].Compensation.Errors...),
 			)
 		})
 

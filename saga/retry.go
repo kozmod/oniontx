@@ -2,8 +2,9 @@ package saga
 
 import (
 	"context"
-	"errors"
 	"time"
+
+	"github.com/kozmod/oniontx/internal/errors"
 )
 
 type (
