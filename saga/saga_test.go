@@ -1408,6 +1408,7 @@ func Test_retry(t *testing.T) {
 		}
 
 		res, err := NewSaga(steps).Execute(ctx)
+
 		assert.Error(t, err)
 		assert.Equal(t, StageResultFail, res.Status)
 		assert.ErrorIs(t, err, ErrActionFailed)
