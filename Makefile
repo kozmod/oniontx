@@ -1,12 +1,6 @@
 TAG_REGEXP=^[v][0-9]+[.][0-9]+[.][0-9]+([-]{0}|[-]{1}[0-9a-zA-Z]+[.]?[0-9a-zA-Z]+)+$$
 SUBMODULES=test
 
-.PHONY: delete.local.dependabot.branches
-delete.local.dependabot.branches: ## Delete local "dependabot" branches.
-	git for-each-ref --format='%(refname:short)' refs/heads \
-      | grep '^dependabot/' \
-      | xargs git branch -D
-
 .PHONY: godoc
 godoc: ## Install and run godoc
 	go install golang.org/x/tools/cmd/godoc@latest
@@ -26,16 +20,6 @@ tools.update: ## Update or install tools
 	go install golang.org/x/tools/cmd/goimports@latest
 	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
 
-.PHONY: deps.update
-deps.update: ## Update dependencies versions (root and sub modules)
-	@GOTOOLCHAIN=local go get -u all
-	@(for sub in ${SUBMODULES} ; do \
-		pushd "$$sub" && go get -u all && go mod tidy && go mod download && popd; \
-	done)
-	@go mod tidy
-	@go mod download
-	@go work sync
-
 .PHONY: go.sync
 go.sync: ## Sync modules
 	@go work sync
@@ -54,19 +38,6 @@ lint: ## Run `golangci-lint`
 	@golangci-lint --version
 	@golangci-lint run ./...
 
-.PHONY: tags.add
-tags.add: ## Add root module and submodules tags (args: t=<v*.*.*-*.*>)(git)
-	@(val=$$(echo $(t)| tr -d ' ') && \
-	branch=$$(git rev-parse --abbrev-ref HEAD) && \
-	if [[ ! $$val =~ ${TAG_REGEXP} ]] ; then echo "not semantic version tag [$$val]" && exit 2; fi && \
-	git tag "$$val" && echo "add root module's tag [$$val] on branch [$$branch]"
-
-.PHONY: tags.del
-tags.del: ## Delete root module and submodules tags (args: t=<v*.*.*-*.*>)(git)
-	@(val=$$(echo $(t)| tr -d ' ') && \
-	if [[ ! $$val =~ ${TAG_REGEXP} ]] ; then echo "not semantic version tag [$$val]" && exit 2; fi && \
-	git tag --delete "$$val"
-
 .PHONY: tags.list
 tags.list: ## List all exists 'git' tags
 	@(git tag | sort -rt "." -k1,1n -k2,2n -k3,3n | tail -r)
@@ -75,6 +46,12 @@ tags.list: ## List all exists 'git' tags
 git.log: ## Print formatted git log from "start commit" to HEAD (args: c - start commit)
 	@(val=$$(echo $(c)| tr -d ' ') && \
 	git log --pretty=format:"* %H %s" $c..HEAD)
+
+.PHONY: delete.local.dependabot.branches
+del.local.dependabot.branches: ## Delete local "dependabot" branches.
+	git for-each-ref --format='%(refname:short)' refs/heads \
+      | grep '^dependabot/' \
+      | xargs git branch -D
 
 .PHONY: help
 help: ## List all 'make' targets with description
