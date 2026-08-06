@@ -99,8 +99,8 @@ func (ed *TrackData) String() string {
 	return builder.String()
 }
 
-// ExecutionTrack holds execution details for a single operation.
-type ExecutionTrack struct {
+// executionTrack holds execution details for a single operation.
+type executionTrack struct {
 	calls  uint32
 	errors []error
 	status ExecutionStatus
@@ -108,30 +108,15 @@ type ExecutionTrack struct {
 	tracker Tracker
 }
 
-// NewExecutionTrack creates a new ExecutionTrack.
-func NewExecutionTrack(tracker Tracker) *ExecutionTrack {
-	return newExecutionTrack(tracker, ExecutionStatusUncalled)
-}
-
-func newExecutionTrack(tracker Tracker, initialStatus ExecutionStatus) *ExecutionTrack {
-	return &ExecutionTrack{
+func newExecutionTrack(tracker Tracker, initialStatus ExecutionStatus) *executionTrack {
+	return &executionTrack{
 		status:  initialStatus,
 		tracker: tracker,
 	}
 }
 
-// Calls returns the number of times this operation has been invoked.
-func (ed *ExecutionTrack) Calls() uint32 {
-	return ed.calls
-}
-
-// Errors returns the collected execution errors.
-func (ed *ExecutionTrack) Errors() []error {
-	return slices.Clone(ed.errors)
-}
-
 // apply updates the execution track from an internal state transition.
-func (ed *ExecutionTrack) apply(act trackAct) {
+func (ed *executionTrack) apply(act trackAct) {
 	if ed == nil {
 		return
 	}
@@ -150,12 +135,12 @@ func (ed *ExecutionTrack) apply(act trackAct) {
 }
 
 // GetStepData returns the StepData from the associated tracker.
-func (ed *ExecutionTrack) GetStepData() StepData {
+func (ed *executionTrack) GetStepData() StepData {
 	return ed.tracker.GetStepData()
 }
 
 // GetTrackData returns a copy of the current TrackData.
-func (ed *ExecutionTrack) GetTrackData() TrackData {
+func (ed *executionTrack) GetTrackData() TrackData {
 	return TrackData{
 		Calls:  ed.calls,
 		Errors: slices.Clone(ed.errors),

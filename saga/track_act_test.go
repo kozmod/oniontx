@@ -7,10 +7,10 @@ import (
 	"github.com/kozmod/oniontx/internal/testtool/assert"
 )
 
-func TestExecutionTrack_apply(t *testing.T) {
+func TestExecutionTrackApply(t *testing.T) {
 	t.Run("act_update_track_atomically", func(t *testing.T) {
 		expectedErr := errors.New("expected")
-		track := NewExecutionTrack(nil)
+		track := newExecutionTrack(nil, ExecutionStatusUncalled)
 
 		track.apply(newTrackCalledAct())
 		track.apply(newTrackFailedAct(expectedErr))
@@ -23,7 +23,7 @@ func TestExecutionTrack_apply(t *testing.T) {
 	})
 
 	t.Run("nil_failure_error_still_sets_failed_status", func(t *testing.T) {
-		track := NewExecutionTrack(nil)
+		track := newExecutionTrack(nil, ExecutionStatusUncalled)
 
 		track.apply(newTrackFailedAct(nil))
 
@@ -43,7 +43,7 @@ func TestExecutionTrack_apply(t *testing.T) {
 
 func TestExecutionRetryTrack_apply(t *testing.T) {
 	t.Run("forwards_call_and_success_acts", func(t *testing.T) {
-		track := NewExecutionTrack(nil)
+		track := newExecutionTrack(nil, ExecutionStatusUncalled)
 		retryTrack := newExecutionRetryTrack(track, 2)
 
 		retryTrack.apply(newTrackCalledAct())
@@ -56,7 +56,7 @@ func TestExecutionRetryTrack_apply(t *testing.T) {
 
 	t.Run("wraps_failure_once", func(t *testing.T) {
 		expectedErr := errors.New("expected")
-		track := NewExecutionTrack(nil)
+		track := newExecutionTrack(nil, ExecutionStatusUncalled)
 		retryTrack := newExecutionRetryTrack(track, 2)
 
 		retryTrack.apply(newTrackFailedAct(expectedErr))
@@ -69,7 +69,7 @@ func TestExecutionRetryTrack_apply(t *testing.T) {
 	})
 
 	t.Run("forwards_failure_with_nil_error", func(t *testing.T) {
-		track := NewExecutionTrack(nil)
+		track := newExecutionTrack(nil, ExecutionStatusUncalled)
 		retryTrack := newExecutionRetryTrack(track, 0)
 
 		retryTrack.apply(newTrackFailedAct(nil))
