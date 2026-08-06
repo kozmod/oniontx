@@ -3,7 +3,6 @@ package saga
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 )
 
@@ -151,44 +150,40 @@ func WithRetry(opt RetryPolicy, fn func(ctx context.Context, track Track) error)
 		err := fn(ctx, track)
 		switch {
 		case err == nil:
-			track.SetStatus(ExecutionStatusSuccess)
+			track.Apply(NewTrackSucceededAct())
 			return nil
 		case attempts == 0:
 			return err
 		case err != nil:
-			track.SetStatus(ExecutionStatusFail)
-			track.AddError(err)
+			track.Apply(NewTrackFailedAct(err))
 		}
 
 		// retries
 	stop:
 		for i := uint32(0); i < attempts; i++ {
-			track.SetParentError(fmt.Errorf("retry [%d]", i))
+			retryTrack := newExecutionRetryTrack(track, i)
 			select {
 			case <-ctx.Done():
 				err = ctx.Err()
-				track.SetStatus(ExecutionStatusFail)
-				track.AddError(
+				retryTrack.Apply(NewTrackFailedAct(
 					errors.Join(ErrRetryContextDone, err),
-				)
+				))
 
 				break stop
 			default:
-				err = fn(ctx, track)
+				err = fn(ctx, retryTrack)
 				if err == nil {
-					track.SetStatus(ExecutionStatusSuccess)
+					retryTrack.Apply(NewTrackSucceededAct())
 					break stop
 				}
-				track.SetStatus(ExecutionStatusFail)
-				track.AddError(err)
+				retryTrack.Apply(NewTrackFailedAct(err))
 				if i < attempts-1 {
 					select {
 					case <-ctx.Done():
 						err = ctx.Err()
-						track.SetStatus(ExecutionStatusFail)
-						track.AddError(
+						retryTrack.Apply(NewTrackFailedAct(
 							errors.Join(ErrRetryContextDone, err),
-						)
+						))
 						break stop
 					case <-time.After(opt.Delay(i)):
 					}
@@ -196,7 +191,6 @@ func WithRetry(opt RetryPolicy, fn func(ctx context.Context, track Track) error)
 			}
 		}
 
-		track.SetParentError(nil)
 		if err != nil {
 			return ErrRetryFailed
 		}

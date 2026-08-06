@@ -17,7 +17,7 @@ func wrapCall(fn OperationFunc) OperationFunc {
 		fn = dummyOperation
 	}
 	return func(ctx context.Context, track Track) (err error) {
-		track.Call()
+		track.Apply(NewTrackCalledAct())
 		err = fn(ctx, track)
 		return err
 	}

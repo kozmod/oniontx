@@ -28,10 +28,7 @@ type (
 
 	// Track represents an executable operation within a saga step.
 	Track interface {
-		Call()
-		SetStatus(ExecutionStatus)
-		SetParentError(error)
-		AddError(error)
+		Apply(Act)
 
 		GetStepData() StepData
 		GetTrackData() TrackData
@@ -94,18 +91,21 @@ func (ed *TrackData) String() string {
 
 // ExecutionTrack holds execution details for a single operation.
 type ExecutionTrack struct {
-	calls       uint32
-	parentError error
-	errors      []error
-	status      ExecutionStatus
+	calls  uint32
+	errors []error
+	status ExecutionStatus
 
 	tracker Tracker
 }
 
 // NewExecutionTrack creates a new ExecutionTrack.
 func NewExecutionTrack(tracker Tracker) *ExecutionTrack {
+	return newExecutionTrack(tracker, ExecutionStatusUncalled)
+}
+
+func newExecutionTrack(tracker Tracker, initialStatus ExecutionStatus) *ExecutionTrack {
 	return &ExecutionTrack{
-		status:  ExecutionStatusUncalled,
+		status:  initialStatus,
 		tracker: tracker,
 	}
 }
@@ -120,32 +120,24 @@ func (ed *ExecutionTrack) Errors() []error {
 	return ed.errors
 }
 
-// Call increments the call counter for this execution track.
-func (ed *ExecutionTrack) Call() {
-	ed.calls++
-}
-
-// SetStatus updates the execution status of this track.
-func (ed *ExecutionTrack) SetStatus(status ExecutionStatus) {
-	ed.status = status
-}
-
-// SetParentError sets a parent error that will be wrapped with any subsequent errors added.
-func (ed *ExecutionTrack) SetParentError(err error) {
-	ed.parentError = err
-}
-
-// AddError appends an error to the track's error list.
-// If a parent error is set, it will be wrapped with the new error.
-// Nil errors are silently ignored.
-func (ed *ExecutionTrack) AddError(err error) {
-	if err == nil || ed == nil {
+// Apply applies an act to the execution track.
+// Failure acts set the status to failed and append a non-nil error.
+func (ed *ExecutionTrack) Apply(act Act) {
+	if ed == nil {
 		return
 	}
-	if ed.parentError != nil {
-		err = fmt.Errorf("%w: %w", ed.parentError, err)
+
+	switch act.Type {
+	case ActCalled:
+		ed.calls++
+	case ActSucceeded:
+		ed.status = ExecutionStatusSuccess
+	case ActFailed:
+		ed.status = ExecutionStatusFail
+		if act.Err != nil {
+			ed.errors = append(ed.errors, act.Err)
+		}
 	}
-	ed.errors = append(ed.errors, err)
 }
 
 // GetStepData returns the StepData from the associated tracker.
@@ -162,6 +154,29 @@ func (ed *ExecutionTrack) GetTrackData() TrackData {
 	}
 }
 
+type ExecutionRetryTrack struct {
+	Track
+	retryNumber uint32
+}
+
+func newExecutionRetryTrack(track Track, retry uint32) *ExecutionRetryTrack {
+	return &ExecutionRetryTrack{
+		Track:       track,
+		retryNumber: retry,
+	}
+}
+
+func (ed *ExecutionRetryTrack) Apply(act Act) {
+	if ed == nil || ed.Track == nil {
+		return
+	}
+
+	if act.Type == ActFailed && act.Err != nil {
+		act.Err = fmt.Errorf("retry [%d]: %w", ed.retryNumber, act.Err)
+	}
+	ed.Track.Apply(act)
+}
+
 // simpleTracker manages the execution state for a single saga step.
 type simpleTracker struct {
 	stepName     string
@@ -175,8 +190,7 @@ type simpleTracker struct {
 }
 
 // newInMemoryTrack creates a new simpleTracker for a given step.
-func newInMemoryTrack(position uint32, step Step, trackFactory func(Tracker) Track) *simpleTracker {
-
+func newInMemoryTrack(position uint32, step Step) *simpleTracker {
 	tracker := &simpleTracker{
 		stepName:             step.name,
 		stepPosition:         position,
@@ -184,16 +198,17 @@ func newInMemoryTrack(position uint32, step Step, trackFactory func(Tracker) Tra
 		compensationRequired: step.compensationRequired,
 	}
 
-	tracker.action = trackFactory(tracker)
-	tracker.compensation = trackFactory(tracker)
-
+	actionStatus := ExecutionStatusUncalled
+	compensationStatus := ExecutionStatusUncalled
 	if step.compensation.fn == nil {
-		tracker.compensation.SetStatus(ExecutionStatusUnset)
+		compensationStatus = ExecutionStatusUnset
+	}
+	if step.action.fn == nil {
+		actionStatus = ExecutionStatusUnset
 	}
 
-	if step.action.fn == nil {
-		tracker.action.SetStatus(ExecutionStatusUnset)
-	}
+	tracker.action = newExecutionTrack(tracker, actionStatus)
+	tracker.compensation = newExecutionTrack(tracker, compensationStatus)
 
 	return tracker
 }
