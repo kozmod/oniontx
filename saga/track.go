@@ -62,11 +62,15 @@ type StepData struct {
 
 // String returns a human-readable representation of the StepData.
 func (s StepData) String() string {
+	return s.string(false)
+}
+
+func (s StepData) string(errorsInTrackDataString bool) string {
 	return fmt.Sprintf("Step %d: %s | Action: %s | Compensation: %s",
 		s.StepPosition,
 		s.StepName,
-		s.Action.String(),
-		s.Compensation.String(),
+		s.Action.string(errorsInTrackDataString),
+		s.Compensation.string(errorsInTrackDataString),
 	)
 }
 
@@ -79,6 +83,10 @@ type TrackData struct {
 
 // String returns a compact representation of TrackData.
 func (ed *TrackData) String() string {
+	return ed.string(false)
+}
+
+func (ed *TrackData) string(includeErrors bool) string {
 	var builder strings.Builder
 	switch ed {
 	case nil:
@@ -86,13 +94,18 @@ func (ed *TrackData) String() string {
 	default:
 		_, _ = fmt.Fprintf(&builder, "{Status: %s, Calls: %d", ed.Status, ed.Calls)
 		if len(ed.Errors) > 0 {
-			fmt.Fprintf(&builder, ", Errors: %d", len(ed.Errors))
-			// @TODO: add errors output
-			//if len(ed.Errors) == 1 {
-			//	builder.WriteString(fmt.Sprintf(" [%v]", ed.Errors[0]))
-			//}
+			_, _ = fmt.Fprintf(&builder, ", Errors: %d", len(ed.Errors))
+			if includeErrors {
+				builder.WriteString(" [")
+				for i, err := range ed.Errors {
+					if i > 0 {
+						builder.WriteString(", ")
+					}
+					_, _ = fmt.Fprint(&builder, err)
+				}
+				builder.WriteString("]")
+			}
 		}
-
 	}
 
 	builder.WriteString("}")

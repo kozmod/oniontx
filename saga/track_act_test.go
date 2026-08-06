@@ -7,7 +7,7 @@ import (
 	"github.com/kozmod/oniontx/internal/testtool/assert"
 )
 
-func TestExecutionTrackApply(t *testing.T) {
+func Test_ExecutionTrackApply(t *testing.T) {
 	t.Run("act_update_track_atomically", func(t *testing.T) {
 		expectedErr := errors.New("expected")
 		track := newExecutionTrack(nil, ExecutionStatusUncalled)
@@ -41,7 +41,7 @@ func TestExecutionTrackApply(t *testing.T) {
 	})
 }
 
-func TestExecutionRetryTrack_apply(t *testing.T) {
+func Test_ExecutionRetryTrack_apply(t *testing.T) {
 	t.Run("forwards_call_and_success_acts", func(t *testing.T) {
 		track := newExecutionTrack(nil, ExecutionStatusUncalled)
 		retryTrack := newExecutionRetryTrack(track, 2)

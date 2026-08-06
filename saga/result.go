@@ -25,6 +25,16 @@ const (
 type Result struct {
 	Steps  []StepData
 	Status StageStatus
+
+	// errorsInTrackDataString controls whether String includes collected TrackData errors.
+	errorsInTrackDataString bool
+}
+
+// WithErrorsInTrackDataString returns a copy of Result whose String output
+// includes the collected errors for every TrackData value.
+func (r Result) WithErrorsInTrackDataString() Result {
+	r.errorsInTrackDataString = true
+	return r
 }
 
 // String returns a human-readable representation of the Result.
@@ -35,7 +45,7 @@ func (r Result) String() string {
 	_, _ = fmt.Fprintf(&builder, "Steps(%d):\n", len(r.Steps))
 
 	for i, track := range r.Steps {
-		_, _ = fmt.Fprintf(&builder, "  [%d] %s\n", i+1, track.String())
+		_, _ = fmt.Fprintf(&builder, "  [%d] %s\n", i+1, track.string(r.errorsInTrackDataString))
 	}
 
 	return builder.String()
