@@ -1,8 +1,7 @@
 package saga
 
 import (
-	"crypto/rand"
-	"math/big"
+	"math/rand/v2"
 	"time"
 )
 
@@ -41,11 +40,6 @@ func randomDuration(max time.Duration) time.Duration {
 	if max <= 0 {
 		return 0
 	}
-
-	n, err := rand.Int(rand.Reader, big.NewInt(int64(max)))
-	if err != nil {
-		return max
-	}
-
-	return time.Duration(n.Int64())
+	duration := rand.Int64N(int64(max))
+	return time.Duration(duration)
 }
