@@ -12,20 +12,42 @@ import (
 )
 
 func Test_backoff(t *testing.T) {
-	t.Run("exponential_v1", func(t *testing.T) {
-		var (
-			baseTime = time.Second
-		)
-		backoff := NewExponentialBackoff()
-		delay := backoff.Backoff(1, baseTime)
-		if delay <= baseTime {
-			t.Fail()
-		}
-	})
-	t.Run("nil_backoff_uses_exponential_default", func(t *testing.T) {
-		policy := NewAdvanceRetryPolicy(1, time.Second, nil)
+	t.Run("exponential", func(t *testing.T) {
+		t.Run("v1", func(t *testing.T) {
+			var (
+				baseTime = time.Second
+			)
+			backoff := NewExponentialBackoff()
+			delay := backoff.Backoff(1, baseTime)
+			if delay <= baseTime {
+				t.Fail()
+			}
+		})
 
-		assert.Equal(t, 2*time.Second, policy.Delay(1))
+		t.Run("v2", func(t *testing.T) {
+			backoff := NewExponentialBackoff()
+
+			assert.Equal(t, 8*time.Second, backoff.Backoff(3, time.Second))
+		})
+
+		t.Run("nil_backoff_uses_exponential_default", func(t *testing.T) {
+			policy := NewAdvanceRetryPolicy(1, time.Second, nil)
+
+			assert.Equal(t, 2*time.Second, policy.Delay(1))
+		})
+
+		t.Run("on_overflow", func(t *testing.T) {
+			backoff := NewExponentialBackoff()
+
+			assert.Equal(t, maxDuration, backoff.Backoff(64, time.Second))
+		})
+
+		t.Run("max_delay_applies_after_backoff_saturates", func(t *testing.T) {
+			policy := NewAdvanceRetryPolicy(64, time.Second, NewExponentialBackoff()).
+				WithMaxDelay(10 * time.Second)
+
+			assert.Equal(t, 10*time.Second, policy.Delay(64))
+		})
 	})
 }
 
