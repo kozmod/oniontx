@@ -107,11 +107,8 @@ func prepareResult(tracks []*simpleTracker) (Result, error) {
 			failedCompensations = append(failedCompensations, stepID)
 		}
 
-		if data.Action.Status == ExecutionStatusSuccess {
-			hasSuccessfulStep = true
-		}
-
-		if data.Action.Status == ExecutionStatusFail {
+		switch data.Action.Status {
+		case ExecutionStatusFail:
 			failed = append(failed, stepID)
 
 			if data.CompensationRequired {
@@ -122,10 +119,10 @@ func prepareResult(tracks []*simpleTracker) (Result, error) {
 					failedWithCompensationReqFailed = append(failedWithCompensationReqFailed, stepID)
 				}
 			}
-			continue
-		}
 
-		if data.Action.Status == ExecutionStatusSuccess {
+		case ExecutionStatusSuccess:
+			hasSuccessfulStep = true
+
 			switch data.Compensation.Status {
 			case ExecutionStatusSuccess:
 				compensated = append(compensated, stepID)
