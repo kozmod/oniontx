@@ -166,7 +166,7 @@ func WithRetry(opt RetryPolicy, fn func(ctx context.Context, track Track) error)
 
 		// retries
 	stop:
-		for i := uint32(0); i < attempts; i++ {
+		for i := range attempts {
 			retryTrack := newExecutionRetryTrack(track, i)
 			select {
 			case <-ctx.Done():
