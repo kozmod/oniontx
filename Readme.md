@@ -26,6 +26,7 @@ level while repositories remain focused on data access.
 - **Testability First**: Built-in support for major testing frameworks
 - **Type-Safe**: Full generics support for compile-time safety
 - **Context-Aware**: Proper context propagation throughout transaction boundaries
+- **Lightweight**: The core library uses only the Go standard library and avoids unnecessary runtime dependencies
 
 ### Package `mtx`: Local Transactions
 
@@ -103,6 +104,11 @@ if !ok {
 Nested `WithinTx` calls reuse the transaction already stored in context, so
 multiple use cases can participate in the same transaction without passing the
 transaction object through repository APIs.
+
+> **Note:** Nested `WithinTx` calls do not create database save-points or independent
+> nested transactions. 
+> They participate in the same outer transaction, so an error
+> from an inner call causes the outer transaction to be rolled back.
 
 <a name="libs"><a/> The [test/integration](https://github.com/kozmod/oniontx/tree/master/test) module contains working `Transactor`
 implementations for `stdlib`, `sqlx`, `pgx`, `gorm`, `redis`, `mongo`:
