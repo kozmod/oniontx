@@ -5,10 +5,9 @@ package mtx
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
-	"github.com/kozmod/oniontx/internal/tool"
+	"github.com/kozmod/oniontx/internal/errors"
 )
 
 var (
@@ -158,19 +157,19 @@ func (t *Transactor[B, T]) WithinTx(ctx context.Context, fn func(ctx context.Con
 			if ok {
 				err = fmt.Errorf(
 					"transactor - panic: %w",
-					errors.Join(ErrPanicRecovered, tool.WrapPanic(p)),
+					errors.Join(ErrPanicRecovered, errors.WrapPanic(p)),
 				)
 				return
 			}
 			if rbErr := tx.Rollback(ctx); rbErr != nil {
 				err = fmt.Errorf(
 					"transactor - panic: %w",
-					errors.Join(ErrRollbackFailed, ErrPanicRecovered, rbErr, tool.WrapPanic(p)),
+					errors.Join(ErrRollbackFailed, ErrPanicRecovered, rbErr, errors.WrapPanic(p)),
 				)
 			} else {
 				err = fmt.Errorf(
 					"transactor - panic: %w",
-					errors.Join(ErrRollbackSuccess, ErrPanicRecovered, tool.WrapPanic(p)),
+					errors.Join(ErrRollbackSuccess, ErrPanicRecovered, errors.WrapPanic(p)),
 				)
 			}
 		case err != nil:

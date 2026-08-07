@@ -3,9 +3,9 @@ package saga
 type trackActType string
 
 const (
-	trackActCalled    trackActType = "OperationCalled"
-	trackActSucceeded trackActType = "OperationSucceeded"
-	trackActFailed    trackActType = "OperationFailed"
+	trackActCalled    trackActType = "Called"
+	trackActSucceeded trackActType = "Succeeded"
+	trackActFailed    trackActType = "Failed"
 )
 
 type trackAct struct {

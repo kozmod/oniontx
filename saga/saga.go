@@ -2,8 +2,9 @@ package saga
 
 import (
 	"context"
-	"errors"
 	"fmt"
+
+	"github.com/kozmod/oniontx/internal/errors"
 )
 
 var (
@@ -92,7 +93,7 @@ stop:
 			tr.action.apply(
 				newTrackFailedAct(
 					fmt.Errorf("action failed [%d#%s]: %w", i, tr.stepName,
-						errors.Join(ctx.Err(), ErrExecuteActionsContextDone),
+						errors.Join(ErrExecuteActionsContextDone, ctx.Err()),
 					),
 				),
 			)
@@ -112,13 +113,12 @@ stop:
 			switch status := tr.action.GetTrackData().Status; {
 			case err != nil || status == ExecutionStatusFail:
 				if err != nil {
-					err = errors.Join(err, ErrActionFailed)
+					err = errors.Join(ErrActionFailed, err)
 					tr.action.apply(
 						newTrackFailedAct(
 							fmt.Errorf("action failed [%d#%s]: %w", i, tr.stepName, err),
 						),
 					)
-
 				}
 				// Run compensation when an action error arises.
 				s.compensate(ctx, completedTrack)
@@ -158,7 +158,7 @@ stop:
 		case <-ctx.Done():
 			tr.compensation.apply(newTrackFailedAct(
 				fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.stepName,
-					errors.Join(ctx.Err(), ErrExecuteCompensationContextDone),
+					errors.Join(ErrExecuteCompensationContextDone, ctx.Err()),
 				),
 			))
 

@@ -1,9 +1,10 @@
 package saga
 
 import (
-	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/kozmod/oniontx/internal/errors"
 )
 
 // StageStatus represents the overall outcome of a saga execution.
