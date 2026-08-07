@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func JoinString[T any](sep string, vals ...T) string {
+func JoinAsString[T any](sep string, vals ...T) string {
 	strVals := make([]string, len(vals))
 	for i, val := range vals {
 		strVals[i] = fmt.Sprintf("%v", val)
