@@ -2,6 +2,7 @@ package saga
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/kozmod/oniontx/internal/errors"
@@ -72,27 +73,27 @@ func prepareResult(tracks []*simpleTracker) (Result, error) {
 			Steps:  make([]StepData, 0, len(tracks)),
 			Status: StageResultUnknown,
 		}
-		failed                          = make([]string, 0, len(tracks))
-		compensated                     = make([]string, 0, len(tracks))
-		failedCompensations             = make([]string, 0, len(tracks))
-		compensationNotRequired         = make([]string, 0, len(tracks))
-		failedWithCompensationReq       = make([]string, 0, len(tracks))
-		failedWithCompensationReqFailed = make([]string, 0, len(tracks))
-		hasSuccessfulStep               = false
+		failed                             = make([]string, 0, len(tracks))
+		compensated                        = make([]string, 0, len(tracks))
+		failedCompensations                = make([]string, 0, len(tracks))
+		compensationNotRequired            = make([]string, 0, len(tracks))
+		failedActionsRequiringCompensation = make([]string, 0, len(tracks))
+		requiredCompensationNotSucceeded   = make([]string, 0, len(tracks))
+		hasSuccessfulStep                  = false
 
 		prepareStateStrFn = func(position uint32, name string) string {
 			return fmt.Sprintf("%d#%s", position, name)
 		}
 
 		resultErrorFn = func(err error) error {
-			const comma = ", "
 			return fmt.Errorf(
-				"state failed - failed [%s], compensated [%s], failed compensations [%s], compensation not required [%s], failed requiring compensation [%s]: %w",
-				strings.Join(failed, comma),
-				strings.Join(compensated, comma),
-				strings.Join(failedCompensations, comma),
-				strings.Join(compensationNotRequired, comma),
-				strings.Join(failedWithCompensationReq, comma),
+				"state failed - failed [%s], compensated [%s], failed compensations [%s], compensation not required [%s], failed actions requiring compensation [%s], required compensations not succeeded [%s]: %w",
+				prepareResultSliceErrorMessage(failed),
+				prepareResultSliceErrorMessage(compensated),
+				prepareResultSliceErrorMessage(failedCompensations),
+				prepareResultSliceErrorMessage(compensationNotRequired),
+				prepareResultSliceErrorMessage(failedActionsRequiringCompensation),
+				prepareResultSliceErrorMessage(requiredCompensationNotSucceeded),
 				err,
 			)
 		}
@@ -112,11 +113,11 @@ func prepareResult(tracks []*simpleTracker) (Result, error) {
 			failed = append(failed, stepID)
 
 			if data.CompensationRequired {
-				failedWithCompensationReq = append(failedWithCompensationReq, stepID)
+				failedActionsRequiringCompensation = append(failedActionsRequiringCompensation, stepID)
 				if data.Compensation.Status == ExecutionStatusSuccess {
 					compensated = append(compensated, stepID)
 				} else {
-					failedWithCompensationReqFailed = append(failedWithCompensationReqFailed, stepID)
+					requiredCompensationNotSucceeded = append(requiredCompensationNotSucceeded, stepID)
 				}
 			}
 
@@ -139,11 +140,11 @@ func prepareResult(tracks []*simpleTracker) (Result, error) {
 		result.Status = StageResultSuccess
 		return result, nil
 
-	case len(failedCompensations) > 0 || len(failedWithCompensationReqFailed) > 0:
+	case len(failedCompensations) > 0 || len(requiredCompensationNotSucceeded) > 0:
 		result.Status = StageResultFail
 		return result, resultErrorFn(errors.Join(ErrActionFailed, ErrCompensationFailed))
 
-	case len(failedWithCompensationReq) == 0 && !hasSuccessfulStep && len(compensated) == 0:
+	case len(failedActionsRequiringCompensation) == 0 && !hasSuccessfulStep && len(compensated) == 0:
 		// Edge case: no required compensations, no successful steps, no successful compensations
 		// This indicates a failure scenario where no meaningful recovery occurred
 		result.Status = StageResultFail
@@ -153,4 +154,13 @@ func prepareResult(tracks []*simpleTracker) (Result, error) {
 		result.Status = StageResultCompensated
 		return result, resultErrorFn(ErrActionFailed)
 	}
+}
+
+func prepareResultSliceErrorMessage(in []string) string {
+	const comma = ", "
+	if len(in) == 0 {
+		return strconv.Itoa(len(in))
+	}
+
+	return fmt.Sprintf("%d: %s", len(in), strings.Join(in, comma))
 }

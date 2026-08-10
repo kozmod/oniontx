@@ -58,3 +58,23 @@ func Test_Result_String(t *testing.T) {
 		})
 	})
 }
+
+func Test_prepareResultSliceErrorMessage(t *testing.T) {
+	t.Run("empty", func(t *testing.T) {
+		res := prepareResultSliceErrorMessage([]string{})
+		assert.Equal(t, "0", res)
+
+		res = prepareResultSliceErrorMessage(nil)
+		assert.Equal(t, "0", res)
+	})
+
+	t.Run("not_empty", func(t *testing.T) {
+		var (
+			someData = []string{"some_data"}
+		)
+
+		res := prepareResultSliceErrorMessage(someData)
+		assert.Equal(t, fmt.Sprintf("%d: %s", len(someData), someData[0]), res)
+	})
+
+}
