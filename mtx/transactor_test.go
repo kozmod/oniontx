@@ -498,13 +498,26 @@ func Test_Transactor_RollbackCtxFactory(t *testing.T) {
 
 	t.Run("uses_original_context_for_nil_factory_or_result", func(t *testing.T) {
 		var (
-			expErr = fmt.Errorf("action failed")
+			expErr    = fmt.Errorf("action failed")
+			testCases = []struct {
+				name    string
+				factory func(context.Context) context.Context
+			}{
+				{
+					name:    "nil_factory",
+					factory: nil,
+				},
+				{
+					name: "nil_result",
+					factory: func(context.Context) context.Context {
+						return nil
+					},
+				},
+			}
 		)
-		for name, factory := range map[string]func(context.Context) context.Context{
-			"nil_factory": nil,
-			"nil_result":  func(context.Context) context.Context { return nil },
-		} {
-			t.Run(name, func(t *testing.T) {
+
+		for i, testCase := range testCases {
+			t.Run(fmt.Sprintf("%d_%s", i, testCase.name), func(t *testing.T) {
 				var (
 					operationCtx context.Context
 					c            = &committerMock{
@@ -516,7 +529,7 @@ func Test_Transactor_RollbackCtxFactory(t *testing.T) {
 
 					ctx = context.Background()
 				)
-				tr := newTransactor(c).WithRollbackCtxFactory(factory)
+				tr := newTransactor(c).WithRollbackCtxFactory(testCase.factory)
 
 				err := tr.WithinTx(ctx, func(currentCtx context.Context) error {
 					operationCtx = currentCtx
