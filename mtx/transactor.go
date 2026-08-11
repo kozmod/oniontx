@@ -10,36 +10,6 @@ import (
 	"github.com/kozmod/oniontx/internal/errors"
 )
 
-var (
-	// ErrNilTxBeginner indicates that the provided TxBeginner is nil.
-	// This error is returned when trying to use a Transactor with an uninitialized beginner.
-	ErrNilTxBeginner = fmt.Errorf("tx beginner is nil")
-
-	// ErrNilTxOperator indicates that the provided CtxOperator is nil.
-	// This error is returned when trying to use a Transactor with an uninitialized operator.
-	ErrNilTxOperator = fmt.Errorf("tx operator is nil")
-
-	// ErrBeginTx indicates that starting a new transaction has failed.
-	// This error wraps the underlying error from the database driver.
-	ErrBeginTx = fmt.Errorf("begin tx")
-
-	// ErrCommitFailed indicates that committing a transaction has failed.
-	// This error wraps the underlying error from the database driver during commit
-	ErrCommitFailed = fmt.Errorf("commit failed")
-
-	// ErrRollbackFailed indicates that rolling back a transaction has failed.
-	// This error wraps the underlying error from the database driver during rollback.
-	ErrRollbackFailed = fmt.Errorf("rollback failed")
-
-	// ErrRollbackSuccess indicates that a transaction was successfully rolled back.
-	// Despite being an error type, it signals a successful rollback operation.
-	ErrRollbackSuccess = fmt.Errorf("rollback tx")
-
-	// ErrPanicRecovered indicates that a panic was recovered and converted to an error.
-	// It wraps the original panic value to provide context about what caused the panic.
-	ErrPanicRecovered = fmt.Errorf("panic recovered")
-)
-
 type (
 	// TxBeginner is responsible for creating new Tx.
 	TxBeginner[T Tx] interface {
@@ -196,12 +166,12 @@ func (t *Transactor[B, T]) WithinTx(ctx context.Context, fn func(ctx context.Con
 			if rbErr := tx.Rollback(rollbackCtx); rbErr != nil {
 				err = fmt.Errorf(
 					"transactor - panic: %w",
-					errors.Join(ErrRollbackFailed, ErrPanicRecovered, rbErr, errors.WrapPanic(p)),
+					errors.Join(ErrPanicRecovered, NewRollbackError(errors.WrapPanic(p), rbErr)),
 				)
 			} else {
 				err = fmt.Errorf(
 					"transactor - panic: %w",
-					errors.Join(ErrRollbackSuccess, ErrPanicRecovered, errors.WrapPanic(p)),
+					errors.Join(ErrPanicRecovered, errors.WrapPanic(p)),
 				)
 			}
 		case err != nil:
@@ -217,9 +187,9 @@ func (t *Transactor[B, T]) WithinTx(ctx context.Context, fn func(ctx context.Con
 			}
 
 			if rbErr := tx.Rollback(rollbackCtx); rbErr != nil {
-				err = fmt.Errorf("transactor - call: %w", errors.Join(ErrRollbackFailed, rbErr, err))
+				err = fmt.Errorf("transactor - call: %w", NewRollbackError(err, rbErr))
 			} else {
-				err = fmt.Errorf("transactor - call: %w", errors.Join(ErrRollbackSuccess, err))
+				err = fmt.Errorf("transactor - call: %w", err)
 			}
 		default:
 			if ok {

@@ -203,8 +203,8 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 				assert.True(t, &c == tx)
 				return nil
 			})
-			assert.True(t, errors.Is(err, ErrCommitFailed))
-			assert.True(t, errors.Is(err, expError))
+			assert.ErrorIs(t, err, ErrCommitFailed)
+			assert.ErrorIs(t, err, expError)
 			assert.True(t, commitCalled)
 		})
 		t.Run("success_rollback", func(t *testing.T) {
@@ -235,8 +235,7 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 				assert.True(t, &c == tx)
 				return expError
 			})
-			assert.True(t, errors.Is(err, ErrRollbackSuccess))
-			assert.True(t, errors.Is(err, expError))
+			assert.ErrorIs(t, err, expError)
 			assert.True(t, rollbackCalled)
 			assert.True(t, beginCalled)
 		})
@@ -269,9 +268,14 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 				assert.True(t, &c == tx)
 				return transactorError
 			})
-			assert.True(t, errors.Is(err, ErrRollbackFailed))
-			assert.True(t, errors.Is(err, transactorError))
-			assert.True(t, errors.Is(err, rollbackErr))
+			assert.ErrorIs(t, err, ErrRollbackFailed)
+			assert.ErrorIs(t, err, transactorError)
+			assert.ErrorIs(t, err, rollbackErr)
+
+			var rollbackError *RollbackError
+			assert.True(t, errors.As(err, &rollbackError))
+			assert.ErrorIs(t, rollbackError.Cause, transactorError)
+			assert.ErrorIs(t, rollbackError.RollbackErr, rollbackErr)
 			assert.True(t, rollbackCalled)
 			assert.True(t, beginCalled)
 		})
@@ -302,8 +306,7 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 				assert.True(t, &c == tx)
 				panic(expPanic)
 			})
-			assert.True(t, errors.Is(err, ErrRollbackSuccess))
-			assert.True(t, errors.Is(err, ErrPanicRecovered))
+			assert.ErrorIs(t, err, ErrPanicRecovered)
 			assert.True(t, strings.Contains(err.Error(), expPanic))
 			assert.True(t, rollbackCalled)
 			assert.True(t, beginCalled)
@@ -339,9 +342,9 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 				assert.True(t, &c == tx)
 				panic(expPanicMsg)
 			})
-			assert.True(t, errors.Is(err, ErrRollbackFailed))
-			assert.True(t, errors.Is(err, ErrPanicRecovered))
-			assert.True(t, errors.Is(err, rollbackErr))
+			assert.ErrorIs(t, err, ErrRollbackFailed)
+			assert.ErrorIs(t, err, ErrPanicRecovered)
+			assert.ErrorIs(t, err, rollbackErr)
 			assert.True(t, strings.Contains(err.Error(), expPanicMsg))
 			assert.True(t, rollbackCalled)
 			assert.True(t, beginCalled)
@@ -366,8 +369,8 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 				assert.False(t, ok)
 				return nil
 			})
-			assert.True(t, errors.Is(err, ErrBeginTx))
-			assert.True(t, errors.Is(err, expError))
+			assert.ErrorIs(t, err, ErrBeginTx)
+			assert.ErrorIs(t, err, expError)
 			assert.True(t, beginCalled)
 		})
 		t.Run("error_when_beginner_is_nil", func(t *testing.T) {
@@ -379,7 +382,7 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				return nil
 			})
-			assert.True(t, errors.Is(err, ErrNilTxBeginner))
+			assert.ErrorIs(t, err, ErrNilTxBeginner)
 		})
 		t.Run("error_when_operator_is_nil", func(t *testing.T) {
 			var (
@@ -394,7 +397,7 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				return nil
 			})
-			assert.True(t, errors.Is(err, ErrNilTxOperator))
+			assert.ErrorIs(t, err, ErrNilTxOperator)
 		})
 	})
 }
@@ -411,18 +414,21 @@ func Test_Transactor_RollbackCtxFactory(t *testing.T) {
 	}
 
 	t.Run("uses_context_without_cancel_for_rollback", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
+		var (
+			factoryCalled  = false
+			rollbackCalled = false
+			c              = &committerMock{
+				rollbackFn: func(rollbackCtx context.Context) error {
+					rollbackCalled = true
+					assert.NoError(t, rollbackCtx.Err())
+					return nil
+				},
+			}
+			expErr      = fmt.Errorf("action failed")
+			ctx, cancel = context.WithCancel(context.Background())
+		)
 		cancel()
 
-		factoryCalled := false
-		rollbackCalled := false
-		c := &committerMock{
-			rollbackFn: func(rollbackCtx context.Context) error {
-				rollbackCalled = true
-				assert.NoError(t, rollbackCtx.Err())
-				return nil
-			},
-		}
 		tr := newTransactor(c).WithRollbackCtxFactory(func(factoryCtx context.Context) context.Context {
 			factoryCalled = true
 			assert.ErrorIs(t, factoryCtx.Err(), context.Canceled)
@@ -430,22 +436,25 @@ func Test_Transactor_RollbackCtxFactory(t *testing.T) {
 		})
 
 		err := tr.WithinTx(ctx, func(context.Context) error {
-			return fmt.Errorf("action failed")
+			return expErr
 		})
-		assert.ErrorIs(t, err, ErrRollbackSuccess)
+		assert.ErrorIs(t, err, expErr)
 		assert.True(t, factoryCalled)
 		assert.True(t, rollbackCalled)
 	})
 
 	t.Run("is_not_called_for_commit_or_nested_transaction", func(t *testing.T) {
-		factoryCalls := 0
-		commitCalls := 0
-		c := &committerMock{
-			commitFn: func(context.Context) error {
-				commitCalls++
-				return nil
-			},
-		}
+		var (
+			factoryCalls = 0
+			commitCalls  = 0
+			c            = &committerMock{
+				commitFn: func(context.Context) error {
+					commitCalls++
+					return nil
+				},
+			}
+		)
+
 		tr := newTransactor(c).WithRollbackCtxFactory(func(ctx context.Context) context.Context {
 			factoryCalls++
 			return context.WithoutCancel(ctx)
@@ -462,12 +471,16 @@ func Test_Transactor_RollbackCtxFactory(t *testing.T) {
 	})
 
 	t.Run("is_called_only_for_top_level_rollback", func(t *testing.T) {
-		factoryCalls := 0
-		c := &committerMock{
-			rollbackFn: func(context.Context) error {
-				return nil
-			},
-		}
+		var (
+			factoryCalls = 0
+			c            = &committerMock{
+				rollbackFn: func(context.Context) error {
+					return nil
+				},
+			}
+			expErr = fmt.Errorf("nested action failed")
+		)
+
 		tr := newTransactor(c).WithRollbackCtxFactory(func(ctx context.Context) context.Context {
 			factoryCalls++
 			return context.WithoutCancel(ctx)
@@ -475,10 +488,10 @@ func Test_Transactor_RollbackCtxFactory(t *testing.T) {
 
 		err := tr.WithinTx(context.Background(), func(ctx context.Context) error {
 			return tr.WithinTx(ctx, func(context.Context) error {
-				return fmt.Errorf("nested action failed")
+				return expErr
 			})
 		})
-		assert.ErrorIs(t, err, ErrRollbackSuccess)
+		assert.ErrorIs(t, err, expErr)
 		assert.True(t, factoryCalls == 1)
 	})
 
@@ -488,21 +501,26 @@ func Test_Transactor_RollbackCtxFactory(t *testing.T) {
 			"nil_result":  func(context.Context) context.Context { return nil },
 		} {
 			t.Run(name, func(t *testing.T) {
-				ctx := context.Background()
-				var operationCtx context.Context
-				c := &committerMock{
-					rollbackFn: func(rollbackCtx context.Context) error {
-						assert.True(t, rollbackCtx == operationCtx)
-						return nil
-					},
-				}
+				var (
+					ctx          = context.Background()
+					operationCtx context.Context
+					c            = &committerMock{
+						rollbackFn: func(rollbackCtx context.Context) error {
+							assert.True(t, rollbackCtx == operationCtx)
+							return nil
+						},
+					}
+					expErr = fmt.Errorf("action failed")
+				)
+
 				tr := newTransactor(c).WithRollbackCtxFactory(factory)
 
 				err := tr.WithinTx(ctx, func(currentCtx context.Context) error {
 					operationCtx = currentCtx
-					return fmt.Errorf("action failed")
+					return expErr
 				})
-				assert.ErrorIs(t, err, ErrRollbackSuccess)
+				assert.Error(t, err)
+				assert.ErrorIs(t, err, expErr)
 			})
 		}
 	})
@@ -614,8 +632,7 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 				return expError
 			})
 		})
-		assert.True(t, errors.Is(err, ErrRollbackSuccess))
-		assert.True(t, errors.Is(err, expError))
+		assert.ErrorIs(t, err, expError)
 		assert.True(t, rollbackCalled == 1)
 		assert.True(t, beginCalled == 1)
 	})
@@ -701,8 +718,7 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 
 			return err
 		})
-		assert.True(t, errors.Is(err, ErrRollbackSuccess))
-		assert.True(t, errors.Is(err, expError))
+		assert.ErrorIs(t, err, expError)
 		assert.True(t, beginCalled == 1)
 		assert.True(t, commitCalled == 0)
 		assert.True(t, rollbackCalled == 1)
@@ -752,8 +768,7 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 
 				return err
 			})
-			assert.True(t, errors.Is(err, ErrRollbackSuccess))
-			assert.True(t, errors.Is(err, ErrPanicRecovered))
+			assert.ErrorIs(t, err, ErrPanicRecovered)
 			assert.True(t, strings.Contains(err.Error(), lowLvlPanicMsg))
 			assert.True(t, beginCalled == 1)
 			assert.True(t, commitCalled == 0)
@@ -799,8 +814,7 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 
 				return err
 			})
-			assert.True(t, errors.Is(err, ErrRollbackSuccess))
-			assert.True(t, errors.Is(err, ErrPanicRecovered))
+			assert.ErrorIs(t, err, ErrPanicRecovered)
 			assert.False(t, strings.Contains(err.Error(), lowLvlPanicMsg))
 			assert.True(t, strings.Contains(err.Error(), middleLvlPanicMsg))
 			assert.True(t, beginCalled == 1)
