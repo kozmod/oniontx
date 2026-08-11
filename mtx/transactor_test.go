@@ -399,6 +399,115 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 	})
 }
 
+func Test_Transactor_RollbackCtxFactory(t *testing.T) {
+	newTransactor := func(c *committerMock) *Transactor[*beginnerMock[*committerMock], *committerMock] {
+		b := &beginnerMock[*committerMock]{
+			beginFn: func(context.Context) (*committerMock, error) {
+				return c, nil
+			},
+		}
+		o := NewContextOperator[*beginnerMock[*committerMock], *committerMock](b)
+		return NewTransactor[*beginnerMock[*committerMock], *committerMock](b, o)
+	}
+
+	t.Run("uses_context_without_cancel_for_rollback", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		factoryCalled := false
+		rollbackCalled := false
+		c := &committerMock{
+			rollbackFn: func(rollbackCtx context.Context) error {
+				rollbackCalled = true
+				assert.NoError(t, rollbackCtx.Err())
+				return nil
+			},
+		}
+		tr := newTransactor(c).WithRollbackCtxFactory(func(factoryCtx context.Context) context.Context {
+			factoryCalled = true
+			assert.ErrorIs(t, factoryCtx.Err(), context.Canceled)
+			return context.WithoutCancel(factoryCtx)
+		})
+
+		err := tr.WithinTx(ctx, func(context.Context) error {
+			return fmt.Errorf("action failed")
+		})
+		assert.ErrorIs(t, err, ErrRollbackSuccess)
+		assert.True(t, factoryCalled)
+		assert.True(t, rollbackCalled)
+	})
+
+	t.Run("is_not_called_for_commit_or_nested_transaction", func(t *testing.T) {
+		factoryCalls := 0
+		commitCalls := 0
+		c := &committerMock{
+			commitFn: func(context.Context) error {
+				commitCalls++
+				return nil
+			},
+		}
+		tr := newTransactor(c).WithRollbackCtxFactory(func(ctx context.Context) context.Context {
+			factoryCalls++
+			return context.WithoutCancel(ctx)
+		})
+
+		err := tr.WithinTx(context.Background(), func(ctx context.Context) error {
+			return tr.WithinTx(ctx, func(context.Context) error {
+				return nil
+			})
+		})
+		assert.NoError(t, err)
+		assert.True(t, commitCalls == 1)
+		assert.True(t, factoryCalls == 0)
+	})
+
+	t.Run("is_called_only_for_top_level_rollback", func(t *testing.T) {
+		factoryCalls := 0
+		c := &committerMock{
+			rollbackFn: func(context.Context) error {
+				return nil
+			},
+		}
+		tr := newTransactor(c).WithRollbackCtxFactory(func(ctx context.Context) context.Context {
+			factoryCalls++
+			return context.WithoutCancel(ctx)
+		})
+
+		err := tr.WithinTx(context.Background(), func(ctx context.Context) error {
+			return tr.WithinTx(ctx, func(context.Context) error {
+				return fmt.Errorf("nested action failed")
+			})
+		})
+		assert.ErrorIs(t, err, ErrRollbackSuccess)
+		assert.True(t, factoryCalls == 1)
+	})
+
+	t.Run("uses_original_context_for_nil_factory_or_result", func(t *testing.T) {
+		for name, factory := range map[string]func(context.Context) context.Context{
+			"nil_factory": nil,
+			"nil_result":  func(context.Context) context.Context { return nil },
+		} {
+			t.Run(name, func(t *testing.T) {
+				ctx := context.Background()
+				var operationCtx context.Context
+				c := &committerMock{
+					rollbackFn: func(rollbackCtx context.Context) error {
+						assert.True(t, rollbackCtx == operationCtx)
+						return nil
+					},
+				}
+				tr := newTransactor(c).WithRollbackCtxFactory(factory)
+
+				err := tr.WithinTx(ctx, func(currentCtx context.Context) error {
+					operationCtx = currentCtx
+					return fmt.Errorf("action failed")
+				})
+				assert.ErrorIs(t, err, ErrRollbackSuccess)
+			})
+		}
+	})
+}
+
 // Test_Transactor_recursive_call - testing recursive [mtx.Transactor] calls.
 func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 	const (
