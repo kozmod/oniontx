@@ -33,7 +33,7 @@ var (
 
 	// ErrRollbackSuccess indicates that a transaction was successfully rolled back.
 	// Despite being an error type, it signals a successful rollback operation.
-	ErrRollbackSuccess = fmt.Errorf("rollback tx")
+	ErrRollbackSuccess = fmt.Errorf("tx rolled back")
 
 	// ErrPanicRecovered indicates that a panic was recovered and converted to an error.
 	// It wraps the original panic value to provide context about what caused the panic.
