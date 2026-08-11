@@ -1,6 +1,7 @@
 package saga
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -77,4 +78,44 @@ func Test_prepareResultSliceErrorMessage(t *testing.T) {
 		assert.Equal(t, fmt.Sprintf("%d: %s", len(someData), someData[0]), res)
 	})
 
+}
+
+func Test_SagaExecute_preservesExecutionErrors(t *testing.T) {
+	var (
+		actionErr       = fmt.Errorf("action error")
+		compensationErr = fmt.Errorf("compensation error")
+		steps           = []Step{
+			NewStep("completed step").
+				WithAction(NewOperation(func(context.Context, Track) error {
+					return nil
+				})).
+				WithCompensation(NewOperation(func(context.Context, Track) error {
+					return compensationErr
+				})),
+			NewStep("failed step").
+				WithAction(NewOperation(func(context.Context, Track) error {
+					return actionErr
+				})),
+		}
+	)
+
+	result, err := NewSaga(steps).Execute(context.Background())
+	assert.NotNil(t, result)
+	assert.NotNil(t, result.Status)
+	assert.Equal(t, StageResultFail, result.Status)
+	assert.Equal(t, 2, len(result.Steps))
+
+	assert.Equal(t, ExecutionStatusSuccess, result.Steps[0].Action.Status)
+	assert.Equal(t, ExecutionStatusFail, result.Steps[0].Compensation.Status)
+	assert.Equal(t, 1, result.Steps[0].Compensation.Calls)
+	assert.ErrorIs(t, result.Steps[0].Compensation.Errors[0], compensationErr)
+
+	assert.Equal(t, ExecutionStatusFail, result.Steps[1].Action.Status)
+	assert.Equal(t, 1, result.Steps[1].Action.Calls)
+	assert.ErrorIs(t, result.Steps[1].Action.Errors[0], actionErr)
+
+	assert.ErrorIs(t, err, ErrActionFailed)
+	assert.ErrorIs(t, err, ErrCompensationFailed)
+	assert.ErrorIs(t, err, actionErr)
+	assert.ErrorIs(t, err, compensationErr)
 }

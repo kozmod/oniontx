@@ -61,3 +61,11 @@ func ErrorIsNot(t *testing.T, err, target error) {
 		t.Fatalf("[%v] is [%v]", err, target)
 	}
 }
+
+// NotNil asserts that value is not nil.
+func NotNil[T any](t *testing.T, value T) {
+	t.Helper()
+	if any(value) == nil {
+		t.Fatalf("value is nil")
+	}
+}
