@@ -69,8 +69,9 @@ type (
 // The type parameters B and T allow working with any transaction implementation
 // that satisfies the TxBeginner and Tx interfaces respectively.
 type Transactor[B TxBeginner[T], T Tx] struct {
-	beginner B
-	operator CtxOperator[T]
+	beginner           B
+	operator           CtxOperator[T]
+	rollbackCtxFactory func(ctx context.Context) context.Context
 }
 
 // NewTransactor returns new Transactor.
@@ -80,6 +81,24 @@ func NewTransactor[B TxBeginner[T], T Tx](
 	return &Transactor[B, T]{
 		beginner: beginner,
 		operator: operator,
+		rollbackCtxFactory: func(ctx context.Context) context.Context {
+			return ctx
+		},
+	}
+}
+
+// WithRollbackCtxFactory returns a new Transactor that derives the context used
+// for top-level rollback operations. The original Transactor is not modified.
+//
+// This is useful when the operation context may be canceled before rollback.
+// For example, context.WithoutCancel allows a rollback to outlive request
+// cancellation. If factory is nil or returns nil, rollback uses the original
+// operation context.
+func (t *Transactor[B, T]) WithRollbackCtxFactory(factory func(ctx context.Context) context.Context) *Transactor[B, T] {
+	return &Transactor[B, T]{
+		beginner:           t.beginner,
+		operator:           t.operator,
+		rollbackCtxFactory: factory,
 	}
 }
 
@@ -135,6 +154,11 @@ func (t *Transactor[B, T]) WithinTx(ctx context.Context, fn func(ctx context.Con
 		nilBeginner B
 		nilOperator CtxOperator[T] = nil
 	)
+
+	if t == nil {
+		return fmt.Errorf("transactor is nil")
+	}
+
 	if t.beginner == nilBeginner {
 		return fmt.Errorf("transactor - can't begin: %w", ErrNilTxBeginner)
 	}
@@ -161,7 +185,15 @@ func (t *Transactor[B, T]) WithinTx(ctx context.Context, fn func(ctx context.Con
 				)
 				return
 			}
-			if rbErr := tx.Rollback(ctx); rbErr != nil {
+
+			rollbackCtx := ctx
+			if t.rollbackCtxFactory != nil {
+				if newRollbackCtx := t.rollbackCtxFactory(ctx); newRollbackCtx != nil {
+					rollbackCtx = newRollbackCtx
+				}
+			}
+
+			if rbErr := tx.Rollback(rollbackCtx); rbErr != nil {
 				err = fmt.Errorf(
 					"transactor - panic: %w",
 					errors.Join(ErrRollbackFailed, ErrPanicRecovered, rbErr, errors.WrapPanic(p)),
@@ -176,7 +208,15 @@ func (t *Transactor[B, T]) WithinTx(ctx context.Context, fn func(ctx context.Con
 			if ok {
 				return
 			}
-			if rbErr := tx.Rollback(ctx); rbErr != nil {
+
+			rollbackCtx := ctx
+			if t.rollbackCtxFactory != nil {
+				if newRollbackCtx := t.rollbackCtxFactory(ctx); newRollbackCtx != nil {
+					rollbackCtx = newRollbackCtx
+				}
+			}
+
+			if rbErr := tx.Rollback(rollbackCtx); rbErr != nil {
 				err = fmt.Errorf("transactor - call: %w", errors.Join(ErrRollbackFailed, rbErr, err))
 			} else {
 				err = fmt.Errorf("transactor - call: %w", errors.Join(ErrRollbackSuccess, err))
