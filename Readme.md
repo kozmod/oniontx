@@ -159,7 +159,7 @@ steps := []saga.Step{
                 // Add retry for action
                 WithRetry(
                     // 2 attempts, 1s between attempts
-                    saga.NewBaseRetryOpt(2, 1*time.Second),
+                    saga.NewBaseRetryPolicy(2, 1*time.Second),
                 ),
         ).
         // Add compensation
