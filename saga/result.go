@@ -67,6 +67,7 @@ func (r Result) String() string {
 // Returns:
 //   - Result: aggregated execution data for all steps
 //   - error: descriptive error with categorized lists of failed/compensated steps
+//     that preserves underlying action and compensation errors
 func prepareResult(tracks []*simpleTracker) (Result, error) {
 	var (
 		result = Result{
@@ -79,6 +80,7 @@ func prepareResult(tracks []*simpleTracker) (Result, error) {
 		compensationNotRequired            = make([]string, 0, len(tracks))
 		failedActionsRequiringCompensation = make([]string, 0, len(tracks))
 		requiredCompensationNotSucceeded   = make([]string, 0, len(tracks))
+		executionErrors                    = make([]error, 0, len(tracks))
 		hasSuccessfulStep                  = false
 
 		prepareStateStrFn = func(position uint32, name string) string {
@@ -86,6 +88,10 @@ func prepareResult(tracks []*simpleTracker) (Result, error) {
 		}
 
 		resultErrorFn = func(err error) error {
+			joinedErrors := make([]error, 0, len(executionErrors)+1)
+			joinedErrors = append(joinedErrors, err)
+			joinedErrors = append(joinedErrors, executionErrors...)
+
 			return fmt.Errorf(
 				"state failed - failed [%s], compensated [%s], failed compensations [%s], compensation not required [%s], failed actions requiring compensation [%s], required compensations not succeeded [%s]: %w",
 				prepareResultSliceErrorMessage(failed),
@@ -94,7 +100,7 @@ func prepareResult(tracks []*simpleTracker) (Result, error) {
 				prepareResultSliceErrorMessage(compensationNotRequired),
 				prepareResultSliceErrorMessage(failedActionsRequiringCompensation),
 				prepareResultSliceErrorMessage(requiredCompensationNotSucceeded),
-				err,
+				errors.Join(joinedErrors...),
 			)
 		}
 	)
@@ -102,6 +108,8 @@ func prepareResult(tracks []*simpleTracker) (Result, error) {
 	for _, tr := range tracks {
 		data := tr.GetStepData()
 		result.Steps = append(result.Steps, data)
+		executionErrors = append(executionErrors, data.Action.Errors...)
+		executionErrors = append(executionErrors, data.Compensation.Errors...)
 
 		stepID := prepareStateStrFn(data.StepPosition, data.StepName)
 		if data.Compensation.Status == ExecutionStatusFail {
