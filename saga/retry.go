@@ -54,8 +54,8 @@ type BaseRetryPolicy struct {
 	baseRetryPolicy
 }
 
-// NewBaseRetryOpt creates a new fixed-interval retry policy.
-func NewBaseRetryOpt(attempts uint32, delay time.Duration) *BaseRetryPolicy {
+// NewBaseRetryPolicy creates a new fixed-interval retry policy.
+func NewBaseRetryPolicy(attempts uint32, delay time.Duration) *BaseRetryPolicy {
 	return &BaseRetryPolicy{
 		baseRetryPolicy: baseRetryPolicy{
 			attempts: attempts,

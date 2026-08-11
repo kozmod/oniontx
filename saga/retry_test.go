@@ -71,7 +71,7 @@ func Test_Saga_retry(t *testing.T) {
 								return testtool.ErrExpTestA
 							}
 							return nil
-						}).WithRetry(NewBaseRetryOpt(3, time.Nanosecond)),
+						}).WithRetry(NewBaseRetryPolicy(3, time.Nanosecond)),
 					),
 			}
 
@@ -103,7 +103,7 @@ func Test_Saga_retry(t *testing.T) {
 								}
 								return nil
 							}).WithRetry(
-								NewBaseRetryOpt(3, time.Nanosecond),
+								NewBaseRetryPolicy(3, time.Nanosecond),
 							),
 						),
 				}
@@ -142,7 +142,7 @@ func Test_Saga_retry(t *testing.T) {
 								}
 								return nil
 							}).WithRetry(
-								NewBaseRetryOpt(3, time.Nanosecond),
+								NewBaseRetryPolicy(3, time.Nanosecond),
 							),
 						).
 						WithCompensationRequired(),
@@ -171,7 +171,7 @@ func Test_Saga_retry(t *testing.T) {
 							cancel()
 						}
 						return testtool.ErrExpTestA
-					}).WithRetry(NewBaseRetryOpt(3, time.Hour)),
+					}).WithRetry(NewBaseRetryPolicy(3, time.Hour)),
 				),
 		}
 
@@ -189,7 +189,7 @@ func Test_Saga_retry(t *testing.T) {
 		defer cancel()
 		track := newInMemoryTrack(0, NewStep("step"))
 
-		err := WithRetry(NewBaseRetryOpt(1, time.Hour), func(context.Context, Track) error {
+		err := WithRetry(NewBaseRetryPolicy(1, time.Hour), func(context.Context, Track) error {
 			cancel()
 			return testtool.ErrExpTestA
 		})(ctx, track.action)

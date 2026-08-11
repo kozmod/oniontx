@@ -490,7 +490,7 @@ func Test_execute_context(t *testing.T) {
 							cancel() // cancel context for test
 						}
 						return testtool.ErrExpTestA
-					}).WithRetry(NewBaseRetryOpt(10, 1*time.Nanosecond)),
+					}).WithRetry(NewBaseRetryPolicy(10, 1*time.Nanosecond)),
 				),
 		}
 		res, err := NewSaga(steps).Execute(ctx)
@@ -735,7 +735,7 @@ func Test_hooks(t *testing.T) {
 						}).WithBeforeHook(func(ctx context.Context, _ Track) error {
 							executed = append(executed, "hook2")
 							return nil
-						}).WithRetry(NewBaseRetryOpt(1, 1*time.Nanosecond)).
+						}).WithRetry(NewBaseRetryPolicy(1, 1*time.Nanosecond)).
 							WithBeforeHook(func(ctx context.Context, _ Track) error {
 								executed = append(executed, "retry_hook1")
 								return nil
@@ -868,7 +868,7 @@ func Test_hooks(t *testing.T) {
 						}).WithAfterHook(func(ctx context.Context, track Track) error {
 							t.Fatalf("should not have been called")
 							return nil
-						}).WithRetry(NewBaseRetryOpt(2, 1*time.Nanosecond)).
+						}).WithRetry(NewBaseRetryPolicy(2, 1*time.Nanosecond)).
 							WithAfterHook(func(ctx context.Context, track Track) error {
 								t.Fatalf("should not have been called")
 								return nil
@@ -1338,7 +1338,7 @@ func Test_retry(t *testing.T) {
 					NewOperation(func(ctx context.Context, _ Track) error {
 						return testtool.ErrExpTestA
 					}).
-						WithRetry(NewBaseRetryOpt(retries, 5*time.Nanosecond)),
+						WithRetry(NewBaseRetryPolicy(retries, 5*time.Nanosecond)),
 				).
 				WithCompensation(
 					NewOperation(func(ctx context.Context, track Track) error {
@@ -1347,7 +1347,7 @@ func Test_retry(t *testing.T) {
 							return fmt.Errorf("comp err [%d]: %w", len(str.Compensation.Errors), testtool.ErrExpTestA)
 						}
 						return nil
-					}).WithRetry(NewBaseRetryOpt(retries, 5*time.Nanosecond)),
+					}).WithRetry(NewBaseRetryPolicy(retries, 5*time.Nanosecond)),
 				).WithCompensationRequired(),
 		}
 
@@ -1397,13 +1397,13 @@ func Test_retry(t *testing.T) {
 					NewOperation(func(ctx context.Context, _ Track) error {
 						return testtool.ErrExpTestA
 					}).
-						WithRetry(NewBaseRetryOpt(4, 5*time.Nanosecond)),
+						WithRetry(NewBaseRetryPolicy(4, 5*time.Nanosecond)),
 				).
 				WithCompensation(
 					NewOperation(func(ctx context.Context, track Track) error {
 						str := track.GetStepData()
 						return fmt.Errorf("comp err [%d]: %w", len(str.Compensation.Errors), testtool.ErrExpTestB)
-					}).WithRetry(NewBaseRetryOpt(4, 5*time.Nanosecond)),
+					}).WithRetry(NewBaseRetryPolicy(4, 5*time.Nanosecond)),
 				).WithCompensationRequired(),
 		}
 
