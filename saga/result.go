@@ -2,6 +2,7 @@ package saga
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -27,9 +28,15 @@ const (
 type Result struct {
 	Steps  []StepData
 	Status StageStatus
+	errs   []error
 
 	// errorsInTrackDataString controls whether String includes collected TrackData errors.
 	errorsInTrackDataString bool
+}
+
+// Errors returns a copy of all errors recorded while executing actions and compensations.
+func (r Result) Errors() []error {
+	return slices.Clone(r.errs)
 }
 
 // WithErrorsInTrackDataString returns a copy of Result whose String output
@@ -67,7 +74,7 @@ func (r Result) String() string {
 // Returns:
 //   - Result: aggregated execution data for all steps
 //   - error: descriptive error with categorized lists of failed/compensated steps
-//     that preserves underlying action and compensation errors
+//   - Result.Errors: underlying action and compensation errors
 func prepareResult(tracks []*simpleTracker) (Result, error) {
 	var (
 		result = Result{
@@ -88,10 +95,6 @@ func prepareResult(tracks []*simpleTracker) (Result, error) {
 		}
 
 		resultErrorFn = func(err error) error {
-			joinedErrors := make([]error, 0, len(executionErrors)+1)
-			joinedErrors = append(joinedErrors, err)
-			joinedErrors = append(joinedErrors, executionErrors...)
-
 			return fmt.Errorf(
 				"state failed - failed [%s], compensated [%s], failed compensations [%s], compensation not required [%s], failed actions requiring compensation [%s], required compensations not succeeded [%s]: %w",
 				prepareResultSliceErrorMessage(failed),
@@ -100,7 +103,7 @@ func prepareResult(tracks []*simpleTracker) (Result, error) {
 				prepareResultSliceErrorMessage(compensationNotRequired),
 				prepareResultSliceErrorMessage(failedActionsRequiringCompensation),
 				prepareResultSliceErrorMessage(requiredCompensationNotSucceeded),
-				errors.Join(joinedErrors...),
+				err,
 			)
 		}
 	)
@@ -142,6 +145,8 @@ func prepareResult(tracks []*simpleTracker) (Result, error) {
 			}
 		}
 	}
+
+	result.errs = executionErrors
 
 	switch {
 	case len(failed) == 0:

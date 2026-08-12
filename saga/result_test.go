@@ -2,7 +2,9 @@ package saga
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -99,23 +101,32 @@ func Test_SagaExecute_preservesExecutionErrors(t *testing.T) {
 		}
 	)
 
-	result, err := NewSaga(steps).Execute(context.Background())
-	assert.NotNil(t, result)
-	assert.NotNil(t, result.Status)
-	assert.Equal(t, StageResultFail, result.Status)
-	assert.Equal(t, 2, len(result.Steps))
+	res, err := NewSaga(steps).Execute(context.Background())
+	assert.NotNil(t, res)
+	assert.NotNil(t, res.Status)
+	assert.Equal(t, StageResultFail, res.Status)
+	assert.Equal(t, 2, len(res.Steps))
 
-	assert.Equal(t, ExecutionStatusSuccess, result.Steps[0].Action.Status)
-	assert.Equal(t, ExecutionStatusFail, result.Steps[0].Compensation.Status)
-	assert.Equal(t, 1, result.Steps[0].Compensation.Calls)
-	assert.ErrorIs(t, result.Steps[0].Compensation.Errors[0], compensationErr)
+	assert.Equal(t, ExecutionStatusSuccess, res.Steps[0].Action.Status)
+	assert.Equal(t, ExecutionStatusFail, res.Steps[0].Compensation.Status)
+	assert.Equal(t, 1, res.Steps[0].Compensation.Calls)
+	assert.ErrorIs(t, res.Steps[0].Compensation.Errors[0], compensationErr)
 
-	assert.Equal(t, ExecutionStatusFail, result.Steps[1].Action.Status)
-	assert.Equal(t, 1, result.Steps[1].Action.Calls)
-	assert.ErrorIs(t, result.Steps[1].Action.Errors[0], actionErr)
+	assert.Equal(t, ExecutionStatusFail, res.Steps[1].Action.Status)
+	assert.Equal(t, 1, res.Steps[1].Action.Calls)
+	assert.ErrorIs(t, res.Steps[1].Action.Errors[0], actionErr)
+
+	assert.Len(t, res.Errors(), 2)
+
+	assert.True(t, slices.ContainsFunc(res.Errors(), func(err error) bool {
+		return errors.Is(err, actionErr)
+	}))
+	assert.True(t, slices.ContainsFunc(res.Errors(), func(err error) bool {
+		return errors.Is(err, compensationErr)
+	}))
 
 	assert.ErrorIs(t, err, ErrActionFailed)
 	assert.ErrorIs(t, err, ErrCompensationFailed)
-	assert.ErrorIs(t, err, actionErr)
-	assert.ErrorIs(t, err, compensationErr)
+	assert.ErrorIsNot(t, err, actionErr)
+	assert.ErrorIsNot(t, err, compensationErr)
 }

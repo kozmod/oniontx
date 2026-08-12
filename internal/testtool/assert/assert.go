@@ -2,7 +2,22 @@ package assert
 
 import (
 	"errors"
+	"reflect"
 	"testing"
+)
+
+type (
+	Integer interface {
+		Signed | Unsigned
+	}
+
+	Signed interface {
+		~int | ~int8 | ~int16 | ~int32 | ~int64
+	}
+
+	Unsigned interface {
+		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
+	}
 )
 
 // True was added to avoid to use external dependencies for mocking
@@ -68,4 +83,32 @@ func NotNil[T any](t *testing.T, value T) {
 	if any(value) == nil {
 		t.Fatalf("value is nil")
 	}
+}
+
+// Len asserts that the specified object has specific length.
+// Len also fails if the object has a type that len() not accept.
+//
+//	assert.Len(t, mySlice, 3)
+func Len[T Integer](t *testing.T, object any, length T) {
+	t.Helper()
+
+	l, ok := getLen[T](t, object)
+	if !ok {
+		t.Fatalf("[%v] could not be applied builtin len()", object)
+	}
+
+	if l != length {
+		t.Fatalf("[%v] should have %d item(s), but has %d", object, length, l)
+	}
+}
+
+// getLen tries to get the length of an object.
+// It returns (0, false) if impossible.
+func getLen[T Integer](t *testing.T, x any) (length T, ok bool) {
+	t.Helper()
+	v := reflect.ValueOf(x)
+	defer func() {
+		ok = recover() == nil
+	}()
+	return T(v.Len()), true
 }
