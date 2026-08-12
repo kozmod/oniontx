@@ -158,7 +158,7 @@ steps := []saga.Step{
                 WithPanicRecovery().
                 // Add retry for action
                 WithRetry(
-                    // 2 attempts, 1s between attempts
+                    // 2 retry attempts after the initial call, 1s between retries
                     saga.NewBaseRetryPolicy(2, 1*time.Second),
                 ),
         ).
@@ -219,7 +219,7 @@ if err != nil {
 
     // Inspect original action and compensation errors.
     for _, executionErr := range result.Errors() {
-        if errors.Is(executionErr, domainErr) {
+        if errors.Is(executionErr, yourDomainErr) { // your domain error
             // Handle or log the domain-specific cause.
         }
     }

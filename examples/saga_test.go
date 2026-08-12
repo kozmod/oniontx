@@ -130,7 +130,7 @@ func Test_Saga_example(t *testing.T) {
 						WithPanicRecovery().
 						// Add retry for action
 						WithRetry(
-							// 2 attempts, 1s between attempts
+							// 2 retry attempts after the initial call, 1s between retries
 							saga.NewBaseRetryPolicy(2, 1*time.Second),
 						),
 				).
@@ -172,7 +172,7 @@ func Test_Saga_example(t *testing.T) {
 		// Execute the saga
 		//
 		// With this approach:
-		// 1. If action fails, there will be 2 attempts with fixed delay
+		// 1. If action fails, there will be the initial attempt and 2 retries with fixed delay
 		// 2. If all attempts fail, compensations will run
 		// 3. Compensations will also retry on failure with exponential backoff
 		// 4. Jitter distributes load during mass failures
