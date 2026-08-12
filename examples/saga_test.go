@@ -16,7 +16,7 @@ import (
 //
 // 2. Advanced builder style — for complex scenarios with retry and recovery
 func Test_Saga_example(t *testing.T) {
-	t.Skip()
+	t.Skipf("saga example")
 
 	var (
 		// ErrPaymentFailed is an example error type for demonstration.
