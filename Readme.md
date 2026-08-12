@@ -208,7 +208,21 @@ result, err := saga.NewSaga(steps).
     WithCompensationContext(context.WithoutCancel).
     Execute(ctx)
 if err != nil {
-    // Handle the `Result` and errors
+    // Check the saga outcome.
+    if errors.Is(err, saga.ErrActionFailed) {
+        // At least one action failed.
+    }
+
+    if errors.Is(err, saga.ErrCompensationFailed) {
+        // At least one compensation failed.
+    }
+
+    // Inspect original action and compensation errors.
+    for _, executionErr := range result.Errors() {
+        if errors.Is(executionErr, domainErr) {
+            // Handle or log the domain-specific cause.
+        }
+    }
 }
 ```
 

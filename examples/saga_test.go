@@ -88,8 +88,21 @@ func Test_Saga_example(t *testing.T) {
 
 		// Handle the result
 		if err != nil {
-			// err contains detailed information about failures
-			// Use result to get detailed step-by-step execution data
+			// The returned error describes the saga outcome.
+			if errors.Is(err, saga.ErrActionFailed) {
+				fmt.Println("At least one action failed")
+			}
+			if errors.Is(err, saga.ErrCompensationFailed) {
+				fmt.Println("At least one compensation failed")
+			}
+
+			// Result.Errors contains the original action and compensation causes.
+			for _, executionErr := range result.Errors() {
+				if errors.Is(executionErr, ErrPaymentFailed) {
+					fmt.Println("Payment failed")
+				}
+			}
+
 			t.Logf("Saga failed: %v\n", err)
 			fmt.Printf("Result status: %s\n", result.Status)
 		}
