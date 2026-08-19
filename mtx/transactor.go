@@ -96,9 +96,16 @@ func NewTransactor[B TxBeginner[T], T Tx](
 // operation context.
 func (t *Transactor[B, T]) WithRollbackCtxFactory(factory func(ctx context.Context) context.Context) *Transactor[B, T] {
 	return &Transactor[B, T]{
-		beginner:           t.beginner,
-		operator:           t.operator,
-		rollbackCtxFactory: factory,
+		beginner: t.beginner,
+		operator: t.operator,
+		rollbackCtxFactory: func(ctx context.Context) context.Context {
+			if factory != nil {
+				if newCtx := factory(ctx); newCtx != nil {
+					return newCtx
+				}
+			}
+			return ctx
+		},
 	}
 }
 
@@ -186,13 +193,7 @@ func (t *Transactor[B, T]) WithinTx(ctx context.Context, fn func(ctx context.Con
 				return
 			}
 
-			rollbackCtx := ctx
-			if t.rollbackCtxFactory != nil {
-				if newRollbackCtx := t.rollbackCtxFactory(ctx); newRollbackCtx != nil {
-					rollbackCtx = newRollbackCtx
-				}
-			}
-
+			rollbackCtx := t.rollbackCtxFactory(ctx)
 			if rbErr := tx.Rollback(rollbackCtx); rbErr != nil {
 				err = fmt.Errorf(
 					"transactor - panic: %w",
@@ -209,13 +210,7 @@ func (t *Transactor[B, T]) WithinTx(ctx context.Context, fn func(ctx context.Con
 				return
 			}
 
-			rollbackCtx := ctx
-			if t.rollbackCtxFactory != nil {
-				if newRollbackCtx := t.rollbackCtxFactory(ctx); newRollbackCtx != nil {
-					rollbackCtx = newRollbackCtx
-				}
-			}
-
+			rollbackCtx := t.rollbackCtxFactory(ctx)
 			if rbErr := tx.Rollback(rollbackCtx); rbErr != nil {
 				err = fmt.Errorf("transactor - call: %w", errors.Join(ErrRollbackFailed, rbErr, err))
 			} else {
