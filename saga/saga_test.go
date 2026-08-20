@@ -445,7 +445,7 @@ func Test_execute_context(t *testing.T) {
 		res, err := NewSaga(steps).Execute(ctx)
 		assert.Error(t, err)
 
-		assert.Equal(t, StageResultCompensated, res.Status)
+		assert.Equal(t, StageResultFail, res.Status)
 		assert.Equal(t, 4, len(res.Steps))
 		assert.Equal(t, "step0", res.Steps[0].StepName)
 		assert.Equal(t, 0, res.Steps[0].StepPosition)
@@ -1098,7 +1098,7 @@ func Test_steps(t *testing.T) {
 
 			res, err := NewSaga(steps).Execute(ctx)
 			assert.Error(t, err)
-			assert.Equal(t, StageResultCompensated, res.Status)
+			assert.Equal(t, StageResultFail, res.Status)
 			assert.True(t, errors.Is(err, ErrActionFailed))
 
 			assert.Equal(t, 2, len(res.Steps))
@@ -1246,7 +1246,7 @@ func Test_steps(t *testing.T) {
 
 			res, err := NewSaga(steps).Execute(ctx)
 			assert.Error(t, err)
-			assert.Equal(t, StageResultCompensated, res.Status)
+			assert.Equal(t, StageResultFail, res.Status)
 			assert.True(t, errors.Is(err, ErrActionFailed))
 
 			assert.Equal(t, 2, len(res.Steps))

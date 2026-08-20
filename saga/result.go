@@ -67,9 +67,8 @@ func (r Result) String() string {
 // The function implements the following logic:
 //   - If no actions failed -> StageResultSuccess
 //   - If any required compensation failed -> StageResultFail
-//   - If there were failed actions and all required compensations succeeded -> StageResultCompensated
-//   - Special case: when no compensations were required, no successful steps,
-//     and no successful compensations -> StageResultFail
+//   - If an action failed and at least one compensation succeeded -> StageResultCompensated
+//   - If an action failed and no compensation succeeded -> StageResultFail
 //
 // Returns:
 //   - Result: aggregated execution data for all steps
@@ -88,7 +87,6 @@ func prepareResult(tracks []*simpleTracker) (Result, error) {
 		failedActionsRequiringCompensation = make([]string, 0, len(tracks))
 		requiredCompensationNotSucceeded   = make([]string, 0, len(tracks))
 		executionErrors                    = make([]error, 0, len(tracks))
-		hasSuccessfulStep                  = false
 
 		prepareStateStrFn = func(position uint32, name string) string {
 			return fmt.Sprintf("%d#%s", position, name)
@@ -133,8 +131,6 @@ func prepareResult(tracks []*simpleTracker) (Result, error) {
 			}
 
 		case ExecutionStatusSuccess:
-			hasSuccessfulStep = true
-
 			switch data.Compensation.Status {
 			case ExecutionStatusSuccess:
 				compensated = append(compensated, stepID)
@@ -157,8 +153,8 @@ func prepareResult(tracks []*simpleTracker) (Result, error) {
 		result.Status = StageResultFail
 		return result, resultErrorFn(errors.Join(ErrActionFailed, ErrCompensationFailed))
 
-	case len(failedActionsRequiringCompensation) == 0 && !hasSuccessfulStep && len(compensated) == 0:
-		// No compensation failed: the saga failed solely because its action failed.
+	case len(compensated) == 0:
+		// No compensation succeeded, so the failed workflow was not compensated.
 		result.Status = StageResultFail
 		return result, resultErrorFn(ErrActionFailed)
 
