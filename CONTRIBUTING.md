@@ -18,7 +18,7 @@
     ```
     [#61] add `CONTRIBUTING.md`
     ```
-  **b)** The pull request branch should contains tag (`bugfix`, `feature`, etc.) and correspond to format
+  **b)** The pull request branch should contain a type prefix (`bugfix`, `feature`, etc.) and follow this format:
     ```
     <tag>/<issue reference>_<additional description if required>
     ```
@@ -39,7 +39,7 @@
   `[#0]` uses for `technical` commit messages
 
 
-+ Pull request should have no more than **one** commits, if not you should squash them.
++ A pull request should contain only **one** commit. Squash multiple commits before merging.
 + It should pass all tests in the available continuous integration systems such as GitHub Actions.
 + Pull request should contain tests (added/modified) to cover your proposed code changes.
-+ If pull request contains a new feature, all information about feature must be described in `README.md`.
++ If a pull request introduces a new feature, it must be documented in `README.md`.
