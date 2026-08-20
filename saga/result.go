@@ -158,10 +158,9 @@ func prepareResult(tracks []*simpleTracker) (Result, error) {
 		return result, resultErrorFn(errors.Join(ErrActionFailed, ErrCompensationFailed))
 
 	case len(failedActionsRequiringCompensation) == 0 && !hasSuccessfulStep && len(compensated) == 0:
-		// Edge case: no required compensations, no successful steps, no successful compensations
-		// This indicates a failure scenario where no meaningful recovery occurred
+		// No compensation failed: the saga failed solely because its action failed.
 		result.Status = StageResultFail
-		return result, resultErrorFn(errors.Join(ErrActionFailed, ErrCompensationFailed))
+		return result, resultErrorFn(ErrActionFailed)
 
 	default:
 		result.Status = StageResultCompensated

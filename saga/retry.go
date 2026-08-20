@@ -110,19 +110,18 @@ func (o AdvanceRetryPolicy) Attempts() uint32 {
 
 // Delay returns the backoff delay for the given retry attempt.
 func (o AdvanceRetryPolicy) Delay(i uint32) time.Duration {
-	var (
-		backoffTime = o.backoff.Backoff(i, o.delay)
-	)
-	if maxDelay := o.maxDelay; maxDelay > 0 && backoffTime > maxDelay {
-		if backoffTime > maxDelay {
-			backoffTime = maxDelay
-		}
-	}
+	backoffTime := o.limitDelay(o.backoff.Backoff(i, o.delay))
 	if o.jitter != nil {
-		backoffTime = o.jitter.Jitter(backoffTime)
-		return backoffTime
+		backoffTime = o.limitDelay(o.jitter.Jitter(backoffTime))
 	}
 	return backoffTime
+}
+
+func (o AdvanceRetryPolicy) limitDelay(delay time.Duration) time.Duration {
+	if o.maxDelay > 0 && delay > o.maxDelay {
+		return o.maxDelay
+	}
+	return delay
 }
 
 // WithRetry returns a function with retry logic for execution.
