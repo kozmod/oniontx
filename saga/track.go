@@ -56,8 +56,9 @@ type StepData struct {
 	// Compensation is the execution data for the compensation operation.
 	Compensation TrackData
 
-	// CompensationRequired reports whether this step can compensate its own action failure.
-	CompensationRequired bool
+	// CompensationOnActionFailure reports whether this step can compensate its
+	// own action failure.
+	CompensationOnActionFailure bool
 }
 
 // String returns a human-readable representation of the StepData.
@@ -195,17 +196,17 @@ type simpleTracker struct {
 	action       mutableTrack
 	compensation mutableTrack
 
-	compensationFunc     OperationFunc
-	compensationRequired bool
+	compensationFunc          OperationFunc
+	compensateOnActionFailure bool
 }
 
 // newInMemoryTrack creates a new simpleTracker for a given step.
 func newInMemoryTrack(position uint32, step Step) *simpleTracker {
 	tracker := &simpleTracker{
-		stepName:             step.name,
-		stepPosition:         position,
-		compensationFunc:     step.compensation.fn,
-		compensationRequired: step.compensationRequired,
+		stepName:                  step.name,
+		stepPosition:              position,
+		compensationFunc:          step.compensation.fn,
+		compensateOnActionFailure: step.compensateOnActionFailure,
 	}
 
 	actionStatus := ExecutionStatusUncalled
@@ -226,10 +227,10 @@ func newInMemoryTrack(position uint32, step Step) *simpleTracker {
 // GetStepData returns a snapshot of the current step state.
 func (t *simpleTracker) GetStepData() StepData {
 	return StepData{
-		StepName:             t.stepName,
-		StepPosition:         t.stepPosition,
-		Action:               t.action.GetTrackData(),
-		Compensation:         t.compensation.GetTrackData(),
-		CompensationRequired: t.compensationRequired,
+		StepName:                    t.stepName,
+		StepPosition:                t.stepPosition,
+		Action:                      t.action.GetTrackData(),
+		Compensation:                t.compensation.GetTrackData(),
+		CompensationOnActionFailure: t.compensateOnActionFailure,
 	}
 }

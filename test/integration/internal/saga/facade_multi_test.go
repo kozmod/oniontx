@@ -204,7 +204,7 @@ func Test_Saga_multi_Facade(t *testing.T) {
 
 	t.Run("success_compensation_in_single_action", func(t *testing.T) {
 		t.Cleanup(cleanupFn)
-		t.Log("using `CompensationRequired` flag")
+		t.Log("using `CompensationOnActionFailure` flag")
 
 		var (
 			sqlTransactor = stdlib.NewTransactor(sqlDB)
@@ -266,7 +266,7 @@ func Test_Saga_multi_Facade(t *testing.T) {
 					assert.Fail(t, "should not have been called")
 					return nil
 				})).
-				WithCompensationRequired(),
+				WithCompensationOnActionFailure(),
 		}).Execute(ctx)
 
 		assert.ErrorIs(t, err, saga.ErrActionFailed)

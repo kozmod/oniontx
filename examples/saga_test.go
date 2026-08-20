@@ -75,10 +75,10 @@ func Test_Saga_example(t *testing.T) {
 					// Default compensation logic
 					return nil
 				})).
-				// WithCompensationRequired determines whether this step can compensate
+				// WithCompensationOnActionFailure determines whether this step can compensate
 				// its own action failure. Without it, only successfully completed
 				// steps are compensated after a later step fails.
-				WithCompensationRequired(),
+				WithCompensationOnActionFailure(),
 		}
 
 		// Create and execute the Saga.
@@ -151,7 +151,7 @@ func Test_Saga_example(t *testing.T) {
 					}).
 						// Compensation can also have retry logic
 						WithRetry(
-							saga.NewAdvanceRetryPolicy(
+							saga.NewAdvancedRetryPolicy(
 								2,                            // max attempts
 								1*time.Second,                // initial delay
 								saga.NewExponentialBackoff(), // exponential backoff
@@ -165,8 +165,8 @@ func Test_Saga_example(t *testing.T) {
 								WithMaxDelay(10 * time.Second),
 						),
 				).
-				// Mark that this step requires compensation
-				WithCompensationRequired(),
+				// Compensate this step even when its own action fails.
+				WithCompensationOnActionFailure(),
 		}
 
 		// Execute the saga
@@ -211,7 +211,7 @@ func Test_Saga_example(t *testing.T) {
 						return context.WithValue(ctx, compensationKey{}, "payment")
 					}),
 				).
-				WithCompensationRequired(),
+				WithCompensationOnActionFailure(),
 		}
 
 		result, err := saga.NewSaga(steps).

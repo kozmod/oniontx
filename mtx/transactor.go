@@ -19,6 +19,9 @@ var (
 	// This error is returned when trying to use a Transactor with an uninitialized operator.
 	ErrNilTxOperator = fmt.Errorf("tx operator is nil")
 
+	// ErrNilTxFunc indicates that WithinTx was called without a transaction function.
+	ErrNilTxFunc = fmt.Errorf("transaction function is nil")
+
 	// ErrBeginTx indicates that starting a new transaction has failed.
 	// This error wraps the underlying error from the database driver.
 	ErrBeginTx = fmt.Errorf("begin tx")
@@ -164,6 +167,9 @@ func (t *Transactor[B, T]) WithinTx(ctx context.Context, fn func(ctx context.Con
 
 	if t == nil {
 		return fmt.Errorf("transactor is nil")
+	}
+	if fn == nil {
+		return fmt.Errorf("transactor - can't execute: %w", ErrNilTxFunc)
 	}
 
 	if t.beginner == nilBeginner {
