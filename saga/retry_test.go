@@ -161,7 +161,7 @@ func Test_Saga_retry(t *testing.T) {
 								NewBaseRetryPolicy(3, time.Nanosecond),
 							),
 						).
-						WithCompensationRequired(),
+						WithCompensationOnActionFailure(),
 				}
 
 				resp, err := NewSaga(steps).Execute(ctx)

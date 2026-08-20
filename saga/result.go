@@ -123,7 +123,7 @@ func prepareResult(tracks []*simpleTracker) (Result, error) {
 		case ExecutionStatusFail:
 			failed = append(failed, stepID)
 
-			if data.CompensationRequired {
+			if data.CompensationOnActionFailure {
 				failedActionsRequiringCompensation = append(failedActionsRequiringCompensation, stepID)
 				if data.Compensation.Status == ExecutionStatusSuccess {
 					compensated = append(compensated, stepID)
@@ -139,7 +139,7 @@ func prepareResult(tracks []*simpleTracker) (Result, error) {
 			case ExecutionStatusSuccess:
 				compensated = append(compensated, stepID)
 			case ExecutionStatusUnset:
-				if !data.CompensationRequired {
+				if !data.CompensationOnActionFailure {
 					compensationNotRequired = append(compensationNotRequired, stepID)
 				}
 			}

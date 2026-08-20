@@ -205,7 +205,7 @@ func TestSaga_Execute(t *testing.T) {
 						executedCompensation = append(executedCompensation, "comp1")
 						return nil
 					})).
-					WithCompensationRequired(),
+					WithCompensationOnActionFailure(),
 			}
 
 			res, err := NewSaga(steps).Execute(ctx)
@@ -272,7 +272,7 @@ func TestSaga_Execute(t *testing.T) {
 					WithAction(NewOperation(func(ctx context.Context, _ Track) error {
 						return testtool.ErrExpTestA
 					})).
-					WithCompensationRequired(),
+					WithCompensationOnActionFailure(),
 			}
 
 			res, err := NewSaga(steps).Execute(ctx)
@@ -281,7 +281,7 @@ func TestSaga_Execute(t *testing.T) {
 			assert.ErrorIs(t, err, ErrCompensationFailed)
 			assert.Equal(t, StageResultFail, res.Status)
 			assert.Equal(t, 1, len(res.Steps[0].Compensation.Errors))
-			assert.ErrorIs(t, res.Steps[0].Compensation.Errors[0], ErrCompensationRequired)
+			assert.ErrorIs(t, res.Steps[0].Compensation.Errors[0], ErrCompensationNotConfigured)
 		})
 	})
 }
@@ -351,7 +351,7 @@ func Test_Saga_panic_recovery(t *testing.T) {
 
 						panic("panic_v3!")
 					}).WithPanicRecovery()).
-					WithCompensationRequired(),
+					WithCompensationOnActionFailure(),
 			}
 
 			res, err := NewSaga(steps).Execute(ctx)
@@ -451,19 +451,19 @@ func Test_execute_context(t *testing.T) {
 		assert.Equal(t, 0, res.Steps[0].StepPosition)
 		assert.Equal(t, ExecutionStatusUnset, res.Steps[0].Action.Status)
 		assert.Equal(t, ExecutionStatusUnset, res.Steps[0].Compensation.Status)
-		assert.Equal(t, false, res.Steps[0].CompensationRequired)
+		assert.Equal(t, false, res.Steps[0].CompensationOnActionFailure)
 
 		assert.Equal(t, "step1", res.Steps[1].StepName)
 		assert.Equal(t, 1, res.Steps[1].StepPosition)
 		assert.Equal(t, ExecutionStatusSuccess, res.Steps[1].Action.Status)
 		assert.Equal(t, ExecutionStatusUnset, res.Steps[1].Compensation.Status)
-		assert.Equal(t, false, res.Steps[1].CompensationRequired)
+		assert.Equal(t, false, res.Steps[1].CompensationOnActionFailure)
 
 		assert.Equal(t, "step2", res.Steps[2].StepName)
 		assert.Equal(t, 2, res.Steps[2].StepPosition)
 		assert.Equal(t, ExecutionStatusSuccess, res.Steps[2].Action.Status)
 		assert.Equal(t, ExecutionStatusUnset, res.Steps[2].Compensation.Status)
-		assert.Equal(t, false, res.Steps[2].CompensationRequired)
+		assert.Equal(t, false, res.Steps[2].CompensationOnActionFailure)
 
 		assert.Equal(t, "step3", res.Steps[3].StepName)
 		assert.Equal(t, 3, res.Steps[3].StepPosition)
@@ -472,7 +472,7 @@ func Test_execute_context(t *testing.T) {
 		assert.ErrorIs(t, res.Steps[3].Action.Errors[0], ErrExecuteActionsContextDone)
 		assert.Equal(t, ExecutionStatusUnset, res.Steps[3].Compensation.Status)
 		assert.Equal(t, 0, len(res.Steps[3].Compensation.Errors))
-		assert.Equal(t, false, res.Steps[3].CompensationRequired)
+		assert.Equal(t, false, res.Steps[3].CompensationOnActionFailure)
 
 		assert.True(t, slices.Equal([]string{"action1", "action2"}, Calls))
 	})
@@ -525,7 +525,7 @@ func Test_execute_context(t *testing.T) {
 					t.Fatalf("should not have been called")
 					return nil
 				}),
-			).WithCompensationRequired(),
+			).WithCompensationOnActionFailure(),
 		}
 		res, err := NewSaga(steps).Execute(ctx)
 		assert.Error(t, err)
@@ -568,7 +568,7 @@ func Test_execute_context(t *testing.T) {
 							return context.WithValue(ctx, operationKey, "operation")
 						}),
 					).
-					WithCompensationRequired(),
+					WithCompensationOnActionFailure(),
 			}
 
 			res, err := NewSaga(steps).
@@ -597,7 +597,7 @@ func Test_execute_context(t *testing.T) {
 							return nil
 						}).WithContext(nil),
 					).
-					WithCompensationRequired(),
+					WithCompensationOnActionFailure(),
 			}
 
 			res, err := NewSaga(steps).Execute(context.Background())
@@ -627,7 +627,7 @@ func Test_execute_context(t *testing.T) {
 							return nil
 						}),
 					).
-					WithCompensationRequired(),
+					WithCompensationOnActionFailure(),
 			}
 
 			res, err := NewSaga(steps).
@@ -962,7 +962,7 @@ func Test_hooks(t *testing.T) {
 						assert.ErrorIs(t, data.Action.Errors[0], testtool.ErrExpTestA)
 						return nil
 					}),
-				).WithCompensationRequired(),
+				).WithCompensationOnActionFailure(),
 			}
 			res, err := NewSaga(steps).Execute(ctx)
 			assert.Error(t, err)
@@ -1009,7 +1009,7 @@ func Test_hooks(t *testing.T) {
 						t.Fatalf("should not have been called")
 						return nil
 					}),
-				).WithCompensationRequired(),
+				).WithCompensationOnActionFailure(),
 			}
 
 			res, err := NewSaga(steps).Execute(ctx)
@@ -1107,7 +1107,7 @@ func Test_steps(t *testing.T) {
 			assert.Equal(t, 0, res.Steps[0].StepPosition)
 			assert.Equal(t, ExecutionStatusSuccess, res.Steps[0].Action.Status)
 			assert.Equal(t, ExecutionStatusUnset, res.Steps[0].Compensation.Status)
-			assert.Equal(t, false, res.Steps[0].CompensationRequired)
+			assert.Equal(t, false, res.Steps[0].CompensationOnActionFailure)
 			assert.Equal(t, 1, res.Steps[0].Action.Calls)
 			assert.Equal(t, 0, len(res.Steps[0].Action.Errors))
 
@@ -1115,7 +1115,7 @@ func Test_steps(t *testing.T) {
 			assert.Equal(t, 1, res.Steps[1].StepPosition)
 			assert.Equal(t, ExecutionStatusFail, res.Steps[1].Action.Status)
 			assert.Equal(t, ExecutionStatusUnset, res.Steps[1].Compensation.Status)
-			assert.Equal(t, false, res.Steps[1].CompensationRequired)
+			assert.Equal(t, false, res.Steps[1].CompensationOnActionFailure)
 			assert.Equal(t, 1, res.Steps[1].Action.Calls)
 			assert.Equal(t, 1, len(res.Steps[1].Action.Errors))
 			assert.ErrorIs(t, res.Steps[1].Action.Errors[0], testtool.ErrExpTestA)
@@ -1152,7 +1152,7 @@ func Test_steps(t *testing.T) {
 							assert.Equal(t, 0, len(str.Compensation.Errors))
 							return nil
 						}),
-					).WithCompensationRequired(),
+					).WithCompensationOnActionFailure(),
 			}
 
 			res, err := NewSaga(steps).Execute(ctx)
@@ -1199,7 +1199,7 @@ func Test_steps(t *testing.T) {
 							assert.Equal(t, 0, len(str.Compensation.Errors))
 							return nil
 						}),
-					).WithCompensationRequired(),
+					).WithCompensationOnActionFailure(),
 			}
 
 			res, err := NewSaga(steps).Execute(ctx)
@@ -1255,7 +1255,7 @@ func Test_steps(t *testing.T) {
 			assert.Equal(t, 0, res.Steps[0].StepPosition)
 			assert.Equal(t, ExecutionStatusSuccess, res.Steps[0].Action.Status)
 			assert.Equal(t, ExecutionStatusUnset, res.Steps[0].Compensation.Status)
-			assert.Equal(t, false, res.Steps[0].CompensationRequired)
+			assert.Equal(t, false, res.Steps[0].CompensationOnActionFailure)
 			assert.Equal(t, 1, res.Steps[0].Action.Calls)
 			assert.Equal(t, 0, len(res.Steps[0].Action.Errors))
 
@@ -1263,7 +1263,7 @@ func Test_steps(t *testing.T) {
 			assert.Equal(t, 1, res.Steps[1].StepPosition)
 			assert.Equal(t, ExecutionStatusFail, res.Steps[1].Action.Status)
 			assert.Equal(t, ExecutionStatusUncalled, res.Steps[1].Compensation.Status)
-			assert.Equal(t, false, res.Steps[1].CompensationRequired)
+			assert.Equal(t, false, res.Steps[1].CompensationOnActionFailure)
 			assert.Equal(t, 1, res.Steps[1].Action.Calls)
 			assert.Equal(t, 1, len(res.Steps[1].Action.Errors))
 			assert.ErrorIs(t, res.Steps[1].Action.Errors[0], testtool.ErrExpTestA)
@@ -1295,7 +1295,7 @@ func Test_steps(t *testing.T) {
 							assert.Equal(t, 0, len(str.Compensation.Errors))
 							return testtool.ErrExpTestB
 						}),
-					).WithCompensationRequired(),
+					).WithCompensationOnActionFailure(),
 			}
 
 			res, err := NewSaga(steps).Execute(ctx)
@@ -1348,7 +1348,7 @@ func Test_retry(t *testing.T) {
 						}
 						return nil
 					}).WithRetry(NewBaseRetryPolicy(retries, 5*time.Nanosecond)),
-				).WithCompensationRequired(),
+				).WithCompensationOnActionFailure(),
 		}
 
 		res, err := NewSaga(steps).Execute(ctx)
@@ -1404,7 +1404,7 @@ func Test_retry(t *testing.T) {
 						str := track.GetStepData()
 						return fmt.Errorf("comp err [%d]: %w", len(str.Compensation.Errors), testtool.ErrExpTestB)
 					}).WithRetry(NewBaseRetryPolicy(4, 5*time.Nanosecond)),
-				).WithCompensationRequired(),
+				).WithCompensationOnActionFailure(),
 		}
 
 		res, err := NewSaga(steps).Execute(ctx)

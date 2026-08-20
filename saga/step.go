@@ -16,9 +16,9 @@ type Step struct {
 	// callers after a failed saga execution.
 	compensation Operation
 
-	// compensationRequired adds this step to the compensation list before its
+	// compensateOnActionFailure adds this step to the compensation list before its
 	// action runs, so the step can compensate itself if its own action fails.
-	compensationRequired bool
+	compensateOnActionFailure bool
 }
 
 // NewStep creates a new Step with the given name.
@@ -38,10 +38,10 @@ func (s Step) WithCompensation(op Operation) Step {
 	return s
 }
 
-// WithCompensationRequired enables compensation for this step even if its own
-// action fails. Without this flag, only successfully completed steps are
-// considered for compensation.
-func (s Step) WithCompensationRequired() Step {
-	s.compensationRequired = true
+// WithCompensationOnActionFailure enables compensation for this step even if
+// its own action fails. Without this flag, only successfully completed steps
+// are considered for compensation.
+func (s Step) WithCompensationOnActionFailure() Step {
+	s.compensateOnActionFailure = true
 	return s
 }

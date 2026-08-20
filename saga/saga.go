@@ -46,9 +46,9 @@ var (
 	// from each attempt are preserved in the Track's error list for debugging.
 	ErrRetryFailed = fmt.Errorf("retry failed")
 
-	// ErrCompensationRequired indicates that a step was marked as compensation
-	// required but no compensation operation was configured.
-	ErrCompensationRequired = fmt.Errorf("compensation required")
+	// ErrCompensationNotConfigured indicates that compensation was requested for
+	// a failed action but no compensation operation was configured.
+	ErrCompensationNotConfigured = fmt.Errorf("compensation is not configured")
 )
 
 // Saga coordinates a local compensating workflow using the saga pattern.
@@ -104,7 +104,7 @@ stop:
 				continue
 			}
 
-			if step.compensationRequired {
+			if step.compensateOnActionFailure {
 				completedTrack = append(completedTrack, tr)
 			}
 
@@ -129,7 +129,7 @@ stop:
 				}
 			}
 
-			if !step.compensationRequired {
+			if !step.compensateOnActionFailure {
 				completedTrack = append(completedTrack, tr)
 			}
 		}
@@ -147,9 +147,9 @@ stop:
 	for i := len(tracks) - 1; i >= 0; i-- {
 		tr := tracks[i]
 		if tr.compensationFunc == nil {
-			if tr.compensationRequired {
+			if tr.compensateOnActionFailure {
 				tr.compensation.apply(newTrackFailedAct(
-					fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.stepName, ErrCompensationRequired),
+					fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.stepName, ErrCompensationNotConfigured),
 				))
 			}
 			continue

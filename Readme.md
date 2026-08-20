@@ -190,7 +190,7 @@ steps := []saga.Step{
                         WithMaxDelay(10*time.Second),
                 ),
         ).
-        WithCompensationRequired(),
+        WithCompensationOnActionFailure(),
 }
 
 // Execute the saga

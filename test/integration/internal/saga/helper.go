@@ -42,7 +42,7 @@ func printResult(t *testing.T, res saga.Result, err error) {
 		fmt.Printf("  -----\n")
 		fmt.Printf("  action status: %v\n", step.Action.Status)
 		fmt.Printf("  compensation status: %v\n", step.Compensation.Status)
-		fmt.Printf("  compensation required: %v\n", step.CompensationRequired)
+		fmt.Printf("  compensation on action failure: %v\n", step.CompensationOnActionFailure)
 		fmt.Printf("  action calls: %d\n", step.Action.Calls)
 		fmt.Printf("  compensation calls: %d\n", step.Compensation.Calls)
 		fmt.Printf("-----\n")
