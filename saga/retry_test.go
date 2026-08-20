@@ -215,3 +215,26 @@ func Test_Saga_retry(t *testing.T) {
 		assert.True(t, errors.Is(err, context.Canceled))
 	})
 }
+
+func Test_WithRetry_nil_arguments(t *testing.T) {
+	policy := NewBaseRetryPolicy(1, time.Nanosecond)
+
+	t.Run("nil_policy", func(t *testing.T) {
+		called := false
+		fn := func(context.Context, Track) error {
+			called = true
+			return nil
+		}
+
+		err := WithRetry(nil, fn)(context.Background(), nil)
+
+		assert.ErrorIs(t, err, ErrNilRetryPolicy)
+		assert.False(t, called)
+	})
+
+	t.Run("nil_operation_function", func(t *testing.T) {
+		err := WithRetry(policy, nil)(context.Background(), nil)
+
+		assert.ErrorIs(t, err, ErrNilRetryFunc)
+	})
+}

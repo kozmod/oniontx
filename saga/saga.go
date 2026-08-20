@@ -46,6 +46,12 @@ var (
 	// from each attempt are preserved in the Track's error list for debugging.
 	ErrRetryFailed = fmt.Errorf("retry failed")
 
+	// ErrNilRetryPolicy indicates that WithRetry was called without a retry policy.
+	ErrNilRetryPolicy = fmt.Errorf("retry policy is nil")
+
+	// ErrNilRetryFunc indicates that WithRetry was called without a retry function.
+	ErrNilRetryFunc = fmt.Errorf("retry function is nil")
+
 	// ErrCompensationNotConfigured indicates that compensation was requested for
 	// a failed action but no compensation operation was configured.
 	ErrCompensationNotConfigured = fmt.Errorf("compensation is not configured")
