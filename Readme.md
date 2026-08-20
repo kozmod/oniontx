@@ -5,7 +5,7 @@
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/kozmod/oniontx)
 ![GitHub release date](https://img.shields.io/github/release-date/kozmod/oniontx)
 ![GitHub last commit](https://img.shields.io/github/last-commit/kozmod/oniontx)
-[![GitHub MIT license](https://img.shields.io/github/license/kozmod/oniontx)](https://github.com/kozmod/oniontx/blob/dev/LICENSE)
+[![GitHub MIT license](https://img.shields.io/github/license/kozmod/oniontx)](https://github.com/kozmod/oniontx/blob/main/LICENSE)
 
 `oniontx` enables moving persistence logic control (for example: transaction management) from the `Persistence` (repository) layer 
 to the `Application` (service) layer using an owner-defined contract.
@@ -110,15 +110,15 @@ transaction object through repository APIs.
 > They participate in the same outer transaction, so an error
 > from an inner call causes the outer transaction to be rolled back.
 
-<a name="libs"><a/> The [test/integration](https://github.com/kozmod/oniontx/tree/master/test) module contains working `Transactor`
+<a name="libs"><a/> The [test/integration](https://github.com/kozmod/oniontx/tree/main/test) module contains working `Transactor`
 implementations for `stdlib`, `sqlx`, `pgx`, `gorm`, `redis`, `mongo`:
 
-- [stdlib](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/stdlib)
-- [sqlx](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/sqlx)
-- [pgx](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/pgx)
-- [gorm](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/gorm)
-- [redis](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/redis)
-- [mongo](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/mongo)
+- [stdlib](https://github.com/kozmod/oniontx/tree/main/test/integration/internal/stdlib)
+- [sqlx](https://github.com/kozmod/oniontx/tree/main/test/integration/internal/sqlx)
+- [pgx](https://github.com/kozmod/oniontx/tree/main/test/integration/internal/pgx)
+- [gorm](https://github.com/kozmod/oniontx/tree/main/test/integration/internal/gorm)
+- [redis](https://github.com/kozmod/oniontx/tree/main/test/integration/internal/redis)
+- [mongo](https://github.com/kozmod/oniontx/tree/main/test/integration/internal/mongo)
 
 ### <a name="saga"><a/>Package `saga`: In-progress Workflow Engine
 Use `saga` when coordinating operations across **multiple** services, databases,
@@ -227,14 +227,14 @@ if err != nil {
 ```
 
 More examples:
-- [examples](https://github.com/kozmod/oniontx/tree/master/examples)
-- [tests](https://github.com/kozmod/oniontx/tree/master/saga)
-- [integration tests](https://github.com/kozmod/oniontx/tree/master/test/integration/internal/saga)
+- [examples](https://github.com/kozmod/oniontx/tree/main/examples)
+- [tests](https://github.com/kozmod/oniontx/tree/main/saga)
+- [integration tests](https://github.com/kozmod/oniontx/tree/main/test/integration/internal/saga)
 
 
 ## <a name="testing"><a/>Testing
 
-[test](https://github.com/kozmod/oniontx/tree/master/test) package contains useful examples for creating unit test:
+[test](https://github.com/kozmod/oniontx/tree/main/test) package contains useful examples for creating unit test:
 
 - [vektra/mockery **+** stretchr/testify](https://github.com/kozmod/oniontx/tree/main/test/integration/internal/mock/mockery)
 - [go.uber.org/mock/gomock **+** stretchr/testify](https://github.com/kozmod/oniontx/tree/main/test/integration/internal/mock/gomock)
