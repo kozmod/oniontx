@@ -395,6 +395,39 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 			})
 			assert.ErrorIs(t, err, ErrNilTxOperator)
 		})
+		t.Run("error_when_transaction_function_is_nil", func(t *testing.T) {
+			var (
+				beginCalled    bool
+				commitCalled   bool
+				rollbackCalled bool
+				ctx            = context.Background()
+				c              = &committerMock{
+					commitFn: func(context.Context) error {
+						commitCalled = true
+						return nil
+					},
+					rollbackFn: func(context.Context) error {
+						rollbackCalled = true
+						return nil
+					},
+				}
+				b = &beginnerMock[*committerMock]{
+					beginFn: func(context.Context) (*committerMock, error) {
+						beginCalled = true
+						return c, nil
+					},
+				}
+				o  = NewContextOperator[*beginnerMock[*committerMock], *committerMock](b)
+				tr = NewTransactor[*beginnerMock[*committerMock], *committerMock](b, o)
+			)
+
+			err := tr.WithinTx(ctx, nil)
+
+			assert.ErrorIs(t, err, ErrNilTxFunc)
+			assert.False(t, beginCalled)
+			assert.False(t, commitCalled)
+			assert.False(t, rollbackCalled)
+		})
 	})
 }
 
