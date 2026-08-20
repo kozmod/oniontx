@@ -190,12 +190,10 @@ func WithRetry(policy RetryPolicy, fn func(ctx context.Context, track Track) err
 				}
 				retryTrack.apply(newTrackFailedAct(err))
 				if i < attempts-1 {
-					select {
-					case <-ctx.Done():
-						err = errors.Join(ErrRetryContextDone, ctx.Err())
+					if waitErr := waitRetryDelay(ctx, policy.Delay(i)); waitErr != nil {
+						err = errors.Join(ErrRetryContextDone, waitErr)
 						retryTrack.apply(newTrackFailedAct(err))
 						break stop
-					case <-time.After(policy.Delay(i)):
 					}
 				}
 			}
@@ -204,6 +202,18 @@ func WithRetry(policy RetryPolicy, fn func(ctx context.Context, track Track) err
 		if err != nil {
 			return errors.Join(ErrRetryFailed, err)
 		}
+		return nil
+	}
+}
+
+func waitRetryDelay(ctx context.Context, delay time.Duration) error {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
 		return nil
 	}
 }

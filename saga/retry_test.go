@@ -238,3 +238,20 @@ func Test_WithRetry_nil_arguments(t *testing.T) {
 		assert.ErrorIs(t, err, ErrNilRetryFunc)
 	})
 }
+
+func Test_waitRetryDelay(t *testing.T) {
+	t.Run("context_canceled", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		err := waitRetryDelay(ctx, time.Hour)
+
+		assert.ErrorIs(t, err, context.Canceled)
+	})
+
+	t.Run("delay_completed", func(t *testing.T) {
+		err := waitRetryDelay(context.Background(), time.Nanosecond)
+
+		assert.NoError(t, err)
+	})
+}
