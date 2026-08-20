@@ -35,7 +35,7 @@ func Test_backoff(t *testing.T) {
 		})
 
 		t.Run("nil_backoff_uses_exponential_default", func(t *testing.T) {
-			policy := NewAdvanceRetryPolicy(1, time.Second, nil)
+			policy := NewAdvancedRetryPolicy(1, time.Second, nil)
 
 			assert.Equal(t, 2*time.Second, policy.Delay(1))
 		})
@@ -47,14 +47,14 @@ func Test_backoff(t *testing.T) {
 		})
 
 		t.Run("max_delay_applies_after_backoff_saturates", func(t *testing.T) {
-			policy := NewAdvanceRetryPolicy(64, time.Second, NewExponentialBackoff()).
+			policy := NewAdvancedRetryPolicy(64, time.Second, NewExponentialBackoff()).
 				WithMaxDelay(10 * time.Second)
 
 			assert.Equal(t, 10*time.Second, policy.Delay(64))
 		})
 
 		t.Run("max_delay_applies_after_custom_jitter", func(t *testing.T) {
-			policy := NewAdvanceRetryPolicy(1, time.Second, NewExponentialBackoff()).
+			policy := NewAdvancedRetryPolicy(1, time.Second, NewExponentialBackoff()).
 				WithJitter(
 					jitterFunc(func(time.Duration) time.Duration {
 						return time.Hour

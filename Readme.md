@@ -177,7 +177,7 @@ steps := []saga.Step{
             }).
                 // Compensation can also have retry logic
                 WithRetry(
-                    saga.NewAdvanceRetryPolicy(
+                    saga.NewAdvancedRetryPolicy(
                         2,                            // retry attempts after the initial call
                         1*time.Second,                // initial delay
                         saga.NewExponentialBackoff(), // exponential backoff

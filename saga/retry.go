@@ -65,23 +65,23 @@ func NewBaseRetryPolicy(attempts uint32, delay time.Duration) *BaseRetryPolicy {
 	}
 }
 
-// AdvanceRetryPolicy provides configurable retry behavior with pluggable
+// AdvancedRetryPolicy provides configurable retry behavior with pluggable
 // backoff and jitter strategies. This allows for flexible composition of
 // different retry algorithms.
-type AdvanceRetryPolicy struct {
+type AdvancedRetryPolicy struct {
 	baseRetryPolicy
 	backoff Backoff
 	jitter  Jitter
 }
 
-// NewAdvanceRetryPolicy creates a new advanced retry policy with the specified
+// NewAdvancedRetryPolicy creates a new advanced retry policy with the specified
 // backoff strategy. A nil backoff uses ExponentialBackoff.
-func NewAdvanceRetryPolicy(attempts uint32, delay time.Duration, backoff Backoff) AdvanceRetryPolicy {
+func NewAdvancedRetryPolicy(attempts uint32, delay time.Duration, backoff Backoff) AdvancedRetryPolicy {
 	if backoff == nil {
 		backoff = NewExponentialBackoff()
 	}
 
-	return AdvanceRetryPolicy{
+	return AdvancedRetryPolicy{
 		baseRetryPolicy: baseRetryPolicy{
 			attempts: attempts,
 			delay:    delay,
@@ -92,24 +92,24 @@ func NewAdvanceRetryPolicy(attempts uint32, delay time.Duration, backoff Backoff
 }
 
 // WithJitter adds jitter to the retry policy.
-func (o AdvanceRetryPolicy) WithJitter(jitter Jitter) AdvanceRetryPolicy {
+func (o AdvancedRetryPolicy) WithJitter(jitter Jitter) AdvancedRetryPolicy {
 	o.jitter = jitter
 	return o
 }
 
 // WithMaxDelay sets an upper bound for the delay duration.
-func (o AdvanceRetryPolicy) WithMaxDelay(delay time.Duration) AdvanceRetryPolicy {
+func (o AdvancedRetryPolicy) WithMaxDelay(delay time.Duration) AdvancedRetryPolicy {
 	o.maxDelay = delay
 	return o
 }
 
 // Attempts returns the configured number of retry attempts after the initial call.
-func (o AdvanceRetryPolicy) Attempts() uint32 {
+func (o AdvancedRetryPolicy) Attempts() uint32 {
 	return o.attempts
 }
 
 // Delay returns the backoff delay for the given retry attempt.
-func (o AdvanceRetryPolicy) Delay(i uint32) time.Duration {
+func (o AdvancedRetryPolicy) Delay(i uint32) time.Duration {
 	backoffTime := o.limitDelay(o.backoff.Backoff(i, o.delay))
 	if o.jitter != nil {
 		backoffTime = o.limitDelay(o.jitter.Jitter(backoffTime))
@@ -117,7 +117,7 @@ func (o AdvanceRetryPolicy) Delay(i uint32) time.Duration {
 	return backoffTime
 }
 
-func (o AdvanceRetryPolicy) limitDelay(delay time.Duration) time.Duration {
+func (o AdvancedRetryPolicy) limitDelay(delay time.Duration) time.Duration {
 	if o.maxDelay > 0 && delay > o.maxDelay {
 		return o.maxDelay
 	}

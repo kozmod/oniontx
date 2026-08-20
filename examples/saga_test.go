@@ -151,7 +151,7 @@ func Test_Saga_example(t *testing.T) {
 					}).
 						// Compensation can also have retry logic
 						WithRetry(
-							saga.NewAdvanceRetryPolicy(
+							saga.NewAdvancedRetryPolicy(
 								2,                            // max attempts
 								1*time.Second,                // initial delay
 								saga.NewExponentialBackoff(), // exponential backoff
