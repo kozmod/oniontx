@@ -73,7 +73,7 @@ func (o Operation) WithPanicRecovery() Operation {
 }
 
 // WithRetry wraps the Operation with retry logic.
-// The function will be retried according to the provided RetryOptions.
+// The function will be retried according to the provided RetryPolicy.
 // Returns a new Operation with retry logic enabled.
 func (o Operation) WithRetry(policy RetryPolicy) Operation {
 	if policy == nil {

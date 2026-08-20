@@ -232,7 +232,7 @@ func Test_WithRetry_nil_arguments(t *testing.T) {
 		assert.False(t, called)
 	})
 
-	t.Run("nil_operation_function", func(t *testing.T) {
+	t.Run("nil_retry_function", func(t *testing.T) {
 		err := WithRetry(policy, nil)(context.Background(), nil)
 
 		assert.ErrorIs(t, err, ErrNilRetryFunc)
