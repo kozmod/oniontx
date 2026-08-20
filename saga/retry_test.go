@@ -11,6 +11,10 @@ import (
 	"github.com/kozmod/oniontx/internal/testtool/assert"
 )
 
+type jitterFunc func(time.Duration) time.Duration
+
+func (f jitterFunc) Jitter(base time.Duration) time.Duration { return f(base) }
+
 func Test_backoff(t *testing.T) {
 	t.Run("exponential", func(t *testing.T) {
 		t.Run("v1", func(t *testing.T) {
@@ -47,6 +51,18 @@ func Test_backoff(t *testing.T) {
 				WithMaxDelay(10 * time.Second)
 
 			assert.Equal(t, 10*time.Second, policy.Delay(64))
+		})
+
+		t.Run("max_delay_applies_after_custom_jitter", func(t *testing.T) {
+			policy := NewAdvanceRetryPolicy(1, time.Second, NewExponentialBackoff()).
+				WithJitter(
+					jitterFunc(func(time.Duration) time.Duration {
+						return time.Hour
+					}),
+				).
+				WithMaxDelay(10 * time.Second)
+
+			assert.Equal(t, 10*time.Second, policy.Delay(1))
 		})
 	})
 }

@@ -130,3 +130,18 @@ func Test_SagaExecute_preservesExecutionErrors(t *testing.T) {
 	assert.ErrorIsNot(t, err, actionErr)
 	assert.ErrorIsNot(t, err, compensationErr)
 }
+
+func Test_SagaExecute_actionFailureWithoutCompensation(t *testing.T) {
+	steps := []Step{
+		NewStep("failed step").
+			WithAction(NewOperation(func(context.Context, Track) error {
+				return testtool.ErrExpTestA
+			})),
+	}
+
+	res, err := NewSaga(steps).Execute(context.Background())
+	assert.NotNil(t, res)
+	assert.Equal(t, StageResultFail, res.Status)
+	assert.ErrorIs(t, err, ErrActionFailed)
+	assert.ErrorIsNot(t, err, ErrCompensationFailed)
+}
