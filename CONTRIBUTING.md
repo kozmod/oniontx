@@ -8,7 +8,7 @@
 
 ###  With pull requests:
 
-+ Open your pull request against `dev` branch.
++ Open your pull request against the `main` branch.
 
   **a)** The pull request name format should correspond to format
     ```
