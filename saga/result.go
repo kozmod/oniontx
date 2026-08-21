@@ -66,12 +66,12 @@ func prepareResult(tracks []*simpleTracker) (Result, error) {
 			Steps:  make([]StepData, 0, len(tracks)),
 			Status: StageResultUnknown,
 		}
-		failed                             int32
-		compensated                        int32
-		failedCompensations                int32
-		compensationNotRequired            int32
-		failedActionsRequiringCompensation int32
-		requiredCompensationNotSucceeded   int32
+		failed                             int
+		compensated                        int
+		failedCompensations                int
+		compensationNotRequired            int
+		failedActionsRequiringCompensation int
+		requiredCompensationNotSucceeded   int
 		executionErrors                    = make([]error, 0, len(tracks))
 
 		resultErrorFn = func(err error) error {
