@@ -24,5 +24,5 @@ jobs:
 
       - name: Bench
         run: |
-          cd test/bench
-          go test -bench=. -benchmem
+          go test ./saga -run '^$' -bench=. -benchmem
+          go test ./test/bench  -run '^$' -bench=. -benchmem
