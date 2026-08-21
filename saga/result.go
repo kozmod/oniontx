@@ -3,7 +3,6 @@ package saga
 import (
 	"fmt"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/kozmod/oniontx/internal/errors"
@@ -61,46 +60,29 @@ func (r Result) String() string {
 }
 
 // prepareResult analyzes execution tracks and produces a final Result.
-// It evaluates all step tracks and determines the overall saga outcome based on
-// action failures, compensation requirements, and compensation outcomes.
-//
-// The function implements the following logic:
-//   - If no actions failed -> StageResultSuccess
-//   - If any required compensation failed -> StageResultFail
-//   - If an action failed and at least one compensation succeeded -> StageResultCompensated
-//   - If an action failed and no compensation succeeded -> StageResultFail
-//
-// Returns:
-//   - Result: aggregated execution data for all steps
-//   - error: descriptive error with categorized lists of failed/compensated steps
-//   - Result.Errors: underlying action and compensation errors
 func prepareResult(tracks []*simpleTracker) (Result, error) {
 	var (
 		result = Result{
 			Steps:  make([]StepData, 0, len(tracks)),
 			Status: StageResultUnknown,
 		}
-		failed                             = make([]string, 0, len(tracks))
-		compensated                        = make([]string, 0, len(tracks))
-		failedCompensations                = make([]string, 0, len(tracks))
-		compensationNotRequired            = make([]string, 0, len(tracks))
-		failedActionsRequiringCompensation = make([]string, 0, len(tracks))
-		requiredCompensationNotSucceeded   = make([]string, 0, len(tracks))
+		failed                             int32
+		compensated                        int32
+		failedCompensations                int32
+		compensationNotRequired            int32
+		failedActionsRequiringCompensation int32
+		requiredCompensationNotSucceeded   int32
 		executionErrors                    = make([]error, 0, len(tracks))
-
-		prepareStateStrFn = func(position uint32, name string) string {
-			return fmt.Sprintf("%d#%s", position, name)
-		}
 
 		resultErrorFn = func(err error) error {
 			return fmt.Errorf(
-				"state failed - failed [%s], compensated [%s], failed compensations [%s], compensation not required [%s], failed actions requiring compensation [%s], required compensations not succeeded [%s]: %w",
-				prepareResultSliceErrorMessage(failed),
-				prepareResultSliceErrorMessage(compensated),
-				prepareResultSliceErrorMessage(failedCompensations),
-				prepareResultSliceErrorMessage(compensationNotRequired),
-				prepareResultSliceErrorMessage(failedActionsRequiringCompensation),
-				prepareResultSliceErrorMessage(requiredCompensationNotSucceeded),
+				"state failed - failed [%d], compensated [%d], failed compensations [%d], compensation not required [%d], failed actions requiring compensation [%d], required compensations not succeeded [%d]: %w",
+				failed,
+				compensated,
+				failedCompensations,
+				compensationNotRequired,
+				failedActionsRequiringCompensation,
+				requiredCompensationNotSucceeded,
 				err,
 			)
 		}
@@ -112,31 +94,30 @@ func prepareResult(tracks []*simpleTracker) (Result, error) {
 		executionErrors = append(executionErrors, data.Action.Errors...)
 		executionErrors = append(executionErrors, data.Compensation.Errors...)
 
-		stepID := prepareStateStrFn(data.StepPosition, data.StepName)
 		if data.Compensation.Status == ExecutionStatusFail {
-			failedCompensations = append(failedCompensations, stepID)
+			failedCompensations++
 		}
 
 		switch data.Action.Status {
 		case ExecutionStatusFail:
-			failed = append(failed, stepID)
+			failed++
 
 			if data.CompensationOnActionFailure {
-				failedActionsRequiringCompensation = append(failedActionsRequiringCompensation, stepID)
+				failedActionsRequiringCompensation++
 				if data.Compensation.Status == ExecutionStatusSuccess {
-					compensated = append(compensated, stepID)
+					compensated++
 				} else {
-					requiredCompensationNotSucceeded = append(requiredCompensationNotSucceeded, stepID)
+					requiredCompensationNotSucceeded++
 				}
 			}
 
 		case ExecutionStatusSuccess:
 			switch data.Compensation.Status {
 			case ExecutionStatusSuccess:
-				compensated = append(compensated, stepID)
+				compensated++
 			case ExecutionStatusUnset:
 				if !data.CompensationOnActionFailure {
-					compensationNotRequired = append(compensationNotRequired, stepID)
+					compensationNotRequired++
 				}
 			}
 		}
@@ -145,15 +126,15 @@ func prepareResult(tracks []*simpleTracker) (Result, error) {
 	result.errs = executionErrors
 
 	switch {
-	case len(failed) == 0:
+	case failed == 0:
 		result.Status = StageResultSuccess
 		return result, nil
 
-	case len(failedCompensations) > 0 || len(requiredCompensationNotSucceeded) > 0:
+	case failedCompensations > 0 || requiredCompensationNotSucceeded > 0:
 		result.Status = StageResultFail
 		return result, resultErrorFn(errors.Join(ErrActionFailed, ErrCompensationFailed))
 
-	case len(compensated) == 0:
+	case compensated == 0:
 		// No compensation succeeded, so the failed workflow was not compensated.
 		result.Status = StageResultFail
 		return result, resultErrorFn(ErrActionFailed)
@@ -162,13 +143,4 @@ func prepareResult(tracks []*simpleTracker) (Result, error) {
 		result.Status = StageResultCompensated
 		return result, resultErrorFn(ErrActionFailed)
 	}
-}
-
-func prepareResultSliceErrorMessage(in []string) string {
-	const comma = ", "
-	if len(in) == 0 {
-		return strconv.Itoa(len(in))
-	}
-
-	return fmt.Sprintf("%d: %s", len(in), strings.Join(in, comma))
 }
