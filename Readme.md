@@ -11,19 +11,18 @@
 to the `Application` (service) layer using an owner-defined contract.
 
 The library provides **two complementary approaches** that can be used independently or together:
-- **`mtx` package**: Local ACID transactions for single-resource operations
+- **`mtx` package**: Local transaction manager to coordinate database transaction boundaries
 - **`saga` package**: Local compensating workflows for multi-resource coordination
 
 Both packages maintain clean architecture principles by keeping transaction control at the application 
 level while repositories remain focused on data access.
 
 ### 💡 Key Features
-- **Clean Architecture First**: Transactions managed at the application layer, not in repositories
-- **Dual Transaction Support**:
+- **Clean Architecture First**: Transactions managed at the application layer
+- **Flexible approach**:
     - `mtx` package for local ACID transactions (single database)
     - `saga` package for in-process compensating workflows (multiple services/databases)
-- **Database Agnostic**: Ready-to-use implementations for popular databases and libraries
-- **Testability First**: Built-in support for major testing frameworks
+- **Database Agnostic**: Allows creating implementations for popular databases and libraries
 - **Type-Safe**: Full generics support for compile-time safety
 - **Context-Aware**: Proper context propagation throughout transaction boundaries
 - **Lightweight**: The core library uses only the Go standard library and avoids unnecessary runtime dependencies
@@ -32,7 +31,7 @@ level while repositories remain focused on data access.
 
 # <img src=".github/assets/clean_arch+uml.png" alt="drawing"  width="700" />
 🔴 **NOTE:** Use `mtx` when working with a **single** database instance. 
-It manages ACID transactions across multiple repositories.
+It manages transactions across multiple repositories.
 For multiple repositories, use `mtx.Transactor` with `saga.Saga`[<sup>**ⓘ**</sup>](#saga).
 
 The core entity is **`Transactor`** — it provides a clean abstraction over database transactions and offers:
@@ -42,7 +41,7 @@ The core entity is **`Transactor`** — it provides a clean abstraction over dat
 
 ####  <a name="custom"><a/>Custom implementation
 If required, `oniontx` provides the ability to 
-implement custom algorithms for managing transactions (see examples).
+implement custom algorithms for managing transactions (look at examples).
 #### Interfaces:
 ```go 
 type (
@@ -120,7 +119,8 @@ implementations for `stdlib`, `sqlx`, `pgx`, `gorm`, `redis`, `mongo`:
 - [redis](https://github.com/kozmod/oniontx/tree/main/test/integration/internal/redis)
 - [mongo](https://github.com/kozmod/oniontx/tree/main/test/integration/internal/mongo)
 
-### <a name="saga"><a/>Package `saga`: In-progress Workflow Engine
+### <a name="saga"><a/>Package `saga`: In-Process Workflow Engine (In-Process Saga).
+
 Use `saga` when coordinating operations across **multiple** services, databases,
 or external systems. It implements the **In-Progress Workflow Engine** (or **In-Progress Local Saga**) pattern with compensating actions
 to maintain consistency within a single process.
