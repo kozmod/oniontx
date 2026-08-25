@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"go.mongodb.org/mongo-driver/v2/mongo/writeconcern"
 )
@@ -40,14 +40,14 @@ func Test(t *testing.T) {
 		collectionB       = client.Database(testDB).Collection(testCollectionB)
 		cleanupFn         = func() {
 			err := collectionA.Drop(globalCtx)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			err = collectionB.Drop(globalCtx)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		}
 	)
 	defer func() {
 		err := client.Disconnect(context.Background())
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		cancel()
 	}()
 
@@ -66,16 +66,16 @@ func Test(t *testing.T) {
 
 			err := transactor.WithinTx(ctx, func(ctx context.Context) error {
 				err := repoA.Save(ctx, testDataValA)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				err = repoB.Save(ctx, testDataChange)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				return err
 			})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			data, err := GetDataByID(ctx, t, collectionA, testID)
-			assert.NoError(t, err)
-			assert.Equal(t, testDataChange, data)
+			require.NoError(t, err)
+			require.Equal(t, testDataChange, data)
 		})
 		t.Run("err_and_rollback", func(t *testing.T) {
 			t.Cleanup(cleanupFn)
@@ -89,17 +89,17 @@ func Test(t *testing.T) {
 
 			err := transactor.WithinTx(ctx, func(ctx context.Context) error {
 				err := repoA.Save(ctx, testDataValA)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				err = repoB.Save(ctx, testDataChange)
-				assert.Error(t, err)
+				require.Error(t, err)
 				return err
 			})
-			assert.Error(t, err)
+			require.Error(t, err)
 
 			data, err := GetDataByID(ctx, t, collectionA, testID)
-			assert.Equal(t, dummyData, data)
-			assert.Error(t, err)
-			assert.Containsf(t, err.Error(), ErrTextNoDocResult, "should have returned an error")
+			require.Equal(t, dummyData, data)
+			require.Error(t, err)
+			require.Containsf(t, err.Error(), ErrTextNoDocResult, "should have returned an error")
 		})
 	})
 	t.Run("multiple_collection", func(t *testing.T) {
@@ -115,20 +115,20 @@ func Test(t *testing.T) {
 
 			err := transactor.WithinTx(ctx, func(ctx context.Context) error {
 				err := repoA.Save(ctx, testDataValA)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				err = repoB.Save(ctx, testDataValB)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				return err
 			})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			data, err := GetDataByID(ctx, t, collectionA, testID)
-			assert.NoError(t, err)
-			assert.Equal(t, testDataValA, data)
+			require.NoError(t, err)
+			require.Equal(t, testDataValA, data)
 
 			data, err = GetDataByID(ctx, t, collectionB, testID)
-			assert.NoError(t, err)
-			assert.Equal(t, testDataValB, data)
+			require.NoError(t, err)
+			require.Equal(t, testDataValB, data)
 		})
 		t.Run("err_and_rollback", func(t *testing.T) {
 			t.Cleanup(cleanupFn)
@@ -142,17 +142,17 @@ func Test(t *testing.T) {
 
 			err := transactor.WithinTx(ctx, func(ctx context.Context) error {
 				err := repoA.Save(ctx, testDataValA)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				err = repoB.Save(ctx, testDataValB)
-				assert.Error(t, err)
+				require.Error(t, err)
 				return err
 			})
-			assert.Error(t, err)
+			require.Error(t, err)
 
 			data, err := GetDataByID(ctx, t, collectionA, testID)
-			assert.Equal(t, dummyData, data)
-			assert.Error(t, err)
-			assert.Containsf(t, err.Error(), ErrTextNoDocResult, "should have returned an error")
+			require.Equal(t, dummyData, data)
+			require.Error(t, err)
+			require.Containsf(t, err.Error(), ErrTextNoDocResult, "should have returned an error")
 		})
 	})
 	t.Run("with_options", func(t *testing.T) {
@@ -175,16 +175,16 @@ func Test(t *testing.T) {
 
 			err := transactor.WithinTx(ctx, func(ctx context.Context) error {
 				err := repoA.Save(ctx, testDataValA)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				err = repoB.Save(ctx, testDataChange)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				return err
 			})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			data, err := GetDataByID(ctx, t, collectionA, testID)
-			assert.NoError(t, err)
-			assert.Equal(t, testDataChange, data)
+			require.NoError(t, err)
+			require.Equal(t, testDataChange, data)
 		})
 		t.Run("error_start_when_snapshot_session_was_set", func(t *testing.T) {
 			t.Cleanup(cleanupFn)
@@ -216,12 +216,12 @@ func Test(t *testing.T) {
 				}
 				return nil
 			})
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "transactions are not supported in snapshot sessions")
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "transactions are not supported in snapshot sessions")
 
 			data, err := GetDataByID(ctx, t, collectionA, testID)
-			assert.Error(t, err)
-			assert.Equal(t, dummyData, data)
+			require.Error(t, err)
+			require.Equal(t, dummyData, data)
 		})
 	})
 }
