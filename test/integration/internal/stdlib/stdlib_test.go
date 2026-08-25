@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/kozmod/oniontx/test/integration/internal/entity"
 )
@@ -18,12 +18,12 @@ func Test_UseCase(t *testing.T) {
 		db        = ConnectDB(t)
 		cleanupFn = func() {
 			err := ClearDB(db)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		}
 	)
 	defer func() {
 		err := db.Close()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}()
 
 	cleanupFn()
@@ -40,14 +40,14 @@ func Test_UseCase(t *testing.T) {
 		)
 
 		err := useCase.CreateTextRecords(ctx, textRecord)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		{
 			records, err := GetTextRecords(db)
-			assert.NoError(t, err)
-			assert.Len(t, records, 2)
+			require.NoError(t, err)
+			require.Len(t, records, 2)
 			for _, record := range records {
-				assert.Equal(t, textRecord, record)
+				require.Equal(t, textRecord, record)
 			}
 		}
 	})
@@ -63,13 +63,13 @@ func Test_UseCase(t *testing.T) {
 		)
 
 		err := useCase.CreateTextRecords(ctx, textRecord)
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, entity.ErrExpected)
+		require.Error(t, err)
+		require.ErrorIs(t, err, entity.ErrExpected)
 
 		{
 			records, err := GetTextRecords(db)
-			assert.NoError(t, err)
-			assert.Len(t, records, 0)
+			require.NoError(t, err)
+			require.Len(t, records, 0)
 		}
 	})
 	t.Run("ctx_canceled_error_and_rollback", func(t *testing.T) {
@@ -85,13 +85,13 @@ func Test_UseCase(t *testing.T) {
 
 		cancel()
 		err := useCase.CreateTextRecords(ctx, textRecord)
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, context.Canceled)
+		require.Error(t, err)
+		require.ErrorIs(t, err, context.Canceled)
 
 		{
 			records, err := GetTextRecords(db)
-			assert.NoError(t, err)
-			assert.Len(t, records, 0)
+			require.NoError(t, err)
+			require.Len(t, records, 0)
 		}
 	})
 }
@@ -101,12 +101,12 @@ func Test_UseCasesFacade(t *testing.T) {
 		db        = ConnectDB(t)
 		cleanupFn = func() {
 			err := ClearDB(db)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		}
 	)
 	defer func() {
 		err := db.Close()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}()
 
 	cleanupFn()
@@ -128,14 +128,14 @@ func Test_UseCasesFacade(t *testing.T) {
 			)
 
 			err := useCasesFacade.CreateTextRecords(ctx, textRecord)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			{
 				records, err := GetTextRecords(db)
-				assert.NoError(t, err)
-				assert.Len(t, records, 4)
+				require.NoError(t, err)
+				require.Len(t, records, 4)
 				for _, record := range records {
-					assert.Equal(t, textRecord, record)
+					require.Equal(t, textRecord, record)
 				}
 			}
 		})
@@ -155,13 +155,13 @@ func Test_UseCasesFacade(t *testing.T) {
 			)
 
 			err := useCasesFacade.CreateTextRecords(ctx, textRecord)
-			assert.Error(t, err)
-			assert.ErrorIs(t, err, entity.ErrExpected)
+			require.Error(t, err)
+			require.ErrorIs(t, err, entity.ErrExpected)
 
 			{
 				records, err := GetTextRecords(db)
-				assert.NoError(t, err)
-				assert.Len(t, records, 0)
+				require.NoError(t, err)
+				require.Len(t, records, 0)
 			}
 		})
 	})
