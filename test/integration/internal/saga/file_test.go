@@ -9,7 +9,7 @@ import (
 
 	"github.com/kozmod/oniontx/internal/testtool"
 	"github.com/kozmod/oniontx/saga"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_file_creation(t *testing.T) {
@@ -26,31 +26,31 @@ func Test_file_creation(t *testing.T) {
 			saga.NewStep("step_create_file").
 				WithAction(saga.NewOperation(func(ctx context.Context, _ saga.Track) error {
 					err := os.WriteFile(path, data, 0o644)
-					assert.NoError(t, err)
+					require.NoError(t, err)
 					return err
 				})).
 				WithCompensation(saga.NewOperation(func(ctx context.Context, track saga.Track) error {
-					assert.Fail(t, "should not be called")
+					require.Fail(t, "should not be called")
 					return nil
 				})),
 			saga.NewStep("check_file").
 				WithAction(saga.NewOperation(func(ctx context.Context, _ saga.Track) error {
-					assert.FileExists(t, path)
+					require.FileExists(t, path)
 
 					info, err := os.Stat(path)
-					assert.NoError(t, err)
-					assert.Equal(t, int64(len(data)), info.Size())
-					assert.Equal(t, name, info.Name())
+					require.NoError(t, err)
+					require.Equal(t, int64(len(data)), info.Size())
+					require.Equal(t, name, info.Name())
 					return err
 				})).
 				WithCompensation(saga.NewOperation(func(ctx context.Context, track saga.Track) error {
-					assert.Fail(t, "should not be called")
+					require.Fail(t, "should not be called")
 					return nil
 				})),
 		}).Execute(context.Background())
 
-		assert.NoError(t, err)
-		assert.Equal(t, saga.StageResultSuccess, res.Status)
+		require.NoError(t, err)
+		require.Equal(t, saga.StageResultSuccess, res.Status)
 
 		testtool.TestFn(t, func() {
 			printResult(t, res, err)
@@ -67,28 +67,28 @@ func Test_file_creation(t *testing.T) {
 			saga.NewStep("step_create_file").
 				WithAction(saga.NewOperation(func(ctx context.Context, _ saga.Track) error {
 					err := os.WriteFile(path, data, 0o644)
-					assert.NoError(t, err)
+					require.NoError(t, err)
 					return err
 				})).
 				WithCompensation(saga.NewOperation(func(ctx context.Context, track saga.Track) error {
 					err := os.Remove(path)
-					assert.NoError(t, err)
+					require.NoError(t, err)
 					return nil
 				})),
 			saga.NewStep("check_file_compensation_delete").
 				WithAction(saga.NewOperation(func(ctx context.Context, _ saga.Track) error {
-					assert.FileExists(t, path)
+					require.FileExists(t, path)
 					return expError
 				})).
 				WithCompensation(saga.NewOperation(func(ctx context.Context, track saga.Track) error {
-					assert.Fail(t, "should not be called")
+					require.Fail(t, "should not be called")
 					return nil
 				})),
 		}).Execute(context.Background())
 
-		assert.Error(t, err)
-		assert.Equal(t, saga.StageResultCompensated, res.Status)
-		assert.NoFileExists(t, path)
+		require.Error(t, err)
+		require.Equal(t, saga.StageResultCompensated, res.Status)
+		require.NoFileExists(t, path)
 
 		testtool.TestFn(t, func() {
 			printResult(t, res, err)

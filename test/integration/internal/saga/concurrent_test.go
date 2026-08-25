@@ -8,7 +8,7 @@ import (
 
 	"github.com/kozmod/oniontx/saga"
 	"github.com/kozmod/oniontx/test/integration/internal/entity"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_Concurrent(t *testing.T) {
@@ -77,15 +77,15 @@ func Test_Concurrent(t *testing.T) {
 					for e := range errChan {
 						err = errors.Join(e, err)
 					}
-					assert.ErrorIs(t, err, entity.ErrExpected)
+					require.ErrorIs(t, err, entity.ErrExpected)
 					return err
 				})),
 		}
 
 		res, err := saga.NewSaga(steps).Execute(ctx)
-		assert.Error(t, err)
-		assert.Equal(t, saga.StageResultCompensated, res.Status)
-		assert.ElementsMatch(t, []string{"action0", "action1", "action2"}, executedActions)
-		assert.ElementsMatch(t, []string{"comp0", "comp1", "comp2"}, executedCompensation)
+		require.Error(t, err)
+		require.Equal(t, saga.StageResultCompensated, res.Status)
+		require.ElementsMatch(t, []string{"action0", "action1", "action2"}, executedActions)
+		require.ElementsMatch(t, []string{"comp0", "comp1", "comp2"}, executedCompensation)
 	})
 }

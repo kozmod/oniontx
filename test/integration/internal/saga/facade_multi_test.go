@@ -13,7 +13,7 @@ import (
 	"github.com/kozmod/oniontx/test/integration/internal/mongo"
 	"github.com/kozmod/oniontx/test/integration/internal/stdlib"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_Saga_multi_Facade(t *testing.T) {
@@ -41,19 +41,19 @@ func Test_Saga_multi_Facade(t *testing.T) {
 
 		cleanupFn = func() {
 			err := stdlib.ClearDB(sqlDB)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			err = mongoCollectionA.Drop(globalCtx)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		}
 	)
 
 	defer func() {
 		err := sqlDB.Close()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		err = mongoClient.Disconnect(context.Background())
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		cancel()
 	}()
 
@@ -75,11 +75,11 @@ func Test_Saga_multi_Facade(t *testing.T) {
 					err := sqlTransactor.WithinTx(ctx, func(ctx context.Context) error {
 						return sqlRepo.Insert(ctx, sqlTextRecord)
 					})
-					assert.NoError(t, err)
+					require.NoError(t, err)
 					return nil
 				})).
 				WithCompensation(saga.NewOperation(func(ctx context.Context, _ saga.Track) error {
-					assert.Fail(t, "should not call (sql)")
+					require.Fail(t, "should not call (sql)")
 					return nil
 				})),
 			saga.NewStep("step_mongo_0").
@@ -87,30 +87,30 @@ func Test_Saga_multi_Facade(t *testing.T) {
 					err := mongoTransactor.WithinTx(ctx, func(ctx context.Context) error {
 						return mongoRepo.Save(ctx, mongoTestDataValA)
 					})
-					assert.NoError(t, err)
+					require.NoError(t, err)
 					return nil
 				})).
 				WithCompensation(saga.NewOperation(func(ctx context.Context, _ saga.Track) error {
-					assert.Fail(t, "should not call (mongo)")
+					require.Fail(t, "should not call (mongo)")
 					return nil
 				})),
 			saga.NewStep("step_check_all").
 				WithAction(saga.NewOperation(func(ctx context.Context, _ saga.Track) error {
 					records, err := stdlib.GetTextRecords(sqlDB)
-					assert.NoError(t, err)
-					assert.Len(t, records, 1)
-					assert.ElementsMatch(t, []string{sqlTextRecord}, records)
+					require.NoError(t, err)
+					require.Len(t, records, 1)
+					require.ElementsMatch(t, []string{sqlTextRecord}, records)
 
 					data, err := mongo.GetDataByID(ctx, t, mongoCollectionA, mongoTestID)
-					assert.Equal(t, mongoTestDataValA, data)
-					assert.NoError(t, err)
+					require.Equal(t, mongoTestDataValA, data)
+					require.NoError(t, err)
 
 					return nil
 				})),
 		}).Execute(ctx)
 
-		assert.NoError(t, err)
-		assert.Equal(t, saga.StageResultSuccess, res.Status)
+		require.NoError(t, err)
+		require.Equal(t, saga.StageResultSuccess, res.Status)
 
 		testtool.TestFn(t, func() {
 			printResult(t, res, err)
@@ -133,17 +133,17 @@ func Test_Saga_multi_Facade(t *testing.T) {
 					err := sqlTransactor.WithinTx(ctx, func(ctx context.Context) error {
 						return sqlRepo.Insert(ctx, sqlTextRecord)
 					})
-					assert.NoError(t, err)
+					require.NoError(t, err)
 					return err
 				})).
 				WithCompensation(saga.NewOperation(func(ctx context.Context, track saga.Track) error {
 					data := track.GetStepData()
-					assert.Len(t, data.Action.Errors, 0)
+					require.Len(t, data.Action.Errors, 0)
 
 					err := sqlTransactor.WithinTx(ctx, func(ctx context.Context) error {
 						return sqlRepo.Delete(ctx, sqlTextRecord)
 					})
-					assert.NoError(t, err)
+					require.NoError(t, err)
 					return err
 				})),
 			saga.NewStep("step_mongo_0").
@@ -151,28 +151,28 @@ func Test_Saga_multi_Facade(t *testing.T) {
 					err := mongoTransactor.WithinTx(ctx, func(ctx context.Context) error {
 						return mongoRepo.Save(ctx, mongoTestDataValA)
 					})
-					assert.NoError(t, err)
+					require.NoError(t, err)
 					return err
 				})).
 				WithCompensation(saga.NewOperation(func(ctx context.Context, track saga.Track) error {
 					data := track.GetStepData()
-					assert.Len(t, data.Action.Errors, 0)
+					require.Len(t, data.Action.Errors, 0)
 
 					t.Log(data)
 					err := mongoRepo.Delete(ctx, mongoTestDataValA)
-					assert.NoError(t, err)
+					require.NoError(t, err)
 					return err
 				})),
 			saga.NewStep("step_check_all").
 				WithAction(saga.NewOperation(func(ctx context.Context, _ saga.Track) error {
 					records, err := stdlib.GetTextRecords(sqlDB)
-					assert.NoError(t, err)
-					assert.Len(t, records, 1)
-					assert.ElementsMatch(t, []string{sqlTextRecord}, records)
+					require.NoError(t, err)
+					require.Len(t, records, 1)
+					require.ElementsMatch(t, []string{sqlTextRecord}, records)
 
 					data, err := mongo.GetDataByID(ctx, t, mongoCollectionA, mongoTestID)
-					assert.Equal(t, mongoTestDataValA, data)
-					assert.NoError(t, err)
+					require.Equal(t, mongoTestDataValA, data)
+					require.NoError(t, err)
 
 					return nil
 				})),
@@ -182,9 +182,9 @@ func Test_Saga_multi_Facade(t *testing.T) {
 				})),
 		}).Execute(ctx)
 
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, saga.ErrActionFailed)
-		assert.Equal(t, saga.StageResultCompensated, res.Status)
+		require.Error(t, err)
+		require.ErrorIs(t, err, saga.ErrActionFailed)
+		require.Equal(t, saga.StageResultCompensated, res.Status)
 
 		testtool.TestFn(t, func() {
 			printResult(t, res, err)
@@ -192,13 +192,13 @@ func Test_Saga_multi_Facade(t *testing.T) {
 
 		{
 			records, err := stdlib.GetTextRecords(sqlDB)
-			assert.NoError(t, err)
-			assert.Len(t, records, 0)
+			require.NoError(t, err)
+			require.Len(t, records, 0)
 
 			data, err := mongo.GetDataByID(ctx, t, mongoCollectionA, mongoTestID)
-			assert.Equal(t, mongoDummyData, data)
-			assert.Error(t, err)
-			assert.Containsf(t, err.Error(), mongo.ErrTextNoDocResult, "should have returned an error")
+			require.Equal(t, mongoDummyData, data)
+			require.Error(t, err)
+			require.Containsf(t, err.Error(), mongo.ErrTextNoDocResult, "should have returned an error")
 		}
 	})
 
@@ -239,20 +239,20 @@ func Test_Saga_multi_Facade(t *testing.T) {
 						// in the last step for the parent [Transactor] (sql).
 						return entity.ErrExpected
 					})
-					assert.Error(t, err)
+					require.Error(t, err)
 					return err
 				})).
 				// Need to add current compensation to list of compensations.
 				WithCompensation(saga.NewOperation(func(ctx context.Context, track saga.Track) error {
 					// check Mongo entities (commit).
 					data, err := mongo.GetDataByID(ctx, t, mongoCollectionA, mongoTestID)
-					assert.NoError(t, err)
-					assert.Equal(t, mongoTestDataValA, data)
+					require.NoError(t, err)
+					require.Equal(t, mongoTestDataValA, data)
 
 					// check SQL entities (rollback)
 					records, err := stdlib.GetTextRecords(sqlDB)
-					assert.NoError(t, err)
-					assert.Len(t, records, 0)
+					require.NoError(t, err)
+					require.Len(t, records, 0)
 
 					// Compensation logic.
 					//
@@ -260,17 +260,17 @@ func Test_Saga_multi_Facade(t *testing.T) {
 					trackData := track.GetStepData()
 					if len(trackData.Action.Errors) > 0 && errors.Is(trackData.Action.Errors[0], entity.ErrExpected) {
 						err = mongoRepo.Delete(ctx, mongoTestDataValA)
-						assert.NoError(t, err)
+						require.NoError(t, err)
 						return err
 					}
-					assert.Fail(t, "should not have been called")
+					require.Fail(t, "should not have been called")
 					return nil
 				})).
 				WithCompensationOnActionFailure(),
 		}).Execute(ctx)
 
-		assert.ErrorIs(t, err, saga.ErrActionFailed)
-		assert.Equal(t, saga.StageResultCompensated, res.Status)
+		require.ErrorIs(t, err, saga.ErrActionFailed)
+		require.Equal(t, saga.StageResultCompensated, res.Status)
 
 		testtool.TestFn(t, func() {
 			printResult(t, res, err)
@@ -278,13 +278,13 @@ func Test_Saga_multi_Facade(t *testing.T) {
 
 		{
 			records, err := stdlib.GetTextRecords(sqlDB)
-			assert.NoError(t, err)
-			assert.Len(t, records, 0)
+			require.NoError(t, err)
+			require.Len(t, records, 0)
 
 			data, err := mongo.GetDataByID(ctx, t, mongoCollectionA, mongoTestID)
-			assert.Equal(t, mongoDummyData, data)
-			assert.Error(t, err)
-			assert.Containsf(t, err.Error(), mongo.ErrTextNoDocResult, "should have returned an error")
+			require.Equal(t, mongoDummyData, data)
+			require.Error(t, err)
+			require.Containsf(t, err.Error(), mongo.ErrTextNoDocResult, "should have returned an error")
 		}
 	})
 }

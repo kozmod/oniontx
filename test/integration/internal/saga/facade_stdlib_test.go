@@ -10,7 +10,7 @@ import (
 	"github.com/kozmod/oniontx/test/integration/internal/entity"
 	"github.com/kozmod/oniontx/test/integration/internal/stdlib"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_Saga_stdlib_Facade(t *testing.T) {
@@ -21,12 +21,12 @@ func Test_Saga_stdlib_Facade(t *testing.T) {
 		db        = stdlib.ConnectDB(t)
 		cleanupFn = func() {
 			err := stdlib.ClearDB(db)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		}
 	)
 	defer func() {
 		err := db.Close()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}()
 
 	cleanupFn()
@@ -46,24 +46,24 @@ func Test_Saga_stdlib_Facade(t *testing.T) {
 					err := transactor.WithinTx(ctx, func(ctx context.Context) error {
 						return repoA.Insert(ctx, textRecord)
 					})
-					assert.NoError(t, err)
+					require.NoError(t, err)
 					return nil
 				})).
 				WithCompensation(saga.NewOperation(func(ctx context.Context, track saga.Track) error {
 					//data := track.GetStepData()
-					//assert.Len(t, data.Action.Errors, 1)
-					//assert.ErrorIs(t, data.Action.Errors[0], entity.ErrExpected)
+					//require.Len(t, data.Action.Errors, 1)
+					//require.ErrorIs(t, data.Action.Errors[0], entity.ErrExpected)
 
 					err := repoA.Delete(ctx, textRecord)
-					assert.NoError(t, err)
+					require.NoError(t, err)
 					return err
 				})),
 			saga.NewStep("step_1").
 				WithAction(saga.NewOperation(func(ctx context.Context, _ saga.Track) error {
 					records, err := stdlib.GetTextRecords(db)
-					assert.NoError(t, err)
-					assert.Len(t, records, 1)
-					assert.ElementsMatch(t, []string{textRecord}, records)
+					require.NoError(t, err)
+					require.Len(t, records, 1)
+					require.ElementsMatch(t, []string{textRecord}, records)
 
 					return nil
 				})),
@@ -79,33 +79,33 @@ func Test_Saga_stdlib_Facade(t *testing.T) {
 							return fmt.Errorf("step_2 - repoB error: %w", err)
 						}
 
-						assert.Fail(t, "step_2 - repoB is expected to fail")
+						require.Fail(t, "step_2 - repoB is expected to fail")
 						return nil
 					})
 
-					assert.Error(t, err)
-					assert.ErrorIs(t, err, entity.ErrExpected)
+					require.Error(t, err)
+					require.ErrorIs(t, err, entity.ErrExpected)
 					return err
 				})),
 		}).Execute(ctx)
 
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, saga.ErrActionFailed)
+		require.Error(t, err)
+		require.ErrorIs(t, err, saga.ErrActionFailed)
 
-		assert.Equal(t, saga.StageResultCompensated, res.Status)
-		assert.Len(t, res.Steps, 3)
+		require.Equal(t, saga.StageResultCompensated, res.Status)
+		require.Len(t, res.Steps, 3)
 
-		assert.Equal(t, saga.ExecutionStatusSuccess, res.Steps[0].Action.Status)
-		assert.Equal(t, saga.ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
+		require.Equal(t, saga.ExecutionStatusSuccess, res.Steps[0].Action.Status)
+		require.Equal(t, saga.ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
 
-		assert.Equal(t, saga.ExecutionStatusSuccess, res.Steps[1].Action.Status)
-		assert.Equal(t, saga.ExecutionStatusUnset, res.Steps[1].Compensation.Status)
+		require.Equal(t, saga.ExecutionStatusSuccess, res.Steps[1].Action.Status)
+		require.Equal(t, saga.ExecutionStatusUnset, res.Steps[1].Compensation.Status)
 
-		assert.Equal(t, saga.ExecutionStatusFail, res.Steps[2].Action.Status)
-		assert.Equal(t, saga.ExecutionStatusUnset, res.Steps[2].Compensation.Status)
+		require.Equal(t, saga.ExecutionStatusFail, res.Steps[2].Action.Status)
+		require.Equal(t, saga.ExecutionStatusUnset, res.Steps[2].Compensation.Status)
 
-		assert.Len(t, res.Steps[2].Action.Errors, 1)
-		assert.ErrorIs(t, res.Steps[2].Action.Errors[0], saga.ErrActionFailed)
+		require.Len(t, res.Steps[2].Action.Errors, 1)
+		require.ErrorIs(t, res.Steps[2].Action.Errors[0], saga.ErrActionFailed)
 
 		testtool.TestFn(t, func() {
 			printResult(t, res, err)
@@ -113,8 +113,8 @@ func Test_Saga_stdlib_Facade(t *testing.T) {
 
 		{
 			records, err := stdlib.GetTextRecords(db)
-			assert.NoError(t, err)
-			assert.Len(t, records, 0)
+			require.NoError(t, err)
+			require.Len(t, records, 0)
 		}
 	})
 }
