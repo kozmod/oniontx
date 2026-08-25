@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_redis_client(t *testing.T) {
@@ -14,12 +14,12 @@ func Test_redis_client(t *testing.T) {
 		redisClient = Connect(t, globalCtx)
 		cleanupFn   = func() {
 			err := redisClient.FlushAll(globalCtx).Err()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		}
 	)
 	defer func() {
 		err := redisClient.Close()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}()
 
 	cleanupFn()
@@ -52,10 +52,10 @@ func Test_redis_client(t *testing.T) {
 			}
 			return err
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		result := LRange(ctx, t, redisClient, lPushKey)
-		assert.ElementsMatch(t, result, []string{lPushValA, lPushValB})
+		require.ElementsMatch(t, result, []string{lPushValA, lPushValB})
 	})
 	t.Run("err_and_discard_LPush", func(t *testing.T) {
 		t.Cleanup(cleanupFn)
@@ -79,9 +79,9 @@ func Test_redis_client(t *testing.T) {
 			}
 			return err
 		})
-		assert.Error(t, err)
+		require.Error(t, err)
 
 		result := LRange(ctx, t, redisClient, lPushKey)
-		assert.Empty(t, result)
+		require.Empty(t, result)
 	})
 }
