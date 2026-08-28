@@ -293,7 +293,8 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 					},
 				}
 				o  = NewContextOperator[*beginnerMock[*committerMock], *committerMock](&b)
-				tr = NewTransactor[*beginnerMock[*committerMock], *committerMock](&b, o)
+				tr = NewTransactor[*beginnerMock[*committerMock], *committerMock](&b, o).
+					WithPanicRecovery(true)
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
@@ -330,7 +331,8 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 					},
 				}
 				o  = NewContextOperator[*beginnerMock[*committerMock], *committerMock](b)
-				tr = NewTransactor[*beginnerMock[*committerMock], *committerMock](b, o)
+				tr = NewTransactor[*beginnerMock[*committerMock], *committerMock](b, o).
+					WithPanicRecovery(true)
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
@@ -575,6 +577,114 @@ func Test_Transactor_RollbackCtxFactory(t *testing.T) {
 	})
 }
 
+func Test_Transactor_PanicRecoveryDisabled(t *testing.T) {
+	const panicMessage = "boom"
+
+	type panicStruct struct {
+		message string
+	}
+
+	var (
+		panicStructValue = &panicStruct{message: panicMessage}
+	)
+
+	newTransactor := func(rollbackCalls *int, rollbackErr error) *Transactor[*beginnerMock[*committerMock], *committerMock] {
+		c := &committerMock{
+			rollbackFn: func(context.Context) error {
+				*rollbackCalls = *rollbackCalls + 1
+				return rollbackErr
+			},
+		}
+		b := &beginnerMock[*committerMock]{
+			beginFn: func(context.Context) (*committerMock, error) {
+				return c, nil
+			},
+		}
+		o := NewContextOperator[*beginnerMock[*committerMock], *committerMock](b)
+		return NewTransactor[*beginnerMock[*committerMock], *committerMock](b, o)
+	}
+
+	callAndRecover := func(
+		t *testing.T,
+		tr *Transactor[*beginnerMock[*committerMock], *committerMock],
+		value any,
+		nested bool,
+	) (recovered any) {
+		t.Helper()
+
+		defer func() {
+			recovered = recover()
+			assert.NotNil(t, recovered)
+			v, ok := recovered.(*panicStruct)
+			assert.True(t, ok)
+			assert.True(t, v == value)
+		}()
+
+		err := tr.WithinTx(context.Background(), func(ctx context.Context) error {
+			if nested {
+				return tr.WithinTx(ctx, func(context.Context) error {
+					panic(value)
+				})
+			}
+			panic(value)
+		})
+		t.Fatalf("WithinTx returned instead of resuming panic: %v", err)
+		return nil
+	}
+
+	t.Run("default_repanics_after_successful_rollback", func(t *testing.T) {
+		rollbackCalls := 0
+		tr := newTransactor(&rollbackCalls, nil)
+
+		recovered := callAndRecover(t, tr, panicStructValue, false)
+
+		assert.True(t, recovered == panicStructValue)
+		assert.Equal(t, 1, rollbackCalls)
+	})
+
+	t.Run("repanics_even_when_rollback_fails", func(t *testing.T) {
+		var (
+			rollbackCalls = 0
+			value         = &panicStruct{message: panicMessage}
+			tr            = newTransactor(&rollbackCalls, fmt.Errorf("rollback failed"))
+		)
+
+		recovered := callAndRecover(t, tr, value, false)
+
+		assert.True(t, recovered == value)
+		assert.Equal(t, 1, rollbackCalls)
+	})
+
+	t.Run("nested_call_leaves_rollback_to_transaction_owner", func(t *testing.T) {
+		var (
+			rollbackCalls = 0
+			value         = &panicStruct{message: panicMessage}
+			tr            = newTransactor(&rollbackCalls, nil)
+		)
+
+		recovered := callAndRecover(t, tr, value, true)
+
+		assert.True(t, recovered == value)
+		assert.Equal(t, 1, rollbackCalls)
+	})
+
+	t.Run("can_disable_recovery_on_derived_transactor", func(t *testing.T) {
+		var (
+			rollbackCalls = 0
+			value         = &panicStruct{message: panicMessage}
+		)
+
+		tr := newTransactor(&rollbackCalls, nil).
+			WithPanicRecovery(true).
+			WithPanicRecovery(false)
+
+		recovered := callAndRecover(t, tr, value, false)
+
+		assert.True(t, recovered == value)
+		assert.Equal(t, 1, rollbackCalls)
+	})
+}
+
 // Test_Transactor_recursive_call - testing recursive [mtx.Transactor] calls.
 func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 	const (
@@ -799,22 +909,24 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 
 				// inject "second" level variable in context.Context.
 				ctx = injectLvl(ctx, ctxValSecondLvl)
-				err := tr.WithinTx(ctx, func(ctx context.Context) error {
-					tx, ok := o.Extract(ctx)
-					assert.True(t, ok)
-					assert.True(t, c == tx)
-
-					// inject "second" level variable in context.Context.
-					ctx = injectLvl(ctx, ctxValThirdLvl)
-					err := tr.WithinTx(ctx, func(ctx context.Context) error {
+				err := tr.WithPanicRecovery(true).
+					WithinTx(ctx, func(ctx context.Context) error {
 						tx, ok := o.Extract(ctx)
 						assert.True(t, ok)
 						assert.True(t, c == tx)
-						panic(lowLvlPanicMsg)
+
+						// inject "second" level variable in context.Context.
+						ctx = injectLvl(ctx, ctxValThirdLvl)
+						err := tr.WithPanicRecovery(true).
+							WithinTx(ctx, func(ctx context.Context) error {
+								tx, ok := o.Extract(ctx)
+								assert.True(t, ok)
+								assert.True(t, c == tx)
+								panic(lowLvlPanicMsg)
+							})
+						assert.Error(t, err)
+						return err
 					})
-					assert.Error(t, err)
-					return err
-				})
 				assert.Error(t, err)
 
 				return err
@@ -846,22 +958,24 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 
 				// inject "second" level variable in context.Context.
 				ctx = injectLvl(ctx, ctxValSecondLvl)
-				err := tr.WithinTx(ctx, func(ctx context.Context) error {
-					tx, ok := o.Extract(ctx)
-					assert.True(t, ok)
-					assert.True(t, c == tx)
-
-					// inject "second" level variable in context.Context.
-					ctx = injectLvl(ctx, ctxValThirdLvl)
-					err := tr.WithinTx(ctx, func(ctx context.Context) error {
+				err := tr.WithPanicRecovery(true).
+					WithinTx(ctx, func(ctx context.Context) error {
 						tx, ok := o.Extract(ctx)
 						assert.True(t, ok)
 						assert.True(t, c == tx)
-						panic(lowLvlPanicMsg)
+
+						// inject "second" level variable in context.Context.
+						ctx = injectLvl(ctx, ctxValThirdLvl)
+						err := tr.WithPanicRecovery(true).
+							WithinTx(ctx, func(ctx context.Context) error {
+								tx, ok := o.Extract(ctx)
+								assert.True(t, ok)
+								assert.True(t, c == tx)
+								panic(lowLvlPanicMsg)
+							})
+						assert.Error(t, err)
+						panic(middleLvlPanicMsg)
 					})
-					assert.Error(t, err)
-					panic(middleLvlPanicMsg)
-				})
 				assert.True(t, err != nil)
 
 				return err
