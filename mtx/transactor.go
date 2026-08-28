@@ -72,9 +72,9 @@ type (
 // The type parameters B and T allow working with any transaction implementation
 // that satisfies the TxBeginner and Tx interfaces respectively.
 type Transactor[B TxBeginner[T], T Tx] struct {
-	beginner           B
-	operator           CtxOperator[T]
-	rollbackCtxFactory func(ctx context.Context) context.Context
+	beginner B
+	operator CtxOperator[T]
+	opts     transactorOptions
 }
 
 // NewTransactor returns new Transactor.
@@ -84,9 +84,7 @@ func NewTransactor[B TxBeginner[T], T Tx](
 	return &Transactor[B, T]{
 		beginner: beginner,
 		operator: operator,
-		rollbackCtxFactory: func(ctx context.Context) context.Context {
-			return ctx
-		},
+		opts:     defaultTransactorOptions(),
 	}
 }
 
@@ -98,17 +96,40 @@ func NewTransactor[B TxBeginner[T], T Tx](
 // cancellation. If factory is nil or returns nil, rollback uses the original
 // operation context.
 func (t *Transactor[B, T]) WithRollbackCtxFactory(factory func(ctx context.Context) context.Context) *Transactor[B, T] {
+	opts := t.opts
+	switch factory {
+	case nil:
+		opts.rollbackCtxFactory = dummyRollbackCtxFactory
+	default:
+		opts.rollbackCtxFactory = func(ctx context.Context) context.Context {
+			rollbackCtx := factory(ctx)
+			if rollbackCtx == nil {
+				return ctx
+			}
+			return rollbackCtx
+		}
+	}
 	return &Transactor[B, T]{
 		beginner: t.beginner,
 		operator: t.operator,
-		rollbackCtxFactory: func(ctx context.Context) context.Context {
-			if factory != nil {
-				if newCtx := factory(ctx); newCtx != nil {
-					return newCtx
-				}
-			}
-			return ctx
-		},
+		opts:     opts,
+	}
+}
+
+// WithPanicRecovery returns a new Transactor with panic recovery configured.
+// The original Transactor is not modified.
+//
+// When enabled, WithinTx converts a panic to an error wrapping
+// ErrPanicRecovered. When disabled, WithinTx rolls back a top-level transaction
+// and then resumes the panic with its original value. Panic recovery is disabled
+// by default.
+func (t *Transactor[B, T]) WithPanicRecovery(enabled bool) *Transactor[B, T] {
+	opts := t.opts
+	opts.recoverPanic = enabled
+	return &Transactor[B, T]{
+		beginner: t.beginner,
+		operator: t.operator,
+		opts:     opts,
 	}
 }
 
@@ -123,8 +144,8 @@ func (t *Transactor[B, T]) WithRollbackCtxFactory(factory func(ctx context.Conte
 //     transaction is automatically rolled back.
 //   - Automatic commit: If the function completes without error, the transaction
 //     is automatically committed (only at the top level).
-//   - Panic recovery: Panics are recovered and converted to errors with
-//     ErrPanicRecovered. Higher-level panics override lower-level ones.
+//   - Optional panic recovery: WithPanicRecovery(true) converts panics to errors
+//     wrapping ErrPanicRecovered. Recovery is disabled by default.
 //   - Context propagation: The transaction is injected into the context for
 //     inner function calls.
 //
@@ -132,7 +153,8 @@ func (t *Transactor[B, T]) WithRollbackCtxFactory(factory func(ctx context.Conte
 //   - If a transaction exists in the context, it is reused (nested call)
 //   - Otherwise, a new transaction is created (top-level call)
 //   - Errors from the function or from commit/rollback are properly wrapped
-//   - Panics are handled gracefully without crashing the application
+//   - A top-level panic always triggers rollback; it is then either converted to
+//     an error or resumed with its original value, depending on panic recovery
 //
 // Example:
 //
@@ -153,7 +175,7 @@ func (t *Transactor[B, T]) WithRollbackCtxFactory(factory func(ctx context.Conte
 //
 // Note:
 //   - A processed error returns to the highest level for commit or rollback
-//   - Panics are transformed to errors with the same message
+//   - With panic recovery enabled, panics are transformed to errors with the same message
 //   - Higher level panics override lower level panics or errors
 //
 // Examples:
@@ -192,6 +214,9 @@ func (t *Transactor[B, T]) WithinTx(ctx context.Context, fn func(ctx context.Con
 		switch p := recover(); {
 		case p != nil:
 			if ok {
+				if !t.opts.recoverPanic {
+					panic(p)
+				}
 				err = fmt.Errorf(
 					"transactor - panic: %w",
 					errors.Join(ErrPanicRecovered, errors.WrapPanic(p)),
@@ -199,7 +224,7 @@ func (t *Transactor[B, T]) WithinTx(ctx context.Context, fn func(ctx context.Con
 				return
 			}
 
-			rollbackCtx := t.rollbackCtxFactory(ctx)
+			rollbackCtx := t.opts.rollbackCtxFactory(ctx)
 			if rbErr := tx.Rollback(rollbackCtx); rbErr != nil {
 				err = fmt.Errorf(
 					"transactor - panic: %w",
@@ -211,12 +236,15 @@ func (t *Transactor[B, T]) WithinTx(ctx context.Context, fn func(ctx context.Con
 					errors.Join(ErrRollbackSuccess, ErrPanicRecovered, errors.WrapPanic(p)),
 				)
 			}
+			if !t.opts.recoverPanic {
+				panic(p)
+			}
 		case err != nil:
 			if ok {
 				return
 			}
 
-			rollbackCtx := t.rollbackCtxFactory(ctx)
+			rollbackCtx := t.opts.rollbackCtxFactory(ctx)
 			if rbErr := tx.Rollback(rollbackCtx); rbErr != nil {
 				err = fmt.Errorf("transactor - call: %w", errors.Join(ErrRollbackFailed, rbErr, err))
 			} else {
