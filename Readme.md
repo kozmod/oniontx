@@ -30,9 +30,10 @@ level while repositories remain focused on data access.
 ### Package `mtx`: Local Transactions
 
 # <img src=".github/assets/clean_arch+uml.png" alt="drawing"  width="700" />
-🔴 **NOTE:** Use `mtx` when working with a **single** database instance. 
-It manages transactions across multiple repositories.
-For multiple repositories, use `mtx.Transactor` with `saga.Saga`[<sup>**ⓘ**</sup>](#saga).
+🔴 **NOTE:** Use `mtx` to coordinate multiple repositories that share a
+transaction in a **single** database instance. For workflows spanning multiple
+independent resources or databases, combine `mtx.Transactor` with
+`saga.Saga`[<sup>**ⓘ**</sup>](#saga).
 
 The core entity is **`Transactor`** — it provides a clean abstraction over database transactions and offers:
  - [**simple implementation examples for `stdlib` and popular libraries**](#libs)
