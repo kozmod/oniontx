@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/kozmod/oniontx/internal/testtool"
-	"github.com/kozmod/oniontx/internal/testtool/assert"
+	"github.com/kozmod/oniontx/internal/testtool/require"
 )
 
 var _ Track = readOnlyTrack{}
@@ -57,24 +57,24 @@ func TestSaga_Execute(t *testing.T) {
 		}
 
 		res, err := NewSaga(steps).Execute(ctx)
-		assert.NoError(t, err)
-		assert.Equal(t, StageResultSuccess, res.Status)
-		assert.Equal(t, 2, len(res.Steps))
+		require.NoError(t, err)
+		require.Equal(t, StageResultSuccess, res.Status)
+		require.Equal(t, 2, len(res.Steps))
 
-		assert.Equal(t, "step0", res.Steps[0].StepName)
-		assert.Equal(t, 0, res.Steps[0].StepPosition)
-		assert.Equal(t, 1, res.Steps[0].Action.Calls)
-		assert.Equal(t, ExecutionStatusSuccess, res.Steps[0].Action.Status)
-		assert.Equal(t, 0, res.Steps[0].Compensation.Calls)
+		require.Equal(t, "step0", res.Steps[0].StepName)
+		require.Equal(t, 0, res.Steps[0].StepPosition)
+		require.Equal(t, 1, res.Steps[0].Action.Calls)
+		require.Equal(t, ExecutionStatusSuccess, res.Steps[0].Action.Status)
+		require.Equal(t, 0, res.Steps[0].Compensation.Calls)
 
-		assert.Equal(t, "step1", res.Steps[1].StepName)
-		assert.Equal(t, 1, res.Steps[1].StepPosition)
-		assert.Equal(t, 1, res.Steps[1].Action.Calls)
-		assert.Equal(t, ExecutionStatusSuccess, res.Steps[1].Action.Status)
-		assert.Equal(t, 0, res.Steps[1].Compensation.Calls)
+		require.Equal(t, "step1", res.Steps[1].StepName)
+		require.Equal(t, 1, res.Steps[1].StepPosition)
+		require.Equal(t, 1, res.Steps[1].Action.Calls)
+		require.Equal(t, ExecutionStatusSuccess, res.Steps[1].Action.Status)
+		require.Equal(t, 0, res.Steps[1].Compensation.Calls)
 
-		assert.True(t, slices.Equal([]string{"action1", "action2"}, executedActions))
-		assert.True(t, len(executedCompensation) == 0)
+		require.True(t, slices.Equal([]string{"action1", "action2"}, executedActions))
+		require.True(t, len(executedCompensation) == 0)
 	})
 
 	t.Run("success_compensation_on_step1", func(t *testing.T) {
@@ -106,23 +106,23 @@ func TestSaga_Execute(t *testing.T) {
 		}
 
 		res, err := NewSaga(steps).Execute(ctx)
-		assert.Error(t, err)
-		assert.Equal(t, StageResultCompensated, res.Status)
-		assert.Equal(t, 2, len(res.Steps))
+		require.Error(t, err)
+		require.Equal(t, StageResultCompensated, res.Status)
+		require.Equal(t, 2, len(res.Steps))
 
-		assert.Equal(t, "step0", res.Steps[0].StepName)
-		assert.Equal(t, 0, res.Steps[0].StepPosition)
-		assert.Equal(t, 1, res.Steps[0].Action.Calls)
-		assert.Equal(t, 1, res.Steps[0].Compensation.Calls)
-		assert.Equal(t, ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
+		require.Equal(t, "step0", res.Steps[0].StepName)
+		require.Equal(t, 0, res.Steps[0].StepPosition)
+		require.Equal(t, 1, res.Steps[0].Action.Calls)
+		require.Equal(t, 1, res.Steps[0].Compensation.Calls)
+		require.Equal(t, ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
 
-		assert.Equal(t, "step1", res.Steps[1].StepName)
-		assert.Equal(t, 1, res.Steps[1].StepPosition)
-		assert.Equal(t, 1, res.Steps[1].Action.Calls)
-		assert.Equal(t, 0, res.Steps[1].Compensation.Calls)
+		require.Equal(t, "step1", res.Steps[1].StepName)
+		require.Equal(t, 1, res.Steps[1].StepPosition)
+		require.Equal(t, 1, res.Steps[1].Action.Calls)
+		require.Equal(t, 0, res.Steps[1].Compensation.Calls)
 
-		assert.True(t, slices.Equal([]string{"action1", "action2"}, executedActions))
-		assert.True(t, slices.Equal([]string{"comp1"}, executedCompensation))
+		require.True(t, slices.Equal([]string{"action1", "action2"}, executedActions))
+		require.True(t, slices.Equal([]string{"comp1"}, executedCompensation))
 	})
 
 	t.Run("compensation_on_fail", func(t *testing.T) {
@@ -143,14 +143,14 @@ func TestSaga_Execute(t *testing.T) {
 
 			res, err := NewSaga(steps).Execute(ctx)
 
-			assert.Error(t, err)
-			assert.ErrorIs(t, err, ErrActionFailed)
-			assert.ErrorIs(t, err, ErrCompensationFailed)
-			assert.Equal(t, StageResultFail, res.Status)
-			assert.Equal(t, ExecutionStatusSuccess, res.Steps[0].Action.Status)
-			assert.Equal(t, ExecutionStatusFail, res.Steps[0].Compensation.Status)
-			assert.ErrorIs(t, res.Steps[0].Compensation.Errors[0], testtool.ErrExpTestB)
-			assert.Equal(t, ExecutionStatusFail, res.Steps[1].Action.Status)
+			require.Error(t, err)
+			require.ErrorIs(t, err, ErrActionFailed)
+			require.ErrorIs(t, err, ErrCompensationFailed)
+			require.Equal(t, StageResultFail, res.Status)
+			require.Equal(t, ExecutionStatusSuccess, res.Steps[0].Action.Status)
+			require.Equal(t, ExecutionStatusFail, res.Steps[0].Compensation.Status)
+			require.ErrorIs(t, res.Steps[0].Compensation.Errors[0], testtool.ErrExpTestB)
+			require.Equal(t, ExecutionStatusFail, res.Steps[1].Action.Status)
 		})
 
 		t.Run("skipped", func(t *testing.T) {
@@ -173,21 +173,21 @@ func TestSaga_Execute(t *testing.T) {
 			}
 
 			res, err := NewSaga(steps).Execute(ctx)
-			assert.Error(t, err)
-			assert.Equal(t, StageResultFail, res.Status)
-			assert.Equal(t, 1, len(res.Steps))
+			require.Error(t, err)
+			require.Equal(t, StageResultFail, res.Status)
+			require.Equal(t, 1, len(res.Steps))
 
-			assert.Equal(t, "step0", res.Steps[0].StepName)
-			assert.Equal(t, 0, res.Steps[0].StepPosition)
-			assert.Equal(t, 1, res.Steps[0].Action.Calls)
-			assert.Equal(t, 1, len(res.Steps[0].Action.Errors))
-			assert.ErrorIs(t, res.Steps[0].Action.Errors[0], testtool.ErrExpTestA)
-			assert.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
-			assert.Equal(t, 0, res.Steps[0].Compensation.Calls)
-			assert.Equal(t, ExecutionStatusUncalled, res.Steps[0].Compensation.Status)
+			require.Equal(t, "step0", res.Steps[0].StepName)
+			require.Equal(t, 0, res.Steps[0].StepPosition)
+			require.Equal(t, 1, res.Steps[0].Action.Calls)
+			require.Equal(t, 1, len(res.Steps[0].Action.Errors))
+			require.ErrorIs(t, res.Steps[0].Action.Errors[0], testtool.ErrExpTestA)
+			require.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
+			require.Equal(t, 0, res.Steps[0].Compensation.Calls)
+			require.Equal(t, ExecutionStatusUncalled, res.Steps[0].Compensation.Status)
 
-			assert.True(t, slices.Equal([]string{"action1"}, executedActions))
-			assert.True(t, len(executedCompensation) == 0)
+			require.True(t, slices.Equal([]string{"action1"}, executedActions))
+			require.True(t, len(executedCompensation) == 0)
 		})
 		t.Run("added", func(t *testing.T) {
 			var (
@@ -209,21 +209,21 @@ func TestSaga_Execute(t *testing.T) {
 			}
 
 			res, err := NewSaga(steps).Execute(ctx)
-			assert.Error(t, err)
-			assert.Equal(t, StageResultCompensated, res.Status)
-			assert.Equal(t, 1, len(res.Steps))
+			require.Error(t, err)
+			require.Equal(t, StageResultCompensated, res.Status)
+			require.Equal(t, 1, len(res.Steps))
 
-			assert.Equal(t, "step0", res.Steps[0].StepName)
-			assert.Equal(t, 0, res.Steps[0].StepPosition)
-			assert.Equal(t, 1, res.Steps[0].Action.Calls)
-			assert.Equal(t, 1, len(res.Steps[0].Action.Errors))
-			assert.ErrorIs(t, res.Steps[0].Action.Errors[0], testtool.ErrExpTestA)
-			assert.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
-			assert.Equal(t, 1, res.Steps[0].Compensation.Calls)
-			assert.Equal(t, ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
+			require.Equal(t, "step0", res.Steps[0].StepName)
+			require.Equal(t, 0, res.Steps[0].StepPosition)
+			require.Equal(t, 1, res.Steps[0].Action.Calls)
+			require.Equal(t, 1, len(res.Steps[0].Action.Errors))
+			require.ErrorIs(t, res.Steps[0].Action.Errors[0], testtool.ErrExpTestA)
+			require.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
+			require.Equal(t, 1, res.Steps[0].Compensation.Calls)
+			require.Equal(t, ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
 
-			assert.True(t, slices.Equal([]string{"action1"}, executedActions))
-			assert.True(t, slices.Equal([]string{"comp1"}, executedCompensation))
+			require.True(t, slices.Equal([]string{"action1"}, executedActions))
+			require.True(t, slices.Equal([]string{"comp1"}, executedCompensation))
 		})
 
 		t.Run("reverse_order", func(t *testing.T) {
@@ -261,9 +261,9 @@ func TestSaga_Execute(t *testing.T) {
 			}
 
 			res, err := NewSaga(steps).Execute(ctx)
-			assert.Error(t, err)
-			assert.Equal(t, StageResultCompensated, res.Status)
-			assert.True(t, slices.Equal([]string{"comp2", "comp1", "comp0"}, executedCompensation))
+			require.Error(t, err)
+			require.Equal(t, StageResultCompensated, res.Status)
+			require.True(t, slices.Equal([]string{"comp2", "comp1", "comp0"}, executedCompensation))
 		})
 
 		t.Run("required_without_compensation", func(t *testing.T) {
@@ -276,12 +276,12 @@ func TestSaga_Execute(t *testing.T) {
 			}
 
 			res, err := NewSaga(steps).Execute(ctx)
-			assert.Error(t, err)
-			assert.ErrorIs(t, err, ErrActionFailed)
-			assert.ErrorIs(t, err, ErrCompensationFailed)
-			assert.Equal(t, StageResultFail, res.Status)
-			assert.Equal(t, 1, len(res.Steps[0].Compensation.Errors))
-			assert.ErrorIs(t, res.Steps[0].Compensation.Errors[0], ErrCompensationNotConfigured)
+			require.Error(t, err)
+			require.ErrorIs(t, err, ErrActionFailed)
+			require.ErrorIs(t, err, ErrCompensationFailed)
+			require.Equal(t, StageResultFail, res.Status)
+			require.Equal(t, 1, len(res.Steps[0].Compensation.Errors))
+			require.ErrorIs(t, res.Steps[0].Compensation.Errors[0], ErrCompensationNotConfigured)
 		})
 	})
 }
@@ -300,15 +300,15 @@ func Test_Saga_panic_recovery(t *testing.T) {
 			}
 
 			res, err := NewSaga(steps).Execute(ctx)
-			assert.Error(t, err)
-			assert.Equal(t, StageResultFail, res.Status)
-			assert.Equal(t, 1, len(res.Steps))
-			assert.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
-			assert.Equal(t, 1, len(res.Steps[0].Action.Errors))
-			assert.ErrorIs(t, res.Steps[0].Action.Errors[0], ErrPanicRecovered)
-			assert.Equal(t, ExecutionStatusUnset, res.Steps[0].Compensation.Status)
-			assert.Equal(t, 0, res.Steps[0].Compensation.Calls)
-			assert.Equal(t, 0, len(res.Steps[0].Compensation.Errors))
+			require.Error(t, err)
+			require.Equal(t, StageResultFail, res.Status)
+			require.Equal(t, 1, len(res.Steps))
+			require.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
+			require.Equal(t, 1, len(res.Steps[0].Action.Errors))
+			require.ErrorIs(t, res.Steps[0].Action.Errors[0], ErrPanicRecovered)
+			require.Equal(t, ExecutionStatusUnset, res.Steps[0].Compensation.Status)
+			require.Equal(t, 0, res.Steps[0].Compensation.Calls)
+			require.Equal(t, 0, len(res.Steps[0].Compensation.Errors))
 
 		})
 	})
@@ -324,15 +324,15 @@ func Test_Saga_panic_recovery(t *testing.T) {
 			}
 
 			res, err := NewSaga(steps).Execute(ctx)
-			assert.Error(t, err)
-			assert.Equal(t, StageResultFail, res.Status)
-			assert.Equal(t, 1, len(res.Steps))
-			assert.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
-			assert.Equal(t, 1, len(res.Steps[0].Action.Errors))
-			assert.ErrorIs(t, res.Steps[0].Action.Errors[0], ErrPanicRecovered)
-			assert.Equal(t, ExecutionStatusUnset, res.Steps[0].Compensation.Status)
-			assert.Equal(t, 0, res.Steps[0].Compensation.Calls)
-			assert.Equal(t, 0, len(res.Steps[0].Compensation.Errors))
+			require.Error(t, err)
+			require.Equal(t, StageResultFail, res.Status)
+			require.Equal(t, 1, len(res.Steps))
+			require.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
+			require.Equal(t, 1, len(res.Steps[0].Action.Errors))
+			require.ErrorIs(t, res.Steps[0].Action.Errors[0], ErrPanicRecovered)
+			require.Equal(t, ExecutionStatusUnset, res.Steps[0].Compensation.Status)
+			require.Equal(t, 0, res.Steps[0].Compensation.Calls)
+			require.Equal(t, 0, len(res.Steps[0].Compensation.Errors))
 		})
 
 		t.Run("success_OperationFunc", func(t *testing.T) {
@@ -343,11 +343,11 @@ func Test_Saga_panic_recovery(t *testing.T) {
 					})).
 					WithCompensation(NewOperation(func(ctx context.Context, track Track) error {
 						str := track.GetStepData()
-						assert.Equal(t, 1, len(str.Action.Errors))
-						assert.Equal(t, 1, str.Action.Calls)
-						assert.Equal(t, ExecutionStatusFail, str.Action.Status)
-						assert.Error(t, str.Action.Errors[0])
-						assert.ErrorIs(t, str.Action.Errors[0], testtool.ErrExpTestA)
+						require.Equal(t, 1, len(str.Action.Errors))
+						require.Equal(t, 1, str.Action.Calls)
+						require.Equal(t, ExecutionStatusFail, str.Action.Status)
+						require.Error(t, str.Action.Errors[0])
+						require.ErrorIs(t, str.Action.Errors[0], testtool.ErrExpTestA)
 
 						panic("panic_v3!")
 					}).WithPanicRecovery()).
@@ -355,16 +355,16 @@ func Test_Saga_panic_recovery(t *testing.T) {
 			}
 
 			res, err := NewSaga(steps).Execute(ctx)
-			assert.Error(t, err)
-			assert.Equal(t, StageResultFail, res.Status)
-			assert.Equal(t, 1, len(res.Steps))
-			assert.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
-			assert.Equal(t, 1, len(res.Steps[0].Action.Errors))
-			assert.ErrorIs(t, res.Steps[0].Action.Errors[0], testtool.ErrExpTestA)
-			assert.Equal(t, ExecutionStatusFail, res.Steps[0].Compensation.Status)
-			assert.Equal(t, 1, res.Steps[0].Compensation.Calls)
-			assert.Equal(t, 1, len(res.Steps[0].Compensation.Errors))
-			assert.ErrorIs(t, res.Steps[0].Compensation.Errors[0], ErrPanicRecovered)
+			require.Error(t, err)
+			require.Equal(t, StageResultFail, res.Status)
+			require.Equal(t, 1, len(res.Steps))
+			require.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
+			require.Equal(t, 1, len(res.Steps[0].Action.Errors))
+			require.ErrorIs(t, res.Steps[0].Action.Errors[0], testtool.ErrExpTestA)
+			require.Equal(t, ExecutionStatusFail, res.Steps[0].Compensation.Status)
+			require.Equal(t, 1, res.Steps[0].Compensation.Calls)
+			require.Equal(t, 1, len(res.Steps[0].Compensation.Errors))
+			require.ErrorIs(t, res.Steps[0].Compensation.Errors[0], ErrPanicRecovered)
 		})
 	})
 }
@@ -395,22 +395,22 @@ func Test_actions_v2(t *testing.T) {
 		}
 
 		res, err := NewSaga(steps).Execute(ctx)
-		assert.NoError(t, err)
-		assert.Equal(t, StageResultSuccess, res.Status)
-		assert.Equal(t, 2, len(res.Steps))
-		assert.Equal(t, ExecutionStatusSuccess, res.Steps[0].Action.Status)
-		assert.Equal(t, 1, res.Steps[0].Action.Calls)
-		assert.Equal(t, 0, len(res.Steps[0].Action.Errors))
-		assert.Equal(t, ExecutionStatusUncalled, res.Steps[0].Compensation.Status)
-		assert.Equal(t, 0, res.Steps[0].Compensation.Calls)
-		assert.Equal(t, 0, len(res.Steps[0].Compensation.Errors))
+		require.NoError(t, err)
+		require.Equal(t, StageResultSuccess, res.Status)
+		require.Equal(t, 2, len(res.Steps))
+		require.Equal(t, ExecutionStatusSuccess, res.Steps[0].Action.Status)
+		require.Equal(t, 1, res.Steps[0].Action.Calls)
+		require.Equal(t, 0, len(res.Steps[0].Action.Errors))
+		require.Equal(t, ExecutionStatusUncalled, res.Steps[0].Compensation.Status)
+		require.Equal(t, 0, res.Steps[0].Compensation.Calls)
+		require.Equal(t, 0, len(res.Steps[0].Compensation.Errors))
 
-		assert.Equal(t, ExecutionStatusSuccess, res.Steps[1].Action.Status)
-		assert.Equal(t, 1, res.Steps[1].Action.Calls)
-		assert.Equal(t, 0, len(res.Steps[1].Action.Errors))
-		assert.Equal(t, ExecutionStatusUncalled, res.Steps[1].Compensation.Status)
-		assert.Equal(t, 0, res.Steps[1].Compensation.Calls)
-		assert.Equal(t, 0, len(res.Steps[1].Compensation.Errors))
+		require.Equal(t, ExecutionStatusSuccess, res.Steps[1].Action.Status)
+		require.Equal(t, 1, res.Steps[1].Action.Calls)
+		require.Equal(t, 0, len(res.Steps[1].Action.Errors))
+		require.Equal(t, ExecutionStatusUncalled, res.Steps[1].Compensation.Status)
+		require.Equal(t, 0, res.Steps[1].Compensation.Calls)
+		require.Equal(t, 0, len(res.Steps[1].Compensation.Errors))
 	})
 }
 func Test_execute_context(t *testing.T) {
@@ -443,38 +443,38 @@ func Test_execute_context(t *testing.T) {
 		}
 
 		res, err := NewSaga(steps).Execute(ctx)
-		assert.Error(t, err)
+		require.Error(t, err)
 
-		assert.Equal(t, StageResultFail, res.Status)
-		assert.Equal(t, 4, len(res.Steps))
-		assert.Equal(t, "step0", res.Steps[0].StepName)
-		assert.Equal(t, 0, res.Steps[0].StepPosition)
-		assert.Equal(t, ExecutionStatusUnset, res.Steps[0].Action.Status)
-		assert.Equal(t, ExecutionStatusUnset, res.Steps[0].Compensation.Status)
-		assert.Equal(t, false, res.Steps[0].CompensationOnActionFailure)
+		require.Equal(t, StageResultFail, res.Status)
+		require.Equal(t, 4, len(res.Steps))
+		require.Equal(t, "step0", res.Steps[0].StepName)
+		require.Equal(t, 0, res.Steps[0].StepPosition)
+		require.Equal(t, ExecutionStatusUnset, res.Steps[0].Action.Status)
+		require.Equal(t, ExecutionStatusUnset, res.Steps[0].Compensation.Status)
+		require.Equal(t, false, res.Steps[0].CompensationOnActionFailure)
 
-		assert.Equal(t, "step1", res.Steps[1].StepName)
-		assert.Equal(t, 1, res.Steps[1].StepPosition)
-		assert.Equal(t, ExecutionStatusSuccess, res.Steps[1].Action.Status)
-		assert.Equal(t, ExecutionStatusUnset, res.Steps[1].Compensation.Status)
-		assert.Equal(t, false, res.Steps[1].CompensationOnActionFailure)
+		require.Equal(t, "step1", res.Steps[1].StepName)
+		require.Equal(t, 1, res.Steps[1].StepPosition)
+		require.Equal(t, ExecutionStatusSuccess, res.Steps[1].Action.Status)
+		require.Equal(t, ExecutionStatusUnset, res.Steps[1].Compensation.Status)
+		require.Equal(t, false, res.Steps[1].CompensationOnActionFailure)
 
-		assert.Equal(t, "step2", res.Steps[2].StepName)
-		assert.Equal(t, 2, res.Steps[2].StepPosition)
-		assert.Equal(t, ExecutionStatusSuccess, res.Steps[2].Action.Status)
-		assert.Equal(t, ExecutionStatusUnset, res.Steps[2].Compensation.Status)
-		assert.Equal(t, false, res.Steps[2].CompensationOnActionFailure)
+		require.Equal(t, "step2", res.Steps[2].StepName)
+		require.Equal(t, 2, res.Steps[2].StepPosition)
+		require.Equal(t, ExecutionStatusSuccess, res.Steps[2].Action.Status)
+		require.Equal(t, ExecutionStatusUnset, res.Steps[2].Compensation.Status)
+		require.Equal(t, false, res.Steps[2].CompensationOnActionFailure)
 
-		assert.Equal(t, "step3", res.Steps[3].StepName)
-		assert.Equal(t, 3, res.Steps[3].StepPosition)
-		assert.Equal(t, ExecutionStatusFail, res.Steps[3].Action.Status)
-		assert.Equal(t, 1, len(res.Steps[3].Action.Errors))
-		assert.ErrorIs(t, res.Steps[3].Action.Errors[0], ErrExecuteActionsContextDone)
-		assert.Equal(t, ExecutionStatusUnset, res.Steps[3].Compensation.Status)
-		assert.Equal(t, 0, len(res.Steps[3].Compensation.Errors))
-		assert.Equal(t, false, res.Steps[3].CompensationOnActionFailure)
+		require.Equal(t, "step3", res.Steps[3].StepName)
+		require.Equal(t, 3, res.Steps[3].StepPosition)
+		require.Equal(t, ExecutionStatusFail, res.Steps[3].Action.Status)
+		require.Equal(t, 1, len(res.Steps[3].Action.Errors))
+		require.ErrorIs(t, res.Steps[3].Action.Errors[0], ErrExecuteActionsContextDone)
+		require.Equal(t, ExecutionStatusUnset, res.Steps[3].Compensation.Status)
+		require.Equal(t, 0, len(res.Steps[3].Compensation.Errors))
+		require.Equal(t, false, res.Steps[3].CompensationOnActionFailure)
 
-		assert.True(t, slices.Equal([]string{"action1", "action2"}, Calls))
+		require.True(t, slices.Equal([]string{"action1", "action2"}, Calls))
 	})
 	t.Run("retry_ctx_cancel", func(t *testing.T) {
 		var (
@@ -494,19 +494,19 @@ func Test_execute_context(t *testing.T) {
 				),
 		}
 		res, err := NewSaga(steps).Execute(ctx)
-		assert.Error(t, err)
+		require.Error(t, err)
 
-		assert.Equal(t, StageResultFail, res.Status)
-		assert.Equal(t, 1, len(res.Steps))
-		assert.Equal(t, "step0", res.Steps[0].StepName)
-		assert.Equal(t, 0, res.Steps[0].StepPosition)
-		assert.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
-		assert.Equal(t, ExecutionStatusUnset, res.Steps[0].Compensation.Status)
-		assert.Equal(t, 4, len(res.Steps[0].Action.Errors))
-		assert.ErrorIs(t, res.Steps[0].Action.Errors[0], testtool.ErrExpTestA)
-		assert.ErrorIs(t, res.Steps[0].Action.Errors[1], testtool.ErrExpTestA)
-		assert.ErrorIs(t, res.Steps[0].Action.Errors[2], ErrRetryContextDone)
-		assert.ErrorIs(t, res.Steps[0].Action.Errors[3], ErrRetryFailed)
+		require.Equal(t, StageResultFail, res.Status)
+		require.Equal(t, 1, len(res.Steps))
+		require.Equal(t, "step0", res.Steps[0].StepName)
+		require.Equal(t, 0, res.Steps[0].StepPosition)
+		require.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
+		require.Equal(t, ExecutionStatusUnset, res.Steps[0].Compensation.Status)
+		require.Equal(t, 4, len(res.Steps[0].Action.Errors))
+		require.ErrorIs(t, res.Steps[0].Action.Errors[0], testtool.ErrExpTestA)
+		require.ErrorIs(t, res.Steps[0].Action.Errors[1], testtool.ErrExpTestA)
+		require.ErrorIs(t, res.Steps[0].Action.Errors[2], ErrRetryContextDone)
+		require.ErrorIs(t, res.Steps[0].Action.Errors[3], ErrRetryFailed)
 	})
 	t.Run("compensation_ctx_cancel", func(t *testing.T) {
 		var (
@@ -528,19 +528,19 @@ func Test_execute_context(t *testing.T) {
 			).WithCompensationOnActionFailure(),
 		}
 		res, err := NewSaga(steps).Execute(ctx)
-		assert.Error(t, err)
-		assert.Equal(t, StageResultFail, res.Status)
-		assert.Equal(t, 1, len(res.Steps))
-		assert.Equal(t, "step0", res.Steps[0].StepName)
-		assert.Equal(t, 0, res.Steps[0].StepPosition)
-		assert.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
-		assert.Equal(t, 1, res.Steps[0].Action.Calls)
-		assert.Equal(t, 1, len(res.Steps[0].Action.Errors))
-		assert.ErrorIs(t, res.Steps[0].Action.Errors[0], testtool.ErrExpTestA)
-		assert.Equal(t, ExecutionStatusFail, res.Steps[0].Compensation.Status)
-		assert.Equal(t, 0, res.Steps[0].Compensation.Calls)
-		assert.Equal(t, 1, len(res.Steps[0].Compensation.Errors))
-		assert.ErrorIs(t, res.Steps[0].Compensation.Errors[0], ErrExecuteCompensationContextDone)
+		require.Error(t, err)
+		require.Equal(t, StageResultFail, res.Status)
+		require.Equal(t, 1, len(res.Steps))
+		require.Equal(t, "step0", res.Steps[0].StepName)
+		require.Equal(t, 0, res.Steps[0].StepPosition)
+		require.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
+		require.Equal(t, 1, res.Steps[0].Action.Calls)
+		require.Equal(t, 1, len(res.Steps[0].Action.Errors))
+		require.ErrorIs(t, res.Steps[0].Action.Errors[0], testtool.ErrExpTestA)
+		require.Equal(t, ExecutionStatusFail, res.Steps[0].Compensation.Status)
+		require.Equal(t, 0, res.Steps[0].Compensation.Calls)
+		require.Equal(t, 1, len(res.Steps[0].Compensation.Errors))
+		require.ErrorIs(t, res.Steps[0].Compensation.Errors[0], ErrExecuteCompensationContextDone)
 	})
 
 	t.Run("with_compensation_context", func(t *testing.T) {
@@ -559,11 +559,11 @@ func Test_execute_context(t *testing.T) {
 					})).
 					WithCompensation(
 						NewOperation(func(ctx context.Context, _ Track) error {
-							assert.Equal(t, "saga", ctx.Value(compensationKey))
-							assert.Equal(t, "operation", ctx.Value(operationKey))
+							require.Equal(t, "saga", ctx.Value(compensationKey))
+							require.Equal(t, "operation", ctx.Value(operationKey))
 							return nil
 						}).WithContext(func(ctx context.Context) context.Context {
-							assert.Equal(t, "saga", ctx.Value(compensationKey))
+							require.Equal(t, "saga", ctx.Value(compensationKey))
 							operationFactoryCalled = true
 							return context.WithValue(ctx, operationKey, "operation")
 						}),
@@ -577,11 +577,11 @@ func Test_execute_context(t *testing.T) {
 				}).
 				Execute(context.Background())
 
-			assert.Error(t, err)
-			assert.Equal(t, StageResultCompensated, res.Status)
-			assert.True(t, operationFactoryCalled)
-			assert.Equal(t, ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
-			assert.Equal(t, 1, res.Steps[0].Compensation.Calls)
+			require.Error(t, err)
+			require.Equal(t, StageResultCompensated, res.Status)
+			require.True(t, operationFactoryCalled)
+			require.Equal(t, ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
+			require.Equal(t, 1, res.Steps[0].Compensation.Calls)
 		})
 
 		t.Run("nil_operation_context_factory_is_ignored", func(t *testing.T) {
@@ -602,10 +602,10 @@ func Test_execute_context(t *testing.T) {
 
 			res, err := NewSaga(steps).Execute(context.Background())
 
-			assert.Error(t, err)
-			assert.Equal(t, StageResultCompensated, res.Status)
-			assert.True(t, compensationCalled)
-			assert.Equal(t, ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
+			require.Error(t, err)
+			require.Equal(t, StageResultCompensated, res.Status)
+			require.True(t, compensationCalled)
+			require.Equal(t, ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
 		})
 
 		t.Run("compensation_uses_own_context_after_action_ctx_cancel", func(t *testing.T) {
@@ -622,7 +622,7 @@ func Test_execute_context(t *testing.T) {
 					).
 					WithCompensation(
 						NewOperation(func(ctx context.Context, _ Track) error {
-							assert.NoError(t, ctx.Err())
+							require.NoError(t, ctx.Err())
 							compensationCalled = true
 							return nil
 						}),
@@ -632,16 +632,16 @@ func Test_execute_context(t *testing.T) {
 
 			res, err := NewSaga(steps).
 				WithCompensationContext(func(ctx context.Context) context.Context {
-					assert.ErrorIs(t, ctx.Err(), context.Canceled)
+					require.ErrorIs(t, ctx.Err(), context.Canceled)
 					return context.WithoutCancel(ctx)
 				}).
 				Execute(ctx)
 
-			assert.Error(t, err)
-			assert.Equal(t, StageResultCompensated, res.Status)
-			assert.True(t, compensationCalled)
-			assert.Equal(t, ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
-			assert.Equal(t, 1, res.Steps[0].Compensation.Calls)
+			require.Error(t, err)
+			require.Equal(t, StageResultCompensated, res.Status)
+			require.True(t, compensationCalled)
+			require.Equal(t, ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
+			require.Equal(t, 1, res.Steps[0].Compensation.Calls)
 		})
 		t.Run("completed_steps_are_compensated_when_action_ctx_is_done", func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
@@ -654,7 +654,7 @@ func Test_execute_context(t *testing.T) {
 						return nil
 					})).
 					WithCompensation(NewOperation(func(ctx context.Context, _ Track) error {
-						assert.NoError(t, ctx.Err())
+						require.NoError(t, ctx.Err())
 						compensationCalled = true
 						return nil
 					})),
@@ -671,11 +671,11 @@ func Test_execute_context(t *testing.T) {
 				}).
 				Execute(ctx)
 
-			assert.Error(t, err)
-			assert.Equal(t, StageResultCompensated, res.Status)
-			assert.True(t, compensationCalled)
-			assert.Equal(t, ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
-			assert.ErrorIs(t, res.Steps[1].Action.Errors[0], ErrExecuteActionsContextDone)
+			require.Error(t, err)
+			require.Equal(t, StageResultCompensated, res.Status)
+			require.True(t, compensationCalled)
+			require.Equal(t, ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
+			require.ErrorIs(t, res.Steps[1].Action.Errors[0], ErrExecuteActionsContextDone)
 		})
 	})
 }
@@ -706,16 +706,16 @@ func Test_hooks(t *testing.T) {
 			}
 
 			res, err := NewSaga(steps).Execute(ctx)
-			assert.Error(t, err)
+			require.Error(t, err)
 
-			assert.Equal(t, StageResultFail, res.Status)
-			assert.Equal(t, 1, len(res.Steps))
-			assert.Equal(t, 1, res.Steps[0].Action.Calls)
-			assert.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
-			assert.Equal(t, 1, len(res.Steps[0].Action.Errors))
-			assert.ErrorIs(t, res.Steps[0].Action.Errors[0], testtool.ErrExpTestA)
+			require.Equal(t, StageResultFail, res.Status)
+			require.Equal(t, 1, len(res.Steps))
+			require.Equal(t, 1, res.Steps[0].Action.Calls)
+			require.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
+			require.Equal(t, 1, len(res.Steps[0].Action.Errors))
+			require.ErrorIs(t, res.Steps[0].Action.Errors[0], testtool.ErrExpTestA)
 
-			assert.True(t, slices.Equal([]string{"hook2", "hook1", "action1"}, executed))
+			require.True(t, slices.Equal([]string{"hook2", "hook1", "action1"}, executed))
 		})
 		t.Run("before_with_retry", func(t *testing.T) {
 			var (
@@ -748,16 +748,16 @@ func Test_hooks(t *testing.T) {
 			}
 
 			res, err := NewSaga(steps).Execute(ctx)
-			assert.Error(t, err)
-			assert.Equal(t, StageResultFail, res.Status)
-			assert.Equal(t, 1, len(res.Steps))
-			assert.Equal(t, 2, res.Steps[0].Action.Calls)
-			assert.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
-			assert.Equal(t, 3, len(res.Steps[0].Action.Errors))
-			assert.ErrorIs(t, res.Steps[0].Action.Errors[0], testtool.ErrExpTestA)
-			assert.ErrorIs(t, res.Steps[0].Action.Errors[1], testtool.ErrExpTestA)
-			assert.ErrorIs(t, res.Steps[0].Action.Errors[2], ErrRetryFailed)
-			assert.True(t,
+			require.Error(t, err)
+			require.Equal(t, StageResultFail, res.Status)
+			require.Equal(t, 1, len(res.Steps))
+			require.Equal(t, 2, res.Steps[0].Action.Calls)
+			require.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
+			require.Equal(t, 3, len(res.Steps[0].Action.Errors))
+			require.ErrorIs(t, res.Steps[0].Action.Errors[0], testtool.ErrExpTestA)
+			require.ErrorIs(t, res.Steps[0].Action.Errors[1], testtool.ErrExpTestA)
+			require.ErrorIs(t, res.Steps[0].Action.Errors[2], ErrRetryFailed)
+			require.True(t,
 				slices.Equal(
 					[]string{
 						"retry_hook2", "retry_hook1", // retry hooks
@@ -790,15 +790,15 @@ func Test_hooks(t *testing.T) {
 					),
 			}
 			res, err := NewSaga(steps).Execute(ctx)
-			assert.Error(t, err)
-			assert.Equal(t, StageResultFail, res.Status)
-			assert.Equal(t, 1, len(res.Steps))
-			assert.Equal(t, 1, res.Steps[0].Action.Calls)
-			assert.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
-			assert.Equal(t, 1, len(res.Steps[0].Action.Errors))
-			assert.ErrorIs(t, res.Steps[0].Action.Errors[0], testtool.ErrExpTestA)
+			require.Error(t, err)
+			require.Equal(t, StageResultFail, res.Status)
+			require.Equal(t, 1, len(res.Steps))
+			require.Equal(t, 1, res.Steps[0].Action.Calls)
+			require.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
+			require.Equal(t, 1, len(res.Steps[0].Action.Errors))
+			require.ErrorIs(t, res.Steps[0].Action.Errors[0], testtool.ErrExpTestA)
 
-			assert.True(t, slices.Equal([]string{"action1"}, executed))
+			require.True(t, slices.Equal([]string{"action1"}, executed))
 
 		})
 		t.Run("after_on_success", func(t *testing.T) {
@@ -816,23 +816,23 @@ func Test_hooks(t *testing.T) {
 						}).WithAfterHook(func(ctx context.Context, track Track) error {
 							executed = append(executed, "hook1")
 							data := track.GetStepData()
-							assert.Equal(t, 1, data.Action.Calls)
+							require.Equal(t, 1, data.Action.Calls)
 							return nil
 						}).WithAfterHook(func(ctx context.Context, track Track) error {
 							executed = append(executed, "hook2")
 							data := track.GetStepData()
-							assert.Equal(t, 1, data.Action.Calls)
+							require.Equal(t, 1, data.Action.Calls)
 							return nil
 						}),
 					),
 			}
 
 			res, err := NewSaga(steps).Execute(ctx)
-			assert.NoError(t, err)
-			assert.Equal(t, StageResultSuccess, res.Status)
-			assert.Equal(t, 1, res.Steps[0].Action.Calls)
-			assert.Equal(t, ExecutionStatusSuccess, res.Steps[0].Action.Status)
-			assert.True(t, slices.Equal([]string{"action1", "hook1", "hook2"}, executed))
+			require.NoError(t, err)
+			require.Equal(t, StageResultSuccess, res.Status)
+			require.Equal(t, 1, res.Steps[0].Action.Calls)
+			require.Equal(t, ExecutionStatusSuccess, res.Steps[0].Action.Status)
+			require.True(t, slices.Equal([]string{"action1", "hook1", "hook2"}, executed))
 		})
 		t.Run("after_with_retry___complicated_v1", func(t *testing.T) {
 			var (
@@ -880,8 +880,8 @@ func Test_hooks(t *testing.T) {
 					),
 			}
 			res, err := NewSaga(steps).Execute(ctx)
-			assert.Error(t, err)
-			assert.Equal(t, StageResultFail, res.Status)
+			require.Error(t, err)
+			require.Equal(t, StageResultFail, res.Status)
 
 			testtool.TestFn(t, func() {
 				t.Logf("\nresult:\n%v", res)
@@ -893,7 +893,7 @@ func Test_hooks(t *testing.T) {
 				}
 			})
 
-			assert.True(t,
+			require.True(t,
 				slices.Equal(
 					[]string{
 						"action1", // call
@@ -903,18 +903,18 @@ func Test_hooks(t *testing.T) {
 					executed),
 			)
 
-			assert.Equal(t, 1, len(res.Steps))
+			require.Equal(t, 1, len(res.Steps))
 
 			action := res.Steps[0].Action
-			assert.Equal(t, 3, res.Steps[0].Action.Calls)
-			assert.Equal(t, ExecutionStatusFail, action.Status)
-			assert.Equal(t, 4, len(action.Errors))
-			assert.ErrorIs(t, action.Errors[0], testtool.ErrExpTestA)
-			assert.ErrorIs(t, action.Errors[1], testtool.ErrExpTestB)
-			assert.True(t, checkRetryStr(0, action.Errors[1]))
-			assert.ErrorIs(t, action.Errors[2], testtool.ErrExpTestC)
-			assert.True(t, checkRetryStr(1, action.Errors[2]))
-			assert.ErrorIs(t, action.Errors[3], ErrRetryFailed)
+			require.Equal(t, 3, res.Steps[0].Action.Calls)
+			require.Equal(t, ExecutionStatusFail, action.Status)
+			require.Equal(t, 4, len(action.Errors))
+			require.ErrorIs(t, action.Errors[0], testtool.ErrExpTestA)
+			require.ErrorIs(t, action.Errors[1], testtool.ErrExpTestB)
+			require.True(t, checkRetryStr(0, action.Errors[1]))
+			require.ErrorIs(t, action.Errors[2], testtool.ErrExpTestC)
+			require.True(t, checkRetryStr(1, action.Errors[2]))
+			require.ErrorIs(t, action.Errors[3], ErrRetryFailed)
 
 		})
 	})
@@ -937,51 +937,51 @@ func Test_hooks(t *testing.T) {
 						executed = append(executed, "comp1")
 
 						data := track.GetStepData()
-						assert.Equal(t, 1, data.Action.Calls)
-						assert.Equal(t, 1, data.Compensation.Calls)
-						assert.Equal(t, 1, len(data.Action.Errors))
-						assert.ErrorIs(t, data.Action.Errors[0], testtool.ErrExpTestA)
+						require.Equal(t, 1, data.Action.Calls)
+						require.Equal(t, 1, data.Compensation.Calls)
+						require.Equal(t, 1, len(data.Action.Errors))
+						require.ErrorIs(t, data.Action.Errors[0], testtool.ErrExpTestA)
 
 						return nil
 					}).WithBeforeHook(func(ctx context.Context, track Track) error {
 						executed = append(executed, "comp_hook1")
 
 						data := track.GetStepData()
-						assert.Equal(t, 1, data.Action.Calls)
-						assert.Equal(t, 0, data.Compensation.Calls)
-						assert.Equal(t, 1, len(data.Action.Errors))
-						assert.ErrorIs(t, data.Action.Errors[0], testtool.ErrExpTestA)
+						require.Equal(t, 1, data.Action.Calls)
+						require.Equal(t, 0, data.Compensation.Calls)
+						require.Equal(t, 1, len(data.Action.Errors))
+						require.ErrorIs(t, data.Action.Errors[0], testtool.ErrExpTestA)
 						return nil
 					}).WithBeforeHook(func(ctx context.Context, track Track) error {
 						executed = append(executed, "comp_hook2")
 
 						data := track.GetStepData()
-						assert.Equal(t, 1, data.Action.Calls)
-						assert.Equal(t, 0, data.Compensation.Calls)
-						assert.Equal(t, 1, len(data.Action.Errors))
-						assert.ErrorIs(t, data.Action.Errors[0], testtool.ErrExpTestA)
+						require.Equal(t, 1, data.Action.Calls)
+						require.Equal(t, 0, data.Compensation.Calls)
+						require.Equal(t, 1, len(data.Action.Errors))
+						require.ErrorIs(t, data.Action.Errors[0], testtool.ErrExpTestA)
 						return nil
 					}),
 				).WithCompensationOnActionFailure(),
 			}
 			res, err := NewSaga(steps).Execute(ctx)
-			assert.Error(t, err)
-			assert.Equal(t, StageResultCompensated, res.Status)
+			require.Error(t, err)
+			require.Equal(t, StageResultCompensated, res.Status)
 
-			assert.True(t, slices.Equal([]string{"action1", "comp_hook2", "comp_hook1", "comp1"}, executed))
+			require.True(t, slices.Equal([]string{"action1", "comp_hook2", "comp_hook1", "comp1"}, executed))
 
-			assert.Equal(t, 1, len(res.Steps))
+			require.Equal(t, 1, len(res.Steps))
 
 			action := res.Steps[0].Action
-			assert.Equal(t, ExecutionStatusFail, action.Status)
-			assert.Equal(t, 1, len(action.Errors))
-			assert.ErrorIs(t, action.Errors[0], testtool.ErrExpTestA)
+			require.Equal(t, ExecutionStatusFail, action.Status)
+			require.Equal(t, 1, len(action.Errors))
+			require.ErrorIs(t, action.Errors[0], testtool.ErrExpTestA)
 
 			compensation := res.Steps[0].Compensation
-			assert.Equal(t, 1, compensation.Calls)
-			assert.Equal(t, ExecutionStatusSuccess, compensation.Status)
-			assert.Equal(t, ExecutionStatusSuccess, compensation.Status)
-			assert.Equal(t, 0, len(compensation.Errors))
+			require.Equal(t, 1, compensation.Calls)
+			require.Equal(t, ExecutionStatusSuccess, compensation.Status)
+			require.Equal(t, ExecutionStatusSuccess, compensation.Status)
+			require.Equal(t, 0, len(compensation.Errors))
 
 		})
 		t.Run("after", func(t *testing.T) {
@@ -1013,10 +1013,10 @@ func Test_hooks(t *testing.T) {
 			}
 
 			res, err := NewSaga(steps).Execute(ctx)
-			assert.Error(t, err)
-			assert.Equal(t, StageResultFail, res.Status)
+			require.Error(t, err)
+			require.Equal(t, StageResultFail, res.Status)
 
-			assert.True(t, slices.Equal([]string{"action1", "comp1"}, executed))
+			require.True(t, slices.Equal([]string{"action1", "comp1"}, executed))
 
 		})
 	})
@@ -1038,16 +1038,16 @@ func Test_steps(t *testing.T) {
 			}
 
 			res, err := NewSaga(steps).Execute(ctx)
-			assert.NoError(t, err)
-			assert.Equal(t, StageResultSuccess, res.Status)
+			require.NoError(t, err)
+			require.Equal(t, StageResultSuccess, res.Status)
 
-			assert.Equal(t, 1, len(res.Steps))
+			require.Equal(t, 1, len(res.Steps))
 
-			assert.Equal(t, "step1", res.Steps[0].StepName)
-			assert.Equal(t, 0, res.Steps[0].StepPosition)
-			assert.Equal(t, ExecutionStatusSuccess, res.Steps[0].Action.Status)
-			assert.Equal(t, 1, res.Steps[0].Action.Calls)
-			assert.Equal(t, 0, len(res.Steps[0].Action.Errors))
+			require.Equal(t, "step1", res.Steps[0].StepName)
+			require.Equal(t, 0, res.Steps[0].StepPosition)
+			require.Equal(t, ExecutionStatusSuccess, res.Steps[0].Action.Status)
+			require.Equal(t, 1, res.Steps[0].Action.Calls)
+			require.Equal(t, 0, len(res.Steps[0].Action.Errors))
 
 			testtool.TestFn(t, func() {
 				t.Log(res)
@@ -1064,17 +1064,17 @@ func Test_steps(t *testing.T) {
 			}
 
 			res, err := NewSaga(steps).Execute(ctx)
-			assert.Error(t, err)
-			assert.Equal(t, StageResultFail, res.Status)
-			assert.True(t, errors.Is(err, ErrActionFailed))
-			assert.Equal(t, 1, len(res.Steps))
-			assert.Equal(t, "step1", res.Steps[0].StepName)
-			assert.Equal(t, 0, res.Steps[0].StepPosition)
-			assert.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
-			assert.Equal(t, ExecutionStatusUnset, res.Steps[0].Compensation.Status)
-			assert.Equal(t, 1, res.Steps[0].Action.Calls)
-			assert.Equal(t, 1, len(res.Steps[0].Action.Errors))
-			assert.ErrorIs(t, res.Steps[0].Action.Errors[0], testtool.ErrExpTestA)
+			require.Error(t, err)
+			require.Equal(t, StageResultFail, res.Status)
+			require.True(t, errors.Is(err, ErrActionFailed))
+			require.Equal(t, 1, len(res.Steps))
+			require.Equal(t, "step1", res.Steps[0].StepName)
+			require.Equal(t, 0, res.Steps[0].StepPosition)
+			require.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
+			require.Equal(t, ExecutionStatusUnset, res.Steps[0].Compensation.Status)
+			require.Equal(t, 1, res.Steps[0].Action.Calls)
+			require.Equal(t, 1, len(res.Steps[0].Action.Errors))
+			require.ErrorIs(t, res.Steps[0].Action.Errors[0], testtool.ErrExpTestA)
 
 			testtool.TestFn(t, func() {
 				t.Log(res)
@@ -1097,28 +1097,28 @@ func Test_steps(t *testing.T) {
 			}
 
 			res, err := NewSaga(steps).Execute(ctx)
-			assert.Error(t, err)
-			assert.Equal(t, StageResultFail, res.Status)
-			assert.True(t, errors.Is(err, ErrActionFailed))
+			require.Error(t, err)
+			require.Equal(t, StageResultFail, res.Status)
+			require.True(t, errors.Is(err, ErrActionFailed))
 
-			assert.Equal(t, 2, len(res.Steps))
+			require.Equal(t, 2, len(res.Steps))
 
-			assert.Equal(t, "step1", res.Steps[0].StepName)
-			assert.Equal(t, 0, res.Steps[0].StepPosition)
-			assert.Equal(t, ExecutionStatusSuccess, res.Steps[0].Action.Status)
-			assert.Equal(t, ExecutionStatusUnset, res.Steps[0].Compensation.Status)
-			assert.Equal(t, false, res.Steps[0].CompensationOnActionFailure)
-			assert.Equal(t, 1, res.Steps[0].Action.Calls)
-			assert.Equal(t, 0, len(res.Steps[0].Action.Errors))
+			require.Equal(t, "step1", res.Steps[0].StepName)
+			require.Equal(t, 0, res.Steps[0].StepPosition)
+			require.Equal(t, ExecutionStatusSuccess, res.Steps[0].Action.Status)
+			require.Equal(t, ExecutionStatusUnset, res.Steps[0].Compensation.Status)
+			require.Equal(t, false, res.Steps[0].CompensationOnActionFailure)
+			require.Equal(t, 1, res.Steps[0].Action.Calls)
+			require.Equal(t, 0, len(res.Steps[0].Action.Errors))
 
-			assert.Equal(t, "step2", res.Steps[1].StepName)
-			assert.Equal(t, 1, res.Steps[1].StepPosition)
-			assert.Equal(t, ExecutionStatusFail, res.Steps[1].Action.Status)
-			assert.Equal(t, ExecutionStatusUnset, res.Steps[1].Compensation.Status)
-			assert.Equal(t, false, res.Steps[1].CompensationOnActionFailure)
-			assert.Equal(t, 1, res.Steps[1].Action.Calls)
-			assert.Equal(t, 1, len(res.Steps[1].Action.Errors))
-			assert.ErrorIs(t, res.Steps[1].Action.Errors[0], testtool.ErrExpTestA)
+			require.Equal(t, "step2", res.Steps[1].StepName)
+			require.Equal(t, 1, res.Steps[1].StepPosition)
+			require.Equal(t, ExecutionStatusFail, res.Steps[1].Action.Status)
+			require.Equal(t, ExecutionStatusUnset, res.Steps[1].Compensation.Status)
+			require.Equal(t, false, res.Steps[1].CompensationOnActionFailure)
+			require.Equal(t, 1, res.Steps[1].Action.Calls)
+			require.Equal(t, 1, len(res.Steps[1].Action.Errors))
+			require.ErrorIs(t, res.Steps[1].Action.Errors[0], testtool.ErrExpTestA)
 
 			testtool.TestFn(t, func() {
 				t.Log(res)
@@ -1141,36 +1141,36 @@ func Test_steps(t *testing.T) {
 					WithCompensation(
 						NewOperation(func(ctx context.Context, track Track) error {
 							str := track.GetStepData()
-							assert.Equal(t, "step1", str.StepName)
-							assert.Equal(t, 0, str.StepPosition)
-							assert.Equal(t, ExecutionStatusFail, str.Action.Status)
-							assert.Equal(t, 1, str.Action.Calls)
-							assert.Equal(t, 1, len(str.Action.Errors))
+							require.Equal(t, "step1", str.StepName)
+							require.Equal(t, 0, str.StepPosition)
+							require.Equal(t, ExecutionStatusFail, str.Action.Status)
+							require.Equal(t, 1, str.Action.Calls)
+							require.Equal(t, 1, len(str.Action.Errors))
 
-							assert.Equal(t, ExecutionStatusUncalled, str.Compensation.Status)
-							assert.Equal(t, 1, str.Compensation.Calls)
-							assert.Equal(t, 0, len(str.Compensation.Errors))
+							require.Equal(t, ExecutionStatusUncalled, str.Compensation.Status)
+							require.Equal(t, 1, str.Compensation.Calls)
+							require.Equal(t, 0, len(str.Compensation.Errors))
 							return nil
 						}),
 					).WithCompensationOnActionFailure(),
 			}
 
 			res, err := NewSaga(steps).Execute(ctx)
-			assert.Error(t, err)
-			assert.Equal(t, StageResultCompensated, res.Status)
-			assert.True(t, errors.Is(err, ErrActionFailed))
+			require.Error(t, err)
+			require.Equal(t, StageResultCompensated, res.Status)
+			require.True(t, errors.Is(err, ErrActionFailed))
 
-			assert.Equal(t, 1, len(res.Steps))
+			require.Equal(t, 1, len(res.Steps))
 
-			assert.Equal(t, "step1", res.Steps[0].StepName)
-			assert.Equal(t, 0, res.Steps[0].StepPosition)
-			assert.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
-			assert.Equal(t, 1, res.Steps[0].Action.Calls)
-			assert.Equal(t, 1, len(res.Steps[0].Action.Errors))
+			require.Equal(t, "step1", res.Steps[0].StepName)
+			require.Equal(t, 0, res.Steps[0].StepPosition)
+			require.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
+			require.Equal(t, 1, res.Steps[0].Action.Calls)
+			require.Equal(t, 1, len(res.Steps[0].Action.Errors))
 
-			assert.Equal(t, ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
-			assert.Equal(t, 1, res.Steps[0].Compensation.Calls)
-			assert.Equal(t, 0, len(res.Steps[0].Compensation.Errors))
+			require.Equal(t, ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
+			require.Equal(t, 1, res.Steps[0].Compensation.Calls)
+			require.Equal(t, 0, len(res.Steps[0].Compensation.Errors))
 
 			testtool.TestFn(t, func() {
 				t.Log(res)
@@ -1187,37 +1187,37 @@ func Test_steps(t *testing.T) {
 					WithCompensation(
 						NewOperation(func(ctx context.Context, track Track) error {
 							str := track.GetStepData()
-							assert.Equal(t, "step1", str.StepName)
-							assert.Equal(t, 0, str.StepPosition)
-							assert.Equal(t, ExecutionStatusFail, str.Action.Status)
-							assert.Equal(t, 1, str.Action.Calls)
-							assert.Equal(t, 1, len(str.Action.Errors))
-							assert.ErrorIs(t, str.Action.Errors[0], testtool.ErrExpTestA)
+							require.Equal(t, "step1", str.StepName)
+							require.Equal(t, 0, str.StepPosition)
+							require.Equal(t, ExecutionStatusFail, str.Action.Status)
+							require.Equal(t, 1, str.Action.Calls)
+							require.Equal(t, 1, len(str.Action.Errors))
+							require.ErrorIs(t, str.Action.Errors[0], testtool.ErrExpTestA)
 
-							assert.Equal(t, ExecutionStatusUncalled, str.Compensation.Status)
-							assert.Equal(t, 1, str.Compensation.Calls)
-							assert.Equal(t, 0, len(str.Compensation.Errors))
+							require.Equal(t, ExecutionStatusUncalled, str.Compensation.Status)
+							require.Equal(t, 1, str.Compensation.Calls)
+							require.Equal(t, 0, len(str.Compensation.Errors))
 							return nil
 						}),
 					).WithCompensationOnActionFailure(),
 			}
 
 			res, err := NewSaga(steps).Execute(ctx)
-			assert.Error(t, err)
-			assert.Equal(t, StageResultCompensated, res.Status)
-			assert.True(t, errors.Is(err, ErrActionFailed))
+			require.Error(t, err)
+			require.Equal(t, StageResultCompensated, res.Status)
+			require.True(t, errors.Is(err, ErrActionFailed))
 
-			assert.Equal(t, 1, len(res.Steps))
+			require.Equal(t, 1, len(res.Steps))
 
-			assert.Equal(t, "step1", res.Steps[0].StepName)
-			assert.Equal(t, 0, res.Steps[0].StepPosition)
-			assert.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
-			assert.Equal(t, 1, res.Steps[0].Action.Calls)
-			assert.Equal(t, 1, len(res.Steps[0].Action.Errors))
+			require.Equal(t, "step1", res.Steps[0].StepName)
+			require.Equal(t, 0, res.Steps[0].StepPosition)
+			require.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
+			require.Equal(t, 1, res.Steps[0].Action.Calls)
+			require.Equal(t, 1, len(res.Steps[0].Action.Errors))
 
-			assert.Equal(t, ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
-			assert.Equal(t, 1, res.Steps[0].Compensation.Calls)
-			assert.Equal(t, 0, len(res.Steps[0].Compensation.Errors))
+			require.Equal(t, ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
+			require.Equal(t, 1, res.Steps[0].Compensation.Calls)
+			require.Equal(t, 0, len(res.Steps[0].Compensation.Errors))
 
 			testtool.TestFn(t, func() {
 				t.Log(res)
@@ -1245,28 +1245,28 @@ func Test_steps(t *testing.T) {
 			}
 
 			res, err := NewSaga(steps).Execute(ctx)
-			assert.Error(t, err)
-			assert.Equal(t, StageResultFail, res.Status)
-			assert.True(t, errors.Is(err, ErrActionFailed))
+			require.Error(t, err)
+			require.Equal(t, StageResultFail, res.Status)
+			require.True(t, errors.Is(err, ErrActionFailed))
 
-			assert.Equal(t, 2, len(res.Steps))
+			require.Equal(t, 2, len(res.Steps))
 
-			assert.Equal(t, "step1", res.Steps[0].StepName)
-			assert.Equal(t, 0, res.Steps[0].StepPosition)
-			assert.Equal(t, ExecutionStatusSuccess, res.Steps[0].Action.Status)
-			assert.Equal(t, ExecutionStatusUnset, res.Steps[0].Compensation.Status)
-			assert.Equal(t, false, res.Steps[0].CompensationOnActionFailure)
-			assert.Equal(t, 1, res.Steps[0].Action.Calls)
-			assert.Equal(t, 0, len(res.Steps[0].Action.Errors))
+			require.Equal(t, "step1", res.Steps[0].StepName)
+			require.Equal(t, 0, res.Steps[0].StepPosition)
+			require.Equal(t, ExecutionStatusSuccess, res.Steps[0].Action.Status)
+			require.Equal(t, ExecutionStatusUnset, res.Steps[0].Compensation.Status)
+			require.Equal(t, false, res.Steps[0].CompensationOnActionFailure)
+			require.Equal(t, 1, res.Steps[0].Action.Calls)
+			require.Equal(t, 0, len(res.Steps[0].Action.Errors))
 
-			assert.Equal(t, "step2", res.Steps[1].StepName)
-			assert.Equal(t, 1, res.Steps[1].StepPosition)
-			assert.Equal(t, ExecutionStatusFail, res.Steps[1].Action.Status)
-			assert.Equal(t, ExecutionStatusUncalled, res.Steps[1].Compensation.Status)
-			assert.Equal(t, false, res.Steps[1].CompensationOnActionFailure)
-			assert.Equal(t, 1, res.Steps[1].Action.Calls)
-			assert.Equal(t, 1, len(res.Steps[1].Action.Errors))
-			assert.ErrorIs(t, res.Steps[1].Action.Errors[0], testtool.ErrExpTestA)
+			require.Equal(t, "step2", res.Steps[1].StepName)
+			require.Equal(t, 1, res.Steps[1].StepPosition)
+			require.Equal(t, ExecutionStatusFail, res.Steps[1].Action.Status)
+			require.Equal(t, ExecutionStatusUncalled, res.Steps[1].Compensation.Status)
+			require.Equal(t, false, res.Steps[1].CompensationOnActionFailure)
+			require.Equal(t, 1, res.Steps[1].Action.Calls)
+			require.Equal(t, 1, len(res.Steps[1].Action.Errors))
+			require.ErrorIs(t, res.Steps[1].Action.Errors[0], testtool.ErrExpTestA)
 
 			testtool.TestFn(t, func() {
 				t.Log(res)
@@ -1283,39 +1283,39 @@ func Test_steps(t *testing.T) {
 					WithCompensation(
 						NewOperation(func(ctx context.Context, track Track) error {
 							str := track.GetStepData()
-							assert.Equal(t, "step1", str.StepName)
-							assert.Equal(t, 0, str.StepPosition)
-							assert.Equal(t, ExecutionStatusFail, str.Action.Status)
-							assert.Equal(t, 1, str.Action.Calls)
-							assert.Equal(t, 1, len(str.Action.Errors))
-							assert.ErrorIs(t, str.Action.Errors[0], testtool.ErrExpTestA)
+							require.Equal(t, "step1", str.StepName)
+							require.Equal(t, 0, str.StepPosition)
+							require.Equal(t, ExecutionStatusFail, str.Action.Status)
+							require.Equal(t, 1, str.Action.Calls)
+							require.Equal(t, 1, len(str.Action.Errors))
+							require.ErrorIs(t, str.Action.Errors[0], testtool.ErrExpTestA)
 
-							assert.Equal(t, ExecutionStatusUncalled, str.Compensation.Status)
-							assert.Equal(t, 1, str.Compensation.Calls)
-							assert.Equal(t, 0, len(str.Compensation.Errors))
+							require.Equal(t, ExecutionStatusUncalled, str.Compensation.Status)
+							require.Equal(t, 1, str.Compensation.Calls)
+							require.Equal(t, 0, len(str.Compensation.Errors))
 							return testtool.ErrExpTestB
 						}),
 					).WithCompensationOnActionFailure(),
 			}
 
 			res, err := NewSaga(steps).Execute(ctx)
-			assert.Error(t, err)
-			assert.Equal(t, StageResultFail, res.Status)
-			assert.ErrorIs(t, err, ErrActionFailed)
-			assert.ErrorIs(t, err, ErrCompensationFailed)
+			require.Error(t, err)
+			require.Equal(t, StageResultFail, res.Status)
+			require.ErrorIs(t, err, ErrActionFailed)
+			require.ErrorIs(t, err, ErrCompensationFailed)
 
-			assert.Equal(t, 1, len(res.Steps))
+			require.Equal(t, 1, len(res.Steps))
 
-			assert.Equal(t, "step1", res.Steps[0].StepName)
-			assert.Equal(t, 0, res.Steps[0].StepPosition)
-			assert.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
-			assert.Equal(t, 1, res.Steps[0].Action.Calls)
-			assert.Equal(t, 1, len(res.Steps[0].Action.Errors))
+			require.Equal(t, "step1", res.Steps[0].StepName)
+			require.Equal(t, 0, res.Steps[0].StepPosition)
+			require.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
+			require.Equal(t, 1, res.Steps[0].Action.Calls)
+			require.Equal(t, 1, len(res.Steps[0].Action.Errors))
 
-			assert.Equal(t, ExecutionStatusFail, res.Steps[0].Compensation.Status)
-			assert.Equal(t, 1, res.Steps[0].Compensation.Calls)
-			assert.Equal(t, 1, len(res.Steps[0].Compensation.Errors))
-			assert.ErrorIs(t, res.Steps[0].Compensation.Errors[0], testtool.ErrExpTestB)
+			require.Equal(t, ExecutionStatusFail, res.Steps[0].Compensation.Status)
+			require.Equal(t, 1, res.Steps[0].Compensation.Calls)
+			require.Equal(t, 1, len(res.Steps[0].Compensation.Errors))
+			require.ErrorIs(t, res.Steps[0].Compensation.Errors[0], testtool.ErrExpTestB)
 
 			testtool.TestFn(t, func() {
 				t.Log(res)
@@ -1352,32 +1352,32 @@ func Test_retry(t *testing.T) {
 		}
 
 		res, err := NewSaga(steps).Execute(ctx)
-		assert.Error(t, err)
-		assert.Equal(t, StageResultCompensated, res.Status)
-		assert.ErrorIs(t, err, ErrActionFailed)
-		assert.ErrorIsNot(t, err, ErrCompensationFailed)
+		require.Error(t, err)
+		require.Equal(t, StageResultCompensated, res.Status)
+		require.ErrorIs(t, err, ErrActionFailed)
+		require.ErrorIsNot(t, err, ErrCompensationFailed)
 
-		assert.Equal(t, 1, len(res.Steps))
+		require.Equal(t, 1, len(res.Steps))
 
-		assert.Equal(t, "step1", res.Steps[0].StepName)
-		assert.Equal(t, 0, res.Steps[0].StepPosition)
-		assert.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
-		assert.Equal(t, 5, res.Steps[0].Action.Calls)
-		assert.Equal(t, 6, len(res.Steps[0].Action.Errors))
+		require.Equal(t, "step1", res.Steps[0].StepName)
+		require.Equal(t, 0, res.Steps[0].StepPosition)
+		require.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
+		require.Equal(t, 5, res.Steps[0].Action.Calls)
+		require.Equal(t, 6, len(res.Steps[0].Action.Errors))
 
 		// check all errors except on [ErrRetryFailed]
 		for i := 0; i < len(res.Steps[0].Action.Errors)-1; i++ {
 			e := res.Steps[0].Action.Errors[i]
-			assert.ErrorIs(t, e, testtool.ErrExpTestA)
+			require.ErrorIs(t, e, testtool.ErrExpTestA)
 		}
 		// check last [ErrRetryFailed] error
-		assert.ErrorIs(t, res.Steps[0].Action.Errors[len(res.Steps[0].Action.Errors)-1], ErrRetryFailed)
+		require.ErrorIs(t, res.Steps[0].Action.Errors[len(res.Steps[0].Action.Errors)-1], ErrRetryFailed)
 
-		assert.Equal(t, ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
-		assert.Equal(t, 5, res.Steps[0].Compensation.Calls)
-		assert.Equal(t, 4, len(res.Steps[0].Compensation.Errors))
+		require.Equal(t, ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
+		require.Equal(t, 5, res.Steps[0].Compensation.Calls)
+		require.Equal(t, 4, len(res.Steps[0].Compensation.Errors))
 		for _, e := range res.Steps[0].Compensation.Errors {
-			assert.ErrorIs(t, e, testtool.ErrExpTestA)
+			require.ErrorIs(t, e, testtool.ErrExpTestA)
 		}
 
 		testtool.TestFn(t, func() {
@@ -1408,38 +1408,38 @@ func Test_retry(t *testing.T) {
 		}
 
 		res, err := NewSaga(steps).Execute(ctx)
-		assert.Error(t, err)
-		assert.Equal(t, StageResultFail, res.Status)
-		assert.ErrorIs(t, err, ErrActionFailed)
-		assert.ErrorIs(t, err, ErrCompensationFailed)
+		require.Error(t, err)
+		require.Equal(t, StageResultFail, res.Status)
+		require.ErrorIs(t, err, ErrActionFailed)
+		require.ErrorIs(t, err, ErrCompensationFailed)
 
-		assert.Equal(t, 1, len(res.Steps))
+		require.Equal(t, 1, len(res.Steps))
 
-		assert.Equal(t, "step1", res.Steps[0].StepName)
-		assert.Equal(t, 0, res.Steps[0].StepPosition)
-		assert.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
-		assert.Equal(t, 5, res.Steps[0].Action.Calls)
-		assert.Equal(t, 6, len(res.Steps[0].Action.Errors))
+		require.Equal(t, "step1", res.Steps[0].StepName)
+		require.Equal(t, 0, res.Steps[0].StepPosition)
+		require.Equal(t, ExecutionStatusFail, res.Steps[0].Action.Status)
+		require.Equal(t, 5, res.Steps[0].Action.Calls)
+		require.Equal(t, 6, len(res.Steps[0].Action.Errors))
 
 		// check all errors except on [ErrRetryFailed]
 		for i := 0; i < len(res.Steps[0].Action.Errors)-1; i++ {
 			e := res.Steps[0].Action.Errors[i]
-			assert.ErrorIs(t, e, testtool.ErrExpTestA)
+			require.ErrorIs(t, e, testtool.ErrExpTestA)
 		}
 		// check last [ErrRetryFailed] error
-		assert.ErrorIs(t, res.Steps[0].Action.Errors[len(res.Steps[0].Action.Errors)-1], ErrRetryFailed)
+		require.ErrorIs(t, res.Steps[0].Action.Errors[len(res.Steps[0].Action.Errors)-1], ErrRetryFailed)
 
-		assert.Equal(t, ExecutionStatusFail, res.Steps[0].Compensation.Status)
-		assert.Equal(t, 5, res.Steps[0].Compensation.Calls)
-		assert.Equal(t, 6, len(res.Steps[0].Compensation.Errors))
+		require.Equal(t, ExecutionStatusFail, res.Steps[0].Compensation.Status)
+		require.Equal(t, 5, res.Steps[0].Compensation.Calls)
+		require.Equal(t, 6, len(res.Steps[0].Compensation.Errors))
 
 		// check all errors except on [ErrRetryFailed]
 		for i := 0; i < len(res.Steps[0].Compensation.Errors)-1; i++ {
 			e := res.Steps[0].Compensation.Errors[i]
-			assert.ErrorIs(t, e, testtool.ErrExpTestB)
+			require.ErrorIs(t, e, testtool.ErrExpTestB)
 		}
 		// check last [ErrRetryFailed] error
-		assert.ErrorIs(t, res.Steps[0].Compensation.Errors[len(res.Steps[0].Compensation.Errors)-1], ErrRetryFailed)
+		require.ErrorIs(t, res.Steps[0].Compensation.Errors[len(res.Steps[0].Compensation.Errors)-1], ErrRetryFailed)
 
 		testtool.TestFn(t, func() {
 			t.Log(

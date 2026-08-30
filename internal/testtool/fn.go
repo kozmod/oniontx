@@ -3,26 +3,24 @@ package testtool
 import (
 	"os"
 	"strings"
+	"sync"
 	"testing"
 )
 
-var (
-	disableTestLogger = false
-)
-
-func init() {
+var disableTestFn = sync.OnceValue[bool](func() bool {
 	const (
-		envTestLoggerDisabled = "TEST_FN_DISABLED"
+		envTestFnDisabled = "TEST_FN_DISABLED"
 	)
-	dtl := os.Getenv(envTestLoggerDisabled)
-	if strings.TrimSpace(strings.ToLower(dtl)) == "true" {
-		disableTestLogger = true
-	}
-}
+	var (
+		dtl = os.Getenv(envTestFnDisabled)
+		val = strings.TrimSpace(strings.ToLower(dtl))
+	)
+	return val == "true"
+})
 
 func TestFn(t *testing.T, fn func()) {
 	t.Helper()
-	if disableTestLogger {
+	if disableTestFn() {
 		return
 	}
 	fn()

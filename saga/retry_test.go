@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/kozmod/oniontx/internal/testtool"
-	"github.com/kozmod/oniontx/internal/testtool/assert"
+	"github.com/kozmod/oniontx/internal/testtool/require"
 )
 
 type jitterFunc func(time.Duration) time.Duration
@@ -31,26 +31,26 @@ func Test_backoff(t *testing.T) {
 		t.Run("v2", func(t *testing.T) {
 			backoff := NewExponentialBackoff()
 
-			assert.Equal(t, 8*time.Second, backoff.Backoff(3, time.Second))
+			require.Equal(t, 8*time.Second, backoff.Backoff(3, time.Second))
 		})
 
 		t.Run("nil_backoff_uses_exponential_default", func(t *testing.T) {
 			policy := NewAdvancedRetryPolicy(1, time.Second, nil)
 
-			assert.Equal(t, 2*time.Second, policy.Delay(1))
+			require.Equal(t, 2*time.Second, policy.Delay(1))
 		})
 
 		t.Run("on_overflow", func(t *testing.T) {
 			backoff := NewExponentialBackoff()
 
-			assert.Equal(t, maxDuration, backoff.Backoff(64, time.Second))
+			require.Equal(t, maxDuration, backoff.Backoff(64, time.Second))
 		})
 
 		t.Run("max_delay_applies_after_backoff_saturates", func(t *testing.T) {
 			policy := NewAdvancedRetryPolicy(64, time.Second, NewExponentialBackoff()).
 				WithMaxDelay(10 * time.Second)
 
-			assert.Equal(t, 10*time.Second, policy.Delay(64))
+			require.Equal(t, 10*time.Second, policy.Delay(64))
 		})
 
 		t.Run("max_delay_applies_after_custom_jitter", func(t *testing.T) {
@@ -62,7 +62,7 @@ func Test_backoff(t *testing.T) {
 				).
 				WithMaxDelay(10 * time.Second)
 
-			assert.Equal(t, 10*time.Second, policy.Delay(1))
+			require.Equal(t, 10*time.Second, policy.Delay(1))
 		})
 	})
 }
@@ -92,14 +92,14 @@ func Test_Saga_retry(t *testing.T) {
 			}
 
 			resp, err := NewSaga(steps).Execute(ctx)
-			assert.NoError(t, err)
-			assert.Equal(t, StageResultSuccess, resp.Status)
-			assert.Equal(t, 3, actionCalls)
-			assert.Equal(t, ExecutionStatusSuccess, resp.Steps[0].Action.Status)
-			assert.Equal(t, 3, resp.Steps[0].Action.Calls)
-			assert.Equal(t, 2, len(resp.Steps[0].Action.Errors))
+			require.NoError(t, err)
+			require.Equal(t, StageResultSuccess, resp.Status)
+			require.Equal(t, 3, actionCalls)
+			require.Equal(t, ExecutionStatusSuccess, resp.Steps[0].Action.Status)
+			require.Equal(t, 3, resp.Steps[0].Action.Calls)
+			require.Equal(t, 2, len(resp.Steps[0].Action.Errors))
 			for _, e := range resp.Steps[0].Action.Errors {
-				assert.ErrorIs(t, e, testtool.ErrExpTestA)
+				require.ErrorIs(t, e, testtool.ErrExpTestA)
 			}
 		})
 		t.Run("builders", func(t *testing.T) {
@@ -125,14 +125,14 @@ func Test_Saga_retry(t *testing.T) {
 				}
 
 				resp, err := NewSaga(steps).Execute(ctx)
-				assert.NoError(t, err)
-				assert.Equal(t, StageResultSuccess, resp.Status)
-				assert.Equal(t, 3, actionCalls)
-				assert.Equal(t, ExecutionStatusSuccess, resp.Steps[0].Action.Status)
-				assert.Equal(t, 3, resp.Steps[0].Action.Calls)
-				assert.Equal(t, 2, len(resp.Steps[0].Action.Errors))
+				require.NoError(t, err)
+				require.Equal(t, StageResultSuccess, resp.Status)
+				require.Equal(t, 3, actionCalls)
+				require.Equal(t, ExecutionStatusSuccess, resp.Steps[0].Action.Status)
+				require.Equal(t, 3, resp.Steps[0].Action.Calls)
+				require.Equal(t, 2, len(resp.Steps[0].Action.Errors))
 				for _, e := range resp.Steps[0].Action.Errors {
-					assert.ErrorIs(t, e, testtool.ErrExpTestA)
+					require.ErrorIs(t, e, testtool.ErrExpTestA)
 				}
 			})
 			t.Run("success_OperationFunc", func(t *testing.T) {
@@ -165,10 +165,10 @@ func Test_Saga_retry(t *testing.T) {
 				}
 
 				resp, err := NewSaga(steps).Execute(ctx)
-				assert.Error(t, err)
-				assert.Equal(t, StageResultCompensated, resp.Status)
-				assert.Equal(t, 1, actionCalls)
-				assert.Equal(t, 3, compensationCalls)
+				require.Error(t, err)
+				require.Equal(t, StageResultCompensated, resp.Status)
+				require.Equal(t, 1, actionCalls)
+				require.Equal(t, 3, compensationCalls)
 			})
 		})
 	})
@@ -192,13 +192,13 @@ func Test_Saga_retry(t *testing.T) {
 		}
 
 		resp, err := NewSaga(steps).Execute(ctx)
-		assert.Error(t, err)
-		assert.Equal(t, StageResultFail, resp.Status)
-		assert.Equal(t, 1, actionCalls)
-		assert.Equal(t, 3, len(resp.Steps[0].Action.Errors))
-		assert.ErrorIs(t, resp.Steps[0].Action.Errors[0], testtool.ErrExpTestA)
-		assert.ErrorIs(t, resp.Steps[0].Action.Errors[1], ErrRetryContextDone)
-		assert.ErrorIs(t, resp.Steps[0].Action.Errors[2], ErrRetryFailed)
+		require.Error(t, err)
+		require.Equal(t, StageResultFail, resp.Status)
+		require.Equal(t, 1, actionCalls)
+		require.Equal(t, 3, len(resp.Steps[0].Action.Errors))
+		require.ErrorIs(t, resp.Steps[0].Action.Errors[0], testtool.ErrExpTestA)
+		require.ErrorIs(t, resp.Steps[0].Action.Errors[1], ErrRetryContextDone)
+		require.ErrorIs(t, resp.Steps[0].Action.Errors[2], ErrRetryFailed)
 	})
 	t.Run("context_cancellation_is_returned", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
@@ -210,9 +210,9 @@ func Test_Saga_retry(t *testing.T) {
 			return testtool.ErrExpTestA
 		})(ctx, track.action)
 
-		assert.True(t, errors.Is(err, ErrRetryFailed))
-		assert.True(t, errors.Is(err, ErrRetryContextDone))
-		assert.True(t, errors.Is(err, context.Canceled))
+		require.True(t, errors.Is(err, ErrRetryFailed))
+		require.True(t, errors.Is(err, ErrRetryContextDone))
+		require.True(t, errors.Is(err, context.Canceled))
 	})
 }
 
@@ -228,14 +228,14 @@ func Test_WithRetry_nil_arguments(t *testing.T) {
 
 		err := WithRetry(nil, fn)(context.Background(), nil)
 
-		assert.ErrorIs(t, err, ErrNilRetryPolicy)
-		assert.False(t, called)
+		require.ErrorIs(t, err, ErrNilRetryPolicy)
+		require.False(t, called)
 	})
 
 	t.Run("nil_retry_function", func(t *testing.T) {
 		err := WithRetry(policy, nil)(context.Background(), nil)
 
-		assert.ErrorIs(t, err, ErrNilRetryFunc)
+		require.ErrorIs(t, err, ErrNilRetryFunc)
 	})
 }
 
@@ -246,12 +246,12 @@ func Test_waitRetryDelay(t *testing.T) {
 
 		err := waitRetryDelay(ctx, time.Hour)
 
-		assert.ErrorIs(t, err, context.Canceled)
+		require.ErrorIs(t, err, context.Canceled)
 	})
 
 	t.Run("delay_completed", func(t *testing.T) {
 		err := waitRetryDelay(context.Background(), time.Nanosecond)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 }

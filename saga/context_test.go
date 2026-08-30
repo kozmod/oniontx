@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/kozmod/oniontx/internal/testtool/assert"
+	"github.com/kozmod/oniontx/internal/testtool/require"
 )
 
 func TestCtxFactory_Apply(t *testing.T) {
@@ -12,7 +12,7 @@ func TestCtxFactory_Apply(t *testing.T) {
 		ctx := context.Background()
 		var factory CtxFactory
 
-		assert.Equal(t, ctx, factory.Apply(ctx))
+		require.Equal(t, ctx, factory.Apply(ctx))
 	})
 
 	t.Run("nil_result", func(t *testing.T) {
@@ -21,7 +21,7 @@ func TestCtxFactory_Apply(t *testing.T) {
 			return nil
 		})
 
-		assert.Equal(t, ctx, factory.Apply(ctx))
+		require.Equal(t, ctx, factory.Apply(ctx))
 	})
 
 	t.Run("transformed_context", func(t *testing.T) {
@@ -34,6 +34,6 @@ func TestCtxFactory_Apply(t *testing.T) {
 
 		result := factory.Apply(ctx)
 
-		assert.Equal(t, "value", result.Value(contextKey{}))
+		require.Equal(t, "value", result.Value(contextKey{}))
 	})
 }

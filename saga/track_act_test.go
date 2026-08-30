@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/kozmod/oniontx/internal/testtool/assert"
+	"github.com/kozmod/oniontx/internal/testtool/require"
 )
 
 func Test_ExecutionTrackApply(t *testing.T) {
@@ -16,10 +16,10 @@ func Test_ExecutionTrackApply(t *testing.T) {
 		track.apply(newTrackFailedAct(expectedErr))
 
 		data := track.GetTrackData()
-		assert.Equal(t, 1, data.Calls)
-		assert.Equal(t, ExecutionStatusFail, data.Status)
-		assert.Equal(t, 1, len(data.Errors))
-		assert.ErrorIs(t, data.Errors[0], expectedErr)
+		require.Equal(t, 1, data.Calls)
+		require.Equal(t, ExecutionStatusFail, data.Status)
+		require.Equal(t, 1, len(data.Errors))
+		require.ErrorIs(t, data.Errors[0], expectedErr)
 	})
 
 	t.Run("nil_failure_error_still_sets_failed_status", func(t *testing.T) {
@@ -28,16 +28,16 @@ func Test_ExecutionTrackApply(t *testing.T) {
 		track.apply(newTrackFailedAct(nil))
 
 		data := track.GetTrackData()
-		assert.Equal(t, ExecutionStatusFail, data.Status)
-		assert.Equal(t, 0, len(data.Errors))
+		require.Equal(t, ExecutionStatusFail, data.Status)
+		require.Equal(t, 0, len(data.Errors))
 	})
 
 	t.Run("unset_is_initial_state", func(t *testing.T) {
 		tracker := newInMemoryTrack(0, NewStep("empty"))
 
 		data := tracker.GetStepData()
-		assert.Equal(t, ExecutionStatusUnset, data.Action.Status)
-		assert.Equal(t, ExecutionStatusUnset, data.Compensation.Status)
+		require.Equal(t, ExecutionStatusUnset, data.Action.Status)
+		require.Equal(t, ExecutionStatusUnset, data.Compensation.Status)
 	})
 }
 
@@ -50,8 +50,8 @@ func Test_ExecutionRetryTrack_apply(t *testing.T) {
 		retryTrack.apply(newTrackSucceededAct())
 
 		data := track.GetTrackData()
-		assert.Equal(t, 1, data.Calls)
-		assert.Equal(t, ExecutionStatusSuccess, data.Status)
+		require.Equal(t, 1, data.Calls)
+		require.Equal(t, ExecutionStatusSuccess, data.Status)
 	})
 
 	t.Run("wraps_failure_once", func(t *testing.T) {
@@ -62,10 +62,10 @@ func Test_ExecutionRetryTrack_apply(t *testing.T) {
 		retryTrack.apply(newTrackFailedAct(expectedErr))
 
 		data := track.GetTrackData()
-		assert.Equal(t, ExecutionStatusFail, data.Status)
-		assert.Equal(t, 1, len(data.Errors))
-		assert.ErrorIs(t, data.Errors[0], expectedErr)
-		assert.Equal(t, "retry [2]: expected", data.Errors[0].Error())
+		require.Equal(t, ExecutionStatusFail, data.Status)
+		require.Equal(t, 1, len(data.Errors))
+		require.ErrorIs(t, data.Errors[0], expectedErr)
+		require.Equal(t, "retry [2]: expected", data.Errors[0].Error())
 	})
 
 	t.Run("forwards_failure_with_nil_error", func(t *testing.T) {
@@ -75,7 +75,7 @@ func Test_ExecutionRetryTrack_apply(t *testing.T) {
 		retryTrack.apply(newTrackFailedAct(nil))
 
 		data := track.GetTrackData()
-		assert.Equal(t, ExecutionStatusFail, data.Status)
-		assert.Equal(t, 0, len(data.Errors))
+		require.Equal(t, ExecutionStatusFail, data.Status)
+		require.Equal(t, 0, len(data.Errors))
 	})
 }

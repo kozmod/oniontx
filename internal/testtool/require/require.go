@@ -1,4 +1,4 @@
-package assert
+package require
 
 import (
 	"errors"
@@ -88,7 +88,7 @@ func NotNil[T any](t *testing.T, value T) {
 // Len asserts that the specified object has specific length.
 // Len also fails if the object has a type that len() not accept.
 //
-//	assert.Len(t, mySlice, 3)
+//	require.Len(t, mySlice, 3)
 func Len[T Integer](t *testing.T, object any, length T) {
 	t.Helper()
 
