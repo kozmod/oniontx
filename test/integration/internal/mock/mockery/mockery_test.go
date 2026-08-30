@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -28,7 +29,7 @@ func Test_mockery(t *testing.T) {
 			ctx,
 			mock.MatchedBy(func(i any) bool {
 				fn, ok := i.(func(context.Context) error)
-				assert.True(t, ok)
+				require.True(t, ok)
 				return assert.NoError(t, fn(ctx))
 			})).Return(nil)
 
@@ -45,7 +46,7 @@ func Test_mockery(t *testing.T) {
 		}
 
 		err := useCase.CreateTextRecords(ctx, textValue)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		transactorMock.AssertExpectations(t)
 		repositoryMockA.AssertExpectations(t)
@@ -60,7 +61,7 @@ func Test_mockery(t *testing.T) {
 				ctx,
 				mock.MatchedBy(func(i any) bool {
 					fn, ok := i.(func(context.Context) error)
-					assert.True(t, ok)
+					require.True(t, ok)
 					return assert.NoError(t, fn(ctx))
 				})).
 			Return(nil)
@@ -82,7 +83,7 @@ func Test_mockery(t *testing.T) {
 		}
 
 		err := useCase.CreateTextRecords(ctx, textValue)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		transactorMock.AssertExpectations(t)
 		repositoryMockA.AssertExpectations(t)
@@ -101,7 +102,7 @@ func Test_mockery(t *testing.T) {
 			ctx,
 			mock.MatchedBy(func(i any) bool {
 				fn, ok := i.(func(context.Context) error)
-				assert.True(t, ok)
+				require.True(t, ok)
 				return assert.Error(t, fn(ctx))
 			}),
 		).Return(transactorErr)
@@ -119,8 +120,8 @@ func Test_mockery(t *testing.T) {
 		}
 
 		err := useCase.CreateTextRecords(ctx, textValue)
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, transactorErr)
+		require.Error(t, err)
+		require.ErrorIs(t, err, transactorErr)
 
 		transactorMock.AssertExpectations(t)
 		repositoryMockA.AssertExpectations(t)

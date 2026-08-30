@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
 
@@ -36,7 +36,7 @@ func Test_GoMock(t *testing.T) {
 				).
 				DoAndReturn(func(ctx context.Context, cb func(context.Context) error) error {
 					err := cb(ctx)
-					assert.NoError(t, err)
+					require.NoError(t, err)
 					return nil
 				}).
 				Times(1),
@@ -59,7 +59,7 @@ func Test_GoMock(t *testing.T) {
 		}
 
 		err := useCase.CreateTextRecords(ctx, textValue)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 	t.Run("assert_error", func(t *testing.T) {
 		var (
@@ -83,7 +83,7 @@ func Test_GoMock(t *testing.T) {
 				).
 				DoAndReturn(func(ctx context.Context, cb func(context.Context) error) error {
 					err := cb(ctx)
-					assert.Error(t, err)
+					require.Error(t, err)
 					return transactorErr
 				}),
 			repositoryMockA.
@@ -104,7 +104,7 @@ func Test_GoMock(t *testing.T) {
 		}
 
 		err := useCase.CreateTextRecords(ctx, textValue)
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, transactorErr)
+		require.Error(t, err)
+		require.ErrorIs(t, err, transactorErr)
 	})
 }

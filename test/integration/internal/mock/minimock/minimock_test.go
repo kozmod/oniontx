@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/gojuno/minimock/v3"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -37,7 +37,7 @@ func Test_MiniMock(t *testing.T) {
 				WithinTxMock.
 				Inspect(func(ctx context.Context, fn func(ctx context.Context) error) {
 					err := fn(ctx)
-					assert.NoError(t, err)
+					require.NoError(t, err)
 				}).Return(nil)
 
 			useCase := UseCase{
@@ -47,7 +47,7 @@ func Test_MiniMock(t *testing.T) {
 			}
 
 			err := useCase.CreateTextRecords(ctx, textValue)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		})
 		t.Run("assert_error", func(t *testing.T) {
 			var (
@@ -69,10 +69,8 @@ func Test_MiniMock(t *testing.T) {
 				WithinTxMock.
 				Inspect(func(ctx context.Context, fn func(ctx context.Context) error) {
 					err := fn(ctx)
-					assert.Error(t, err)
-					if !assert.ErrorIs(t, err, expError) {
-						t.Fatalf("repositoryMockB does not return err [%v]", expError)
-					}
+					require.Error(t, err)
+					require.ErrorIsf(t, err, expError, "repositoryMockB does not return err [%v]", expError)
 				}).Return(transactorErr)
 
 			useCase := UseCase{
@@ -82,8 +80,8 @@ func Test_MiniMock(t *testing.T) {
 			}
 
 			err := useCase.CreateTextRecords(ctx, textValue)
-			assert.Error(t, err)
-			assert.ErrorIs(t, err, transactorErr)
+			require.Error(t, err)
+			require.ErrorIs(t, err, transactorErr)
 		})
 	})
 	t.Run("set", func(t *testing.T) {
@@ -106,8 +104,8 @@ func Test_MiniMock(t *testing.T) {
 			transactorMock := NewTransactorMock(mc).
 				WithinTxMock.
 				Set(func(ctx context.Context, fn func(ctx context.Context) error) (err error) {
-					assert.NoError(t, repositoryMockA.Insert(ctx, textValue))
-					assert.NoError(t, repositoryMockB.Insert(ctx, textValue))
+					require.NoError(t, repositoryMockA.Insert(ctx, textValue))
+					require.NoError(t, repositoryMockB.Insert(ctx, textValue))
 					return nil
 				})
 
@@ -118,7 +116,7 @@ func Test_MiniMock(t *testing.T) {
 			}
 
 			err := useCase.CreateTextRecords(ctx, textValue)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		})
 		t.Run("assert_error", func(t *testing.T) {
 			var (
@@ -141,10 +139,8 @@ func Test_MiniMock(t *testing.T) {
 			transactorMock := NewTransactorMock(mc).
 				WithinTxMock.
 				Set(func(ctx context.Context, fn func(ctx context.Context) error) (err error) {
-					assert.NoError(t, repositoryMockA.Insert(ctx, textValue))
-					if !assert.Error(t, repositoryMockB.Insert(ctx, textValue)) {
-						t.Fatalf("repositoryMockB does not return err [%v]", expError)
-					}
+					require.NoError(t, repositoryMockA.Insert(ctx, textValue))
+					require.Error(t, repositoryMockB.Insert(ctx, textValue))
 					return transactorErr
 				})
 
@@ -155,8 +151,8 @@ func Test_MiniMock(t *testing.T) {
 			}
 
 			err := useCase.CreateTextRecords(ctx, textValue)
-			assert.Error(t, err)
-			assert.ErrorIs(t, err, transactorErr)
+			require.Error(t, err)
+			require.ErrorIs(t, err, transactorErr)
 		})
 	})
 }
