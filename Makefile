@@ -50,11 +50,17 @@ git.log: ## Print formatted git log from "start commit" to HEAD (args: c - start
 	@(val=$$(echo $(c)| tr -d ' ') && \
 	git log --pretty=format:"* %H %s" $c..HEAD)
 
-.PHONY: delete.local.dependabot.branches
-del.local.dependabot.branches: ## Delete local "dependabot" branches.
+.PHONY: git.del.local.br
+git.del.local.br: ## Delete local branches by pattern (args: b - branch pattern).
+	@(val=$$(echo $(b)| tr -d ' ') && \
+  	echo "delete branches by pattern: $$val" && \
 	git for-each-ref --format='%(refname:short)' refs/heads \
-      | grep '^dependabot/' \
-      | xargs git branch -D
+      | grep "^$$val" \
+      | xargs git branch -D)
+
+.PHONY: git.del.local.dependabot.branches
+git.del.local.dependabot.branches: ## Delete local "dependabot" branches.
+	$(MAKE) git.del.local.br b=dependabot/
 
 .PHONY: help
 help: ## List all 'make' targets with description
