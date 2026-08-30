@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kozmod/oniontx/internal/testtool/assert"
+	"github.com/kozmod/oniontx/internal/testtool/require"
 )
 
 func Test_CtxOperator(t *testing.T) {
@@ -20,8 +20,8 @@ func Test_CtxOperator(t *testing.T) {
 			)
 			ctx = o.Inject(ctx, &c)
 			extracted, ok := o.Extract(ctx)
-			assert.True(t, ok)
-			assert.True(t, extracted == &c)
+			require.True(t, ok)
+			require.True(t, extracted == &c)
 		})
 		t.Run("extract_value", func(t *testing.T) {
 			var (
@@ -36,8 +36,8 @@ func Test_CtxOperator(t *testing.T) {
 			)
 			ctx = o.Inject(ctx, c)
 			extracted, ok := o.Extract(ctx)
-			assert.True(t, ok)
-			assert.Equal(t, c, extracted)
+			require.True(t, ok)
+			require.Equal(t, c, extracted)
 		})
 		t.Run("extract_nil_value", func(t *testing.T) {
 			var (
@@ -52,8 +52,8 @@ func Test_CtxOperator(t *testing.T) {
 			)
 			ctx = o.Inject(ctx, c)
 			extracted, ok := o.Extract(ctx)
-			assert.True(t, ok)
-			assert.Equal(t, c, extracted)
+			require.True(t, ok)
+			require.Equal(t, c, extracted)
 		})
 
 	})
@@ -83,13 +83,13 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 		)
 		err := tr.WithinTx(ctx, func(ctx context.Context) error {
 			tx, ok := tr.TryGetTx(ctx)
-			assert.True(t, ok)
-			assert.Equal(t, &c, tx)
+			require.True(t, ok)
+			require.Equal(t, &c, tx)
 			return nil
 		})
-		assert.NoError(t, err)
-		assert.True(t, beginnerCalled)
-		assert.True(t, commitCalled)
+		require.NoError(t, err)
+		require.True(t, beginnerCalled)
+		require.True(t, commitCalled)
 	})
 	t.Run("TxBeginner", func(t *testing.T) {
 		var (
@@ -113,13 +113,13 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 		)
 		err := tr.WithinTx(ctx, func(ctx context.Context) error {
 			beginner := tr.TxBeginner()
-			assert.NotNil(t, beginner)
-			assert.Equal(t, &b, beginner)
+			require.NotNil(t, beginner)
+			require.Equal(t, &b, beginner)
 			return nil
 		})
-		assert.NoError(t, err)
-		assert.True(t, beginnerCalled)
-		assert.True(t, commitCalled)
+		require.NoError(t, err)
+		require.True(t, beginnerCalled)
+		require.True(t, commitCalled)
 	})
 	t.Run("WithinTx", func(t *testing.T) {
 		t.Run("success_commit", func(t *testing.T) {
@@ -144,13 +144,13 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
-				assert.True(t, ok)
-				assert.Equal(t, &c, tx)
+				require.True(t, ok)
+				require.Equal(t, &c, tx)
 				return nil
 			})
-			assert.NoError(t, err)
-			assert.True(t, beginnerCalled)
-			assert.True(t, commitCalled)
+			require.NoError(t, err)
+			require.True(t, beginnerCalled)
+			require.True(t, commitCalled)
 		})
 		t.Run("success_and_not_commit_with_exists_tx", func(t *testing.T) {
 			var (
@@ -169,12 +169,12 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 			ctx = o.Inject(ctx, &c)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
-				assert.True(t, ok)
-				assert.Equal(t, &c, tx)
+				require.True(t, ok)
+				require.Equal(t, &c, tx)
 				return nil
 			})
-			assert.NoError(t, err)
-			assert.True(t, !commitCalled)
+			require.NoError(t, err)
+			require.True(t, !commitCalled)
 		})
 		t.Run("failed_commit", func(t *testing.T) {
 			var (
@@ -198,13 +198,13 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
-				assert.True(t, ok)
-				assert.Equal(t, &c, tx)
+				require.True(t, ok)
+				require.Equal(t, &c, tx)
 				return nil
 			})
-			assert.ErrorIs(t, err, ErrCommitFailed)
-			assert.ErrorIs(t, err, expError)
-			assert.True(t, commitCalled)
+			require.ErrorIs(t, err, ErrCommitFailed)
+			require.ErrorIs(t, err, expError)
+			require.True(t, commitCalled)
 		})
 		t.Run("success_rollback", func(t *testing.T) {
 			var (
@@ -230,14 +230,14 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
-				assert.True(t, ok)
-				assert.Equal(t, &c, tx)
+				require.True(t, ok)
+				require.Equal(t, &c, tx)
 				return expError
 			})
-			assert.ErrorIs(t, err, ErrTxRolledBack)
-			assert.ErrorIs(t, err, expError)
-			assert.True(t, rollbackCalled)
-			assert.True(t, beginCalled)
+			require.ErrorIs(t, err, ErrTxRolledBack)
+			require.ErrorIs(t, err, expError)
+			require.True(t, rollbackCalled)
+			require.True(t, beginCalled)
 		})
 		t.Run("failed_rollback", func(t *testing.T) {
 			var (
@@ -264,15 +264,15 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
-				assert.True(t, ok)
-				assert.Equal(t, &c, tx)
+				require.True(t, ok)
+				require.Equal(t, &c, tx)
 				return transactorError
 			})
-			assert.ErrorIs(t, err, ErrRollbackFailed)
-			assert.ErrorIs(t, err, transactorError)
-			assert.ErrorIs(t, err, rollbackErr)
-			assert.True(t, rollbackCalled)
-			assert.True(t, beginCalled)
+			require.ErrorIs(t, err, ErrRollbackFailed)
+			require.ErrorIs(t, err, transactorError)
+			require.ErrorIs(t, err, rollbackErr)
+			require.True(t, rollbackCalled)
+			require.True(t, beginCalled)
 		})
 		t.Run("success_panic_rollback", func(t *testing.T) {
 			var (
@@ -298,15 +298,15 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
-				assert.True(t, ok)
-				assert.Equal(t, &c, tx)
+				require.True(t, ok)
+				require.Equal(t, &c, tx)
 				panic(expPanic)
 			})
-			assert.ErrorIs(t, err, ErrTxRolledBack)
-			assert.ErrorIs(t, err, ErrPanicRecovered)
-			assert.True(t, strings.Contains(err.Error(), expPanic))
-			assert.True(t, rollbackCalled)
-			assert.True(t, beginCalled)
+			require.ErrorIs(t, err, ErrTxRolledBack)
+			require.ErrorIs(t, err, ErrPanicRecovered)
+			require.True(t, strings.Contains(err.Error(), expPanic))
+			require.True(t, rollbackCalled)
+			require.True(t, beginCalled)
 		})
 		t.Run("failed_panic_rollback", func(t *testing.T) {
 			const (
@@ -336,16 +336,16 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
-				assert.True(t, ok)
-				assert.Equal(t, &c, tx)
+				require.True(t, ok)
+				require.Equal(t, &c, tx)
 				panic(expPanicMsg)
 			})
-			assert.ErrorIs(t, err, ErrRollbackFailed)
-			assert.ErrorIs(t, err, ErrPanicRecovered)
-			assert.ErrorIs(t, err, rollbackErr)
-			assert.True(t, strings.Contains(err.Error(), expPanicMsg))
-			assert.True(t, rollbackCalled)
-			assert.True(t, beginCalled)
+			require.ErrorIs(t, err, ErrRollbackFailed)
+			require.ErrorIs(t, err, ErrPanicRecovered)
+			require.ErrorIs(t, err, rollbackErr)
+			require.True(t, strings.Contains(err.Error(), expPanicMsg))
+			require.True(t, rollbackCalled)
+			require.True(t, beginCalled)
 		})
 		t.Run("failed_begin_tx", func(t *testing.T) {
 			var (
@@ -364,12 +364,12 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 			)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				_, ok := o.Extract(ctx)
-				assert.False(t, ok)
+				require.False(t, ok)
 				return nil
 			})
-			assert.ErrorIs(t, err, ErrBeginTx)
-			assert.ErrorIs(t, err, expError)
-			assert.True(t, beginCalled)
+			require.ErrorIs(t, err, ErrBeginTx)
+			require.ErrorIs(t, err, expError)
+			require.True(t, beginCalled)
 		})
 		t.Run("error_when_beginner_is_nil", func(t *testing.T) {
 			var (
@@ -380,7 +380,7 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				return nil
 			})
-			assert.ErrorIs(t, err, ErrNilTxBeginner)
+			require.ErrorIs(t, err, ErrNilTxBeginner)
 		})
 		t.Run("error_when_operator_is_nil", func(t *testing.T) {
 			var (
@@ -395,7 +395,7 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				return nil
 			})
-			assert.ErrorIs(t, err, ErrNilTxOperator)
+			require.ErrorIs(t, err, ErrNilTxOperator)
 		})
 		t.Run("error_when_transaction_function_is_nil", func(t *testing.T) {
 			var (
@@ -425,10 +425,10 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 
 			err := tr.WithinTx(ctx, nil)
 
-			assert.ErrorIs(t, err, ErrNilTxFunc)
-			assert.False(t, beginCalled)
-			assert.False(t, commitCalled)
-			assert.False(t, rollbackCalled)
+			require.ErrorIs(t, err, ErrNilTxFunc)
+			require.False(t, beginCalled)
+			require.False(t, commitCalled)
+			require.False(t, rollbackCalled)
 		})
 	})
 }
@@ -451,7 +451,7 @@ func Test_Transactor_RollbackCtxFactory(t *testing.T) {
 			c              = &committerMock{
 				rollbackFn: func(rollbackCtx context.Context) error {
 					rollbackCalled = true
-					assert.NoError(t, rollbackCtx.Err())
+					require.NoError(t, rollbackCtx.Err())
 					return nil
 				},
 			}
@@ -464,17 +464,17 @@ func Test_Transactor_RollbackCtxFactory(t *testing.T) {
 
 		tr := newTransactor(c).WithRollbackCtxFactory(func(factoryCtx context.Context) context.Context {
 			factoryCalled = true
-			assert.ErrorIs(t, factoryCtx.Err(), context.Canceled)
+			require.ErrorIs(t, factoryCtx.Err(), context.Canceled)
 			return context.WithoutCancel(factoryCtx)
 		})
 
 		err := tr.WithinTx(ctx, func(context.Context) error {
 			return expErr
 		})
-		assert.ErrorIs(t, err, ErrTxRolledBack)
-		assert.ErrorIs(t, err, expErr)
-		assert.True(t, factoryCalled)
-		assert.True(t, rollbackCalled)
+		require.ErrorIs(t, err, ErrTxRolledBack)
+		require.ErrorIs(t, err, expErr)
+		require.True(t, factoryCalled)
+		require.True(t, rollbackCalled)
 	})
 
 	t.Run("is_not_called_for_commit_or_nested_transaction", func(t *testing.T) {
@@ -499,9 +499,9 @@ func Test_Transactor_RollbackCtxFactory(t *testing.T) {
 				return nil
 			})
 		})
-		assert.NoError(t, err)
-		assert.Equal(t, 1, commitCalls)
-		assert.Equal(t, 0, factoryCalls)
+		require.NoError(t, err)
+		require.Equal(t, 1, commitCalls)
+		require.Equal(t, 0, factoryCalls)
 	})
 
 	t.Run("is_called_only_for_top_level_rollback", func(t *testing.T) {
@@ -526,9 +526,9 @@ func Test_Transactor_RollbackCtxFactory(t *testing.T) {
 				return expErr
 			})
 		})
-		assert.ErrorIs(t, err, ErrTxRolledBack)
-		assert.ErrorIs(t, err, expErr)
-		assert.Equal(t, 1, factoryCalls)
+		require.ErrorIs(t, err, ErrTxRolledBack)
+		require.ErrorIs(t, err, expErr)
+		require.Equal(t, 1, factoryCalls)
 	})
 
 	t.Run("uses_original_context_for_nil_factory_or_result", func(t *testing.T) {
@@ -557,7 +557,7 @@ func Test_Transactor_RollbackCtxFactory(t *testing.T) {
 					operationCtx context.Context
 					c            = &committerMock{
 						rollbackFn: func(rollbackCtx context.Context) error {
-							assert.Equal(t, rollbackCtx, operationCtx)
+							require.Equal(t, rollbackCtx, operationCtx)
 							return nil
 						},
 					}
@@ -570,8 +570,8 @@ func Test_Transactor_RollbackCtxFactory(t *testing.T) {
 					operationCtx = currentCtx
 					return expErr
 				})
-				assert.ErrorIs(t, err, ErrTxRolledBack)
-				assert.ErrorIs(t, err, expErr)
+				require.ErrorIs(t, err, ErrTxRolledBack)
+				require.ErrorIs(t, err, expErr)
 			})
 		}
 	})
@@ -614,10 +614,10 @@ func Test_Transactor_PanicRecoveryDisabled(t *testing.T) {
 
 		defer func() {
 			recovered = recover()
-			assert.NotNil(t, recovered)
+			require.NotNil(t, recovered)
 			v, ok := recovered.(*panicStruct)
-			assert.True(t, ok)
-			assert.True(t, v == value)
+			require.True(t, ok)
+			require.True(t, v == value)
 		}()
 
 		err := tr.WithinTx(context.Background(), func(ctx context.Context) error {
@@ -638,8 +638,8 @@ func Test_Transactor_PanicRecoveryDisabled(t *testing.T) {
 
 		recovered := callAndRecover(t, tr, panicStructValue, false)
 
-		assert.True(t, recovered == panicStructValue)
-		assert.Equal(t, 1, rollbackCalls)
+		require.True(t, recovered == panicStructValue)
+		require.Equal(t, 1, rollbackCalls)
 	})
 
 	t.Run("repanics_even_when_rollback_fails", func(t *testing.T) {
@@ -651,8 +651,8 @@ func Test_Transactor_PanicRecoveryDisabled(t *testing.T) {
 
 		recovered := callAndRecover(t, tr, value, false)
 
-		assert.True(t, recovered == value)
-		assert.Equal(t, 1, rollbackCalls)
+		require.True(t, recovered == value)
+		require.Equal(t, 1, rollbackCalls)
 	})
 
 	t.Run("nested_call_leaves_rollback_to_transaction_owner", func(t *testing.T) {
@@ -664,8 +664,8 @@ func Test_Transactor_PanicRecoveryDisabled(t *testing.T) {
 
 		recovered := callAndRecover(t, tr, value, true)
 
-		assert.True(t, recovered == value)
-		assert.Equal(t, 1, rollbackCalls)
+		require.True(t, recovered == value)
+		require.Equal(t, 1, rollbackCalls)
 	})
 
 	t.Run("can_disable_recovery_on_derived_transactor", func(t *testing.T) {
@@ -680,8 +680,8 @@ func Test_Transactor_PanicRecoveryDisabled(t *testing.T) {
 
 		recovered := callAndRecover(t, tr, value, false)
 
-		assert.True(t, recovered == value)
-		assert.Equal(t, 1, rollbackCalls)
+		require.True(t, recovered == value)
+		require.Equal(t, 1, rollbackCalls)
 	})
 }
 
@@ -717,11 +717,11 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 
 		assertTopLvl = func(ctx context.Context) {
 			// tool.Assert that rollback was called on the recursion "top" level.
-			assert.True(t, isLvlEqual(ctx, ctxValTopLvl))
+			require.True(t, isLvlEqual(ctx, ctxValTopLvl))
 			// tool.Assert that rollback call wasn't called on the "second" recursion level.
-			assert.False(t, isLvlEqual(ctx, ctxValSecondLvl))
+			require.False(t, isLvlEqual(ctx, ctxValSecondLvl))
 			// tool.Assert that rollback call wasn't called on the "third" recursion level.
-			assert.False(t, isLvlEqual(ctx, ctxValThirdLvl))
+			require.False(t, isLvlEqual(ctx, ctxValThirdLvl))
 		}
 	)
 
@@ -779,22 +779,22 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 
 		err := tr.WithinTx(ctx, func(ctx context.Context) error {
 			tx, ok := o.Extract(ctx)
-			assert.True(t, ok)
-			assert.True(t, c == tx)
+			require.True(t, ok)
+			require.True(t, c == tx)
 
 			// inject "second" level variable in context.Context.
 			ctx = injectLvl(ctx, ctxValSecondLvl)
 			return tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
-				assert.True(t, ok)
-				assert.True(t, c == tx)
+				require.True(t, ok)
+				require.True(t, c == tx)
 				return expError
 			})
 		})
-		assert.ErrorIs(t, err, ErrTxRolledBack)
-		assert.ErrorIs(t, err, expError)
-		assert.Equal(t, 1, rollbackCalled)
-		assert.Equal(t, 1, beginCalled)
+		require.ErrorIs(t, err, ErrTxRolledBack)
+		require.ErrorIs(t, err, expError)
+		require.Equal(t, 1, rollbackCalled)
+		require.Equal(t, 1, beginCalled)
 	})
 
 	t.Run("success_and_commit_on_top_lvl_func", func(t *testing.T) {
@@ -811,32 +811,32 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 
 		err := tr.WithinTx(ctx, func(ctx context.Context) error {
 			tx, ok := o.Extract(ctx)
-			assert.True(t, ok)
-			assert.True(t, c == tx)
+			require.True(t, ok)
+			require.True(t, c == tx)
 
 			// inject "second" level variable in context.Context.
 			ctx = injectLvl(ctx, ctxValSecondLvl)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
-				assert.True(t, ok)
-				assert.True(t, c == tx)
+				require.True(t, ok)
+				require.True(t, c == tx)
 				return nil
 			})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			err = tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
-				assert.True(t, ok)
-				assert.True(t, c == tx)
+				require.True(t, ok)
+				require.True(t, c == tx)
 				return nil
 			})
-			assert.True(t, err == nil)
+			require.True(t, err == nil)
 
 			return err
 		})
-		assert.Equal(t, 1, beginCalled)
-		assert.NoError(t, err)
-		assert.Equal(t, 1, commitCalled)
+		require.Equal(t, 1, beginCalled)
+		require.NoError(t, err)
+		require.Equal(t, 1, commitCalled)
 	})
 	t.Run("error_and_rollback_on_high_lvl_when_error_on_low_lvl_func", func(t *testing.T) {
 		defer t.Cleanup(cleanup)
@@ -854,35 +854,35 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 
 		err := tr.WithinTx(ctx, func(ctx context.Context) error {
 			tx, ok := o.Extract(ctx)
-			assert.True(t, ok)
-			assert.True(t, c == tx)
+			require.True(t, ok)
+			require.True(t, c == tx)
 
 			// inject "second" level variable in context.Context.
 			ctx = injectLvl(ctx, ctxValSecondLvl)
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
-				assert.True(t, ok)
-				assert.True(t, c == tx)
+				require.True(t, ok)
+				require.True(t, c == tx)
 
 				// inject "third" level variable in context.Context.
 				ctx = injectLvl(ctx, ctxValThirdLvl)
 				err := tr.WithinTx(ctx, func(ctx context.Context) error {
 					tx, ok := o.Extract(ctx)
-					assert.True(t, ok)
-					assert.True(t, c == tx)
+					require.True(t, ok)
+					require.True(t, c == tx)
 					return expError
 				})
 				return err
 			})
-			assert.Error(t, err)
+			require.Error(t, err)
 
 			return err
 		})
-		assert.ErrorIs(t, err, ErrTxRolledBack)
-		assert.ErrorIs(t, err, expError)
-		assert.Equal(t, 1, beginCalled)
-		assert.Equal(t, 0, commitCalled)
-		assert.Equal(t, 1, rollbackCalled)
+		require.ErrorIs(t, err, ErrTxRolledBack)
+		require.ErrorIs(t, err, expError)
+		require.Equal(t, 1, beginCalled)
+		require.Equal(t, 0, commitCalled)
+		require.Equal(t, 1, rollbackCalled)
 	})
 	t.Run("panic", func(t *testing.T) {
 		const (
@@ -904,39 +904,39 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
-				assert.True(t, ok)
-				assert.True(t, c == tx)
+				require.True(t, ok)
+				require.True(t, c == tx)
 
 				// inject "second" level variable in context.Context.
 				ctx = injectLvl(ctx, ctxValSecondLvl)
 				err := tr.WithPanicRecovery(true).
 					WithinTx(ctx, func(ctx context.Context) error {
 						tx, ok := o.Extract(ctx)
-						assert.True(t, ok)
-						assert.True(t, c == tx)
+						require.True(t, ok)
+						require.True(t, c == tx)
 
 						// inject "second" level variable in context.Context.
 						ctx = injectLvl(ctx, ctxValThirdLvl)
 						err := tr.WithPanicRecovery(true).
 							WithinTx(ctx, func(ctx context.Context) error {
 								tx, ok := o.Extract(ctx)
-								assert.True(t, ok)
-								assert.True(t, c == tx)
+								require.True(t, ok)
+								require.True(t, c == tx)
 								panic(lowLvlPanicMsg)
 							})
-						assert.Error(t, err)
+						require.Error(t, err)
 						return err
 					})
-				assert.Error(t, err)
+				require.Error(t, err)
 
 				return err
 			})
-			assert.ErrorIs(t, err, ErrTxRolledBack)
-			assert.ErrorIs(t, err, ErrPanicRecovered)
-			assert.True(t, strings.Contains(err.Error(), lowLvlPanicMsg))
-			assert.Equal(t, 1, beginCalled)
-			assert.Equal(t, 0, commitCalled)
-			assert.Equal(t, 1, rollbackCalled)
+			require.ErrorIs(t, err, ErrTxRolledBack)
+			require.ErrorIs(t, err, ErrPanicRecovered)
+			require.True(t, strings.Contains(err.Error(), lowLvlPanicMsg))
+			require.Equal(t, 1, beginCalled)
+			require.Equal(t, 0, commitCalled)
+			require.Equal(t, 1, rollbackCalled)
 		})
 
 		t.Run("error_and_rollback_on_high_lvl_when_panic_on_middle_lvl_override_low_lvl", func(t *testing.T) {
@@ -953,40 +953,40 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 
 			err := tr.WithinTx(ctx, func(ctx context.Context) error {
 				tx, ok := o.Extract(ctx)
-				assert.True(t, ok)
-				assert.True(t, c == tx)
+				require.True(t, ok)
+				require.True(t, c == tx)
 
 				// inject "second" level variable in context.Context.
 				ctx = injectLvl(ctx, ctxValSecondLvl)
 				err := tr.WithPanicRecovery(true).
 					WithinTx(ctx, func(ctx context.Context) error {
 						tx, ok := o.Extract(ctx)
-						assert.True(t, ok)
-						assert.True(t, c == tx)
+						require.True(t, ok)
+						require.True(t, c == tx)
 
 						// inject "second" level variable in context.Context.
 						ctx = injectLvl(ctx, ctxValThirdLvl)
 						err := tr.WithPanicRecovery(true).
 							WithinTx(ctx, func(ctx context.Context) error {
 								tx, ok := o.Extract(ctx)
-								assert.True(t, ok)
-								assert.True(t, c == tx)
+								require.True(t, ok)
+								require.True(t, c == tx)
 								panic(lowLvlPanicMsg)
 							})
-						assert.Error(t, err)
+						require.Error(t, err)
 						panic(middleLvlPanicMsg)
 					})
-				assert.True(t, err != nil)
+				require.True(t, err != nil)
 
 				return err
 			})
-			assert.ErrorIs(t, err, ErrTxRolledBack)
-			assert.ErrorIs(t, err, ErrPanicRecovered)
-			assert.False(t, strings.Contains(err.Error(), lowLvlPanicMsg))
-			assert.True(t, strings.Contains(err.Error(), middleLvlPanicMsg))
-			assert.Equal(t, 1, beginCalled)
-			assert.Equal(t, 0, commitCalled)
-			assert.Equal(t, 1, rollbackCalled)
+			require.ErrorIs(t, err, ErrTxRolledBack)
+			require.ErrorIs(t, err, ErrPanicRecovered)
+			require.False(t, strings.Contains(err.Error(), lowLvlPanicMsg))
+			require.True(t, strings.Contains(err.Error(), middleLvlPanicMsg))
+			require.Equal(t, 1, beginCalled)
+			require.Equal(t, 0, commitCalled)
+			require.Equal(t, 1, rollbackCalled)
 		})
 	})
 }

@@ -20,7 +20,7 @@ func Benchmark_copy(b *testing.B) {
 		genFn     = func() saga.TrackData {
 			b.Helper()
 			Errors := make([]error, ErrorsLen)
-			for i := 0; i < ErrorsLen; i++ {
+			for i := range ErrorsLen {
 				b := make([]byte, 10)
 				for i := range b {
 					b[i] = letters[generator.IntN(len(letters))]

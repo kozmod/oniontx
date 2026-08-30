@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/kozmod/oniontx/internal/testtool"
-	"github.com/kozmod/oniontx/internal/testtool/assert"
+	"github.com/kozmod/oniontx/internal/testtool/require"
 )
 
 func Test_Result_String(t *testing.T) {
@@ -36,7 +36,7 @@ func Test_Result_String(t *testing.T) {
 	}
 
 	t.Run("without_track_data_errors", func(t *testing.T) {
-		assert.False(t,
+		require.False(t,
 			strings.Contains(res.String(), "Errors: 2 ["),
 		)
 
@@ -50,7 +50,7 @@ func Test_Result_String(t *testing.T) {
 	t.Run("with_track_data_errors", func(t *testing.T) {
 		resWithErrors := res.WithErrorsInTrackDataString()
 
-		assert.True(t,
+		require.True(t,
 			strings.Contains(resWithErrors.String(), "Errors: 2 [card declined, retry failed]"),
 		)
 
@@ -82,33 +82,33 @@ func Test_SagaExecute_preservesExecutionErrors(t *testing.T) {
 	)
 
 	res, err := NewSaga(steps).Execute(context.Background())
-	assert.NotNil(t, res)
-	assert.NotNil(t, res.Status)
-	assert.Equal(t, StageResultFail, res.Status)
-	assert.Equal(t, 2, len(res.Steps))
+	require.NotNil(t, res)
+	require.NotNil(t, res.Status)
+	require.Equal(t, StageResultFail, res.Status)
+	require.Equal(t, 2, len(res.Steps))
 
-	assert.Equal(t, ExecutionStatusSuccess, res.Steps[0].Action.Status)
-	assert.Equal(t, ExecutionStatusFail, res.Steps[0].Compensation.Status)
-	assert.Equal(t, 1, res.Steps[0].Compensation.Calls)
-	assert.ErrorIs(t, res.Steps[0].Compensation.Errors[0], compensationErr)
+	require.Equal(t, ExecutionStatusSuccess, res.Steps[0].Action.Status)
+	require.Equal(t, ExecutionStatusFail, res.Steps[0].Compensation.Status)
+	require.Equal(t, 1, res.Steps[0].Compensation.Calls)
+	require.ErrorIs(t, res.Steps[0].Compensation.Errors[0], compensationErr)
 
-	assert.Equal(t, ExecutionStatusFail, res.Steps[1].Action.Status)
-	assert.Equal(t, 1, res.Steps[1].Action.Calls)
-	assert.ErrorIs(t, res.Steps[1].Action.Errors[0], actionErr)
+	require.Equal(t, ExecutionStatusFail, res.Steps[1].Action.Status)
+	require.Equal(t, 1, res.Steps[1].Action.Calls)
+	require.ErrorIs(t, res.Steps[1].Action.Errors[0], actionErr)
 
-	assert.Len(t, res.Errors(), 2)
+	require.Len(t, res.Errors(), 2)
 
-	assert.True(t, slices.ContainsFunc(res.Errors(), func(err error) bool {
+	require.True(t, slices.ContainsFunc(res.Errors(), func(err error) bool {
 		return errors.Is(err, actionErr)
 	}))
-	assert.True(t, slices.ContainsFunc(res.Errors(), func(err error) bool {
+	require.True(t, slices.ContainsFunc(res.Errors(), func(err error) bool {
 		return errors.Is(err, compensationErr)
 	}))
 
-	assert.ErrorIs(t, err, ErrActionFailed)
-	assert.ErrorIs(t, err, ErrCompensationFailed)
-	assert.ErrorIsNot(t, err, actionErr)
-	assert.ErrorIsNot(t, err, compensationErr)
+	require.ErrorIs(t, err, ErrActionFailed)
+	require.ErrorIs(t, err, ErrCompensationFailed)
+	require.ErrorIsNot(t, err, actionErr)
+	require.ErrorIsNot(t, err, compensationErr)
 }
 
 func Test_SagaExecute_actionFailureWithoutCompensation(t *testing.T) {
@@ -120,8 +120,8 @@ func Test_SagaExecute_actionFailureWithoutCompensation(t *testing.T) {
 	}
 
 	res, err := NewSaga(steps).Execute(context.Background())
-	assert.NotNil(t, res)
-	assert.Equal(t, StageResultFail, res.Status)
-	assert.ErrorIs(t, err, ErrActionFailed)
-	assert.ErrorIsNot(t, err, ErrCompensationFailed)
+	require.NotNil(t, res)
+	require.Equal(t, StageResultFail, res.Status)
+	require.ErrorIs(t, err, ErrActionFailed)
+	require.ErrorIsNot(t, err, ErrCompensationFailed)
 }
