@@ -34,9 +34,9 @@ var (
 	// This error wraps the underlying error from the database driver during rollback.
 	ErrRollbackFailed = fmt.Errorf("rollback failed")
 
-	// ErrRollbackSuccess indicates that a transaction was successfully rolled back.
+	// ErrTxRolledBack indicates that a transaction was successfully rolled back.
 	// Despite being an error type, it signals a successful rollback operation.
-	ErrRollbackSuccess = fmt.Errorf("tx rolled back")
+	ErrTxRolledBack = fmt.Errorf("tx rolled back")
 
 	// ErrPanicRecovered indicates that a panic was recovered and converted to an error.
 	// It wraps the original panic value to provide context about what caused the panic.
@@ -233,7 +233,7 @@ func (t *Transactor[B, T]) WithinTx(ctx context.Context, fn func(ctx context.Con
 			} else {
 				err = fmt.Errorf(
 					"transactor - panic: %w",
-					errors.Join(ErrRollbackSuccess, ErrPanicRecovered, errors.WrapPanic(p)),
+					errors.Join(ErrTxRolledBack, ErrPanicRecovered, errors.WrapPanic(p)),
 				)
 			}
 			if !t.opts.recoverPanic {
@@ -248,7 +248,7 @@ func (t *Transactor[B, T]) WithinTx(ctx context.Context, fn func(ctx context.Con
 			if rbErr := tx.Rollback(rollbackCtx); rbErr != nil {
 				err = fmt.Errorf("transactor - call: %w", errors.Join(ErrRollbackFailed, rbErr, err))
 			} else {
-				err = fmt.Errorf("transactor - call: %w", errors.Join(ErrRollbackSuccess, err))
+				err = fmt.Errorf("transactor - call: %w", errors.Join(ErrTxRolledBack, err))
 			}
 		default:
 			if ok {
