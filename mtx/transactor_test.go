@@ -234,7 +234,7 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 				assert.Equal(t, &c, tx)
 				return expError
 			})
-			assert.ErrorIs(t, err, ErrRollbackSuccess)
+			assert.ErrorIs(t, err, ErrTxRolledBack)
 			assert.ErrorIs(t, err, expError)
 			assert.True(t, rollbackCalled)
 			assert.True(t, beginCalled)
@@ -302,7 +302,7 @@ func Test_Transactor(t *testing.T) { //nolint: dupl
 				assert.Equal(t, &c, tx)
 				panic(expPanic)
 			})
-			assert.ErrorIs(t, err, ErrRollbackSuccess)
+			assert.ErrorIs(t, err, ErrTxRolledBack)
 			assert.ErrorIs(t, err, ErrPanicRecovered)
 			assert.True(t, strings.Contains(err.Error(), expPanic))
 			assert.True(t, rollbackCalled)
@@ -471,7 +471,7 @@ func Test_Transactor_RollbackCtxFactory(t *testing.T) {
 		err := tr.WithinTx(ctx, func(context.Context) error {
 			return expErr
 		})
-		assert.ErrorIs(t, err, ErrRollbackSuccess)
+		assert.ErrorIs(t, err, ErrTxRolledBack)
 		assert.ErrorIs(t, err, expErr)
 		assert.True(t, factoryCalled)
 		assert.True(t, rollbackCalled)
@@ -526,7 +526,7 @@ func Test_Transactor_RollbackCtxFactory(t *testing.T) {
 				return expErr
 			})
 		})
-		assert.ErrorIs(t, err, ErrRollbackSuccess)
+		assert.ErrorIs(t, err, ErrTxRolledBack)
 		assert.ErrorIs(t, err, expErr)
 		assert.Equal(t, 1, factoryCalls)
 	})
@@ -570,7 +570,7 @@ func Test_Transactor_RollbackCtxFactory(t *testing.T) {
 					operationCtx = currentCtx
 					return expErr
 				})
-				assert.ErrorIs(t, err, ErrRollbackSuccess)
+				assert.ErrorIs(t, err, ErrTxRolledBack)
 				assert.ErrorIs(t, err, expErr)
 			})
 		}
@@ -791,7 +791,7 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 				return expError
 			})
 		})
-		assert.ErrorIs(t, err, ErrRollbackSuccess)
+		assert.ErrorIs(t, err, ErrTxRolledBack)
 		assert.ErrorIs(t, err, expError)
 		assert.Equal(t, 1, rollbackCalled)
 		assert.Equal(t, 1, beginCalled)
@@ -878,7 +878,7 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 
 			return err
 		})
-		assert.ErrorIs(t, err, ErrRollbackSuccess)
+		assert.ErrorIs(t, err, ErrTxRolledBack)
 		assert.ErrorIs(t, err, expError)
 		assert.Equal(t, 1, beginCalled)
 		assert.Equal(t, 0, commitCalled)
@@ -931,7 +931,7 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 
 				return err
 			})
-			assert.ErrorIs(t, err, ErrRollbackSuccess)
+			assert.ErrorIs(t, err, ErrTxRolledBack)
 			assert.ErrorIs(t, err, ErrPanicRecovered)
 			assert.True(t, strings.Contains(err.Error(), lowLvlPanicMsg))
 			assert.Equal(t, 1, beginCalled)
@@ -980,7 +980,7 @@ func Test_Transactor_recursive_call(t *testing.T) { //nolint: dupl
 
 				return err
 			})
-			assert.ErrorIs(t, err, ErrRollbackSuccess)
+			assert.ErrorIs(t, err, ErrTxRolledBack)
 			assert.ErrorIs(t, err, ErrPanicRecovered)
 			assert.False(t, strings.Contains(err.Error(), lowLvlPanicMsg))
 			assert.True(t, strings.Contains(err.Error(), middleLvlPanicMsg))
