@@ -46,5 +46,5 @@ func (c committerValueMock) Commit(ctx context.Context) error {
 }
 
 func (c committerValueMock) Rollback(ctx context.Context) error {
-	return c.committer.commitFn(ctx)
+	return c.committer.rollbackFn(ctx)
 }
