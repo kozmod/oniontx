@@ -48,3 +48,23 @@ func (c committerValueMock) Commit(ctx context.Context) error {
 func (c committerValueMock) Rollback(ctx context.Context) error {
 	return c.committer.rollbackFn(ctx)
 }
+
+// refreshOperatorMock delegates context storage to the standard operator while
+// allowing tests to replace or hide the transaction after the callback starts.
+type refreshOperatorMock struct {
+	*ContextOperator[*beginnerMock[*committerMock], *committerMock]
+	replacement *committerMock
+	missing     bool
+	extracts    int
+}
+
+func (o *refreshOperatorMock) Extract(ctx context.Context) (*committerMock, bool) {
+	o.extracts++
+	if o.missing {
+		return nil, false
+	}
+	if o.replacement != nil {
+		return o.replacement, true
+	}
+	return o.ContextOperator.Extract(ctx)
+}

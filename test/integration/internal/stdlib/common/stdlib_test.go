@@ -1,4 +1,4 @@
-package stdlib
+package common
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/kozmod/oniontx/test/integration/internal/entity"
+	"github.com/kozmod/oniontx/test/integration/internal/stdlib"
 )
 
 const (
@@ -15,9 +16,9 @@ const (
 
 func Test_UseCase(t *testing.T) {
 	var (
-		db        = ConnectDB(t)
+		db        = stdlib.ConnectDB(t)
 		cleanupFn = func() {
-			err := ClearDB(db)
+			err := stdlib.ClearDB(db)
 			require.NoError(t, err)
 		}
 	)
@@ -33,9 +34,9 @@ func Test_UseCase(t *testing.T) {
 
 		var (
 			ctx         = context.Background()
-			transactor  = NewTransactor(db)
-			repositoryA = NewTextRepository(transactor, false)
-			repositoryB = NewTextRepository(transactor, false)
+			transactor  = stdlib.NewTransactor(db)
+			repositoryA = stdlib.NewTextRepository(transactor, false)
+			repositoryB = stdlib.NewTextRepository(transactor, false)
 			useCase     = NewUseCase(repositoryA, repositoryB, transactor)
 		)
 
@@ -43,7 +44,7 @@ func Test_UseCase(t *testing.T) {
 		require.NoError(t, err)
 
 		{
-			records, err := GetTextRecords(db)
+			records, err := stdlib.GetTextRecords(db)
 			require.NoError(t, err)
 			require.Len(t, records, 2)
 			for _, record := range records {
@@ -56,9 +57,9 @@ func Test_UseCase(t *testing.T) {
 
 		var (
 			ctx         = context.Background()
-			transactor  = NewTransactor(db)
-			repositoryA = NewTextRepository(transactor, false)
-			repositoryB = NewTextRepository(transactor, true)
+			transactor  = stdlib.NewTransactor(db)
+			repositoryA = stdlib.NewTextRepository(transactor, false)
+			repositoryB = stdlib.NewTextRepository(transactor, true)
 			useCase     = NewUseCase(repositoryA, repositoryB, transactor)
 		)
 
@@ -67,7 +68,7 @@ func Test_UseCase(t *testing.T) {
 		require.ErrorIs(t, err, entity.ErrExpected)
 
 		{
-			records, err := GetTextRecords(db)
+			records, err := stdlib.GetTextRecords(db)
 			require.NoError(t, err)
 			require.Len(t, records, 0)
 		}
@@ -77,9 +78,9 @@ func Test_UseCase(t *testing.T) {
 
 		var (
 			ctx, cancel = context.WithCancel(context.Background())
-			transactor  = NewTransactor(db)
-			repositoryA = NewTextRepository(transactor, false)
-			repositoryB = NewTextRepository(transactor, false)
+			transactor  = stdlib.NewTransactor(db)
+			repositoryA = stdlib.NewTextRepository(transactor, false)
+			repositoryB = stdlib.NewTextRepository(transactor, false)
 			useCase     = NewUseCase(repositoryA, repositoryB, transactor)
 		)
 
@@ -89,7 +90,7 @@ func Test_UseCase(t *testing.T) {
 		require.ErrorIs(t, err, context.Canceled)
 
 		{
-			records, err := GetTextRecords(db)
+			records, err := stdlib.GetTextRecords(db)
 			require.NoError(t, err)
 			require.Len(t, records, 0)
 		}
@@ -98,9 +99,9 @@ func Test_UseCase(t *testing.T) {
 
 func Test_UseCasesFacade(t *testing.T) {
 	var (
-		db        = ConnectDB(t)
+		db        = stdlib.ConnectDB(t)
 		cleanupFn = func() {
-			err := ClearDB(db)
+			err := stdlib.ClearDB(db)
 			require.NoError(t, err)
 		}
 	)
@@ -117,9 +118,9 @@ func Test_UseCasesFacade(t *testing.T) {
 
 			var (
 				ctx            = context.Background()
-				transactor     = NewTransactor(db)
-				repositoryA    = NewTextRepository(transactor, false)
-				repositoryB    = NewTextRepository(transactor, false)
+				transactor     = stdlib.NewTransactor(db)
+				repositoryA    = stdlib.NewTextRepository(transactor, false)
+				repositoryB    = stdlib.NewTextRepository(transactor, false)
 				useCasesFacade = NewUseCasesFacade(
 					NewUseCase(repositoryA, repositoryB, transactor),
 					NewUseCase(repositoryA, repositoryB, transactor),
@@ -131,7 +132,7 @@ func Test_UseCasesFacade(t *testing.T) {
 			require.NoError(t, err)
 
 			{
-				records, err := GetTextRecords(db)
+				records, err := stdlib.GetTextRecords(db)
 				require.NoError(t, err)
 				require.Len(t, records, 4)
 				for _, record := range records {
@@ -144,9 +145,9 @@ func Test_UseCasesFacade(t *testing.T) {
 
 			var (
 				ctx            = context.Background()
-				transactor     = NewTransactor(db)
-				repositoryA    = NewTextRepository(transactor, false)
-				repositoryB    = NewTextRepository(transactor, true)
+				transactor     = stdlib.NewTransactor(db)
+				repositoryA    = stdlib.NewTextRepository(transactor, false)
+				repositoryB    = stdlib.NewTextRepository(transactor, true)
 				useCasesFacade = NewUseCasesFacade(
 					NewUseCase(repositoryA, repositoryB, transactor),
 					NewUseCase(repositoryA, repositoryB, transactor),
@@ -159,7 +160,7 @@ func Test_UseCasesFacade(t *testing.T) {
 			require.ErrorIs(t, err, entity.ErrExpected)
 
 			{
-				records, err := GetTextRecords(db)
+				records, err := stdlib.GetTextRecords(db)
 				require.NoError(t, err)
 				require.Len(t, records, 0)
 			}

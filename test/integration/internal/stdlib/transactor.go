@@ -3,6 +3,8 @@ package stdlib
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 
 	"github.com/kozmod/oniontx/mtx"
 )
@@ -19,13 +21,20 @@ type Executor interface {
 	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
 }
 
+// Tx combines SQL execution and transaction finalization so the savepoint tests
+// can wrap an active transaction without losing access to SQL methods.
+type Tx interface {
+	Executor
+	mtx.Tx
+}
+
 // Wrapper wraps [sql.DB] and implements [mtx.TxBeginner].
 type Wrapper struct {
 	*sql.DB
 }
 
 // BeginTx starts a transaction.
-func (db Wrapper) BeginTx(ctx context.Context) (*TxWrapper, error) {
+func (db Wrapper) BeginTx(ctx context.Context) (Tx, error) {
 	var txOptions sql.TxOptions
 	tx, err := db.DB.BeginTx(ctx, &txOptions)
 	return &TxWrapper{Tx: tx}, err
@@ -46,18 +55,57 @@ func (t *TxWrapper) Commit(_ context.Context) error {
 	return t.Tx.Commit()
 }
 
+// SavepointTxWrapper demonstrates custom finalization in the savepoint tests.
+// Unlike a full rollback, its Rollback preserves and commits earlier writes.
+type SavepointTxWrapper struct {
+	Tx
+	// Savepoint is an already quoted SQL identifier supplied by TextRepository.Savepoint.
+	Savepoint string
+}
+
+// Rollback is used by the savepoint tests to undo writes after the savepoint
+// and commit the remaining writes. If rollback to the savepoint fails, it calls
+// the wrapped transaction's Rollback instead. The transactor retains the callback
+// error even when this method succeeds. Panic cleanup uses this method as well.
+func (t *SavepointTxWrapper) Rollback(ctx context.Context) error {
+	if err := t.RollbackTo(ctx); err != nil {
+		return errors.Join(err, t.Tx.Rollback(ctx))
+	}
+	return t.Commit(ctx)
+}
+
+// RollbackTo undoes writes after the savepoint and keeps the transaction open.
+// The savepoint tests use it to continue writing before the outer commit.
+func (t *SavepointTxWrapper) RollbackTo(ctx context.Context) error {
+	_, err := t.Tx.ExecContext(ctx, fmt.Sprintf("ROLLBACK TO %s;", t.Savepoint))
+	if err != nil {
+		return fmt.Errorf("rollback savepoint [%s]: %w", t.Savepoint, err)
+	}
+	return nil
+}
+
+// Commit commits the outer transaction, including writes before the savepoint.
+// It completes the wrapped transaction for the savepoint tests.
+func (t *SavepointTxWrapper) Commit(ctx context.Context) error {
+	return t.Tx.Commit(ctx)
+}
+
 // Transactor manage a transaction for single [sql.DB] instance.
 type Transactor struct {
-	*mtx.Transactor[*Wrapper, *TxWrapper]
+	*ContextOperator[*Wrapper, Tx]
+	*mtx.Transactor[*Wrapper, Tx]
 }
 
 // NewTransactor returns new [Transactor].
 func NewTransactor(db *sql.DB) *Transactor {
 	var (
 		base       = Wrapper{DB: db}
-		operator   = mtx.NewContextOperator[*Wrapper, *TxWrapper](&base)
+		operator   = NewContextOperator[*Wrapper, Tx](&base)
 		transactor = Transactor{
-			Transactor: mtx.NewTransactor[*Wrapper, *TxWrapper](&base, operator),
+			ContextOperator: operator,
+			Transactor: mtx.NewTransactor[*Wrapper, Tx](&base, operator).
+				// Refresh is enabled to demonstrate transaction replacement in the savepoint tests.
+				WithTxRefreshFromContext(true),
 		}
 	)
 	return &transactor
@@ -71,12 +119,19 @@ func (t *Transactor) WithinTx(ctx context.Context, fn func(ctx context.Context) 
 }
 
 // TryGetTx returns pointer of [sql.Tx] and "true" from [context.Context] or return `false`.
-func (t *Transactor) TryGetTx(ctx context.Context) (*sql.Tx, bool) {
+func (t *Transactor) TryGetTx(ctx context.Context) (Tx, bool) {
 	wrapper, ok := t.Transactor.TryGetTx(ctx)
-	if !ok || wrapper == nil || wrapper.Tx == nil {
+	if !ok || wrapper == nil {
 		return nil, false
 	}
-	return wrapper.Tx, true
+	return wrapper, true
+}
+
+// InjectSavepointTx installs a finalization wrapper for the savepoint tests.
+// ctx must already contain a transaction stored by ContextOperator; savepoint
+// must be a quoted SQL identifier. Refresh lets the outer WithinTx use the wrapper.
+func (t *Transactor) InjectSavepointTx(ctx context.Context, tx Tx, savepoint string) {
+	t.ContextOperator.Inject(ctx, &SavepointTxWrapper{Tx: tx, Savepoint: savepoint})
 }
 
 // TxBeginner returns pointer of [sql.DB].
