@@ -7,8 +7,9 @@ var dummyRollbackCtxFactory = func(ctx context.Context) context.Context {
 }
 
 type transactorOptions struct {
-	rollbackCtxFactory func(ctx context.Context) context.Context
-	recoverPanic       bool
+	rollbackCtxFactory   func(ctx context.Context) context.Context
+	recoverPanic         bool
+	refreshTxFromContext bool
 }
 
 func defaultTransactorOptions() transactorOptions {

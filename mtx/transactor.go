@@ -133,6 +133,28 @@ func (t *Transactor[B, T]) WithPanicRecovery(enabled bool) *Transactor[B, T] {
 	}
 }
 
+// WithTxRefreshFromContext returns a new Transactor that re-reads the transaction
+// from the callback context before finalization. The original Transactor is not
+// modified. Refresh is disabled by default.
+//
+// This allows a custom CtxOperator to replace the transaction with a wrapper
+// during the callback. If extraction fails, the original transaction is used.
+// Nested calls still leave finalization to the top-level call.
+//
+// A replacement must wrap the original transaction and complete it when Commit
+// or Rollback returns. The replacement's Rollback is also used for panic cleanup.
+// Error markers describe the outcome of these methods; a custom Rollback may
+// implement partial rollback and commit the remaining writes.
+func (t *Transactor[B, T]) WithTxRefreshFromContext(refresh bool) *Transactor[B, T] {
+	opts := t.opts
+	opts.refreshTxFromContext = refresh
+	return &Transactor[B, T]{
+		beginner: t.beginner,
+		operator: t.operator,
+		opts:     opts,
+	}
+}
+
 // WithinTx executes the provided function within a transaction context.
 // It handles transaction creation, propagation, and automatic cleanup (commit/rollback).
 //
@@ -211,6 +233,14 @@ func (t *Transactor[B, T]) WithinTx(ctx context.Context, fn func(ctx context.Con
 	}
 
 	defer func() {
+		if t.opts.refreshTxFromContext {
+			if !ok {
+				if currentTx, exists := t.operator.Extract(ctx); exists {
+					tx = currentTx
+				}
+			}
+		}
+
 		switch p := recover(); {
 		case p != nil:
 			if ok {
