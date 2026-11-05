@@ -123,11 +123,11 @@ implementations for `stdlib`, `sqlx`, `pgx`, `gorm`, `redis`, `mongo`:
 ### <a name="saga"><a/>Package `saga`: In-Process Workflow Engine (In-Process Saga).
 
 Use `saga` when coordinating operations across **multiple** services, databases,
-or external systems. It implements the **In-Progress Workflow Engine** (or **In-Progress Local Saga**) pattern with compensating actions
+or external systems. It implements the **In-Process Workflow Engine** (or **In-Process Local Saga**) pattern with compensating actions
 to maintain consistency within a single process.
 
 Unlike **Distributed Sagas** that require a centralized orchestrator or choreography
-between services, this implementation is designed as an **In-Progress Workflow Engine** where:
+between services, this implementation is designed as an **In-Process Workflow Engine** where:
 - The saga execution happens within a single process/monolith
 - All steps are defined and executed locally
 - Compensations are called within the same process
