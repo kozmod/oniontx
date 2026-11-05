@@ -12,6 +12,31 @@ permissions:
   contents: read
 
 jobs:
+  minimum-go:
+    name: Minimum Go version
+    runs-on: ubuntu-latest
+    env:
+      GOWORK: "off"
+      GOTOOLCHAIN: "local"
+      TEST_FN_DISABLED: "true"
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up minimum Go version
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      - name: Test
+        run: go test -race ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build ./...
+
   test:
     runs-on: ubuntu-latest
     steps:
