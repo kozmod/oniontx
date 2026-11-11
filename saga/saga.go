@@ -3,6 +3,7 @@ package saga
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/kozmod/oniontx/internal/errors"
 )
@@ -65,25 +66,36 @@ type Saga struct {
 }
 
 // NewSaga creates a new Saga instance.
-func NewSaga(steps []Step) *Saga {
-	return &Saga{
-		steps: steps,
+//
+// The steps slice is copied, so later changes to the caller's slice do not
+// affect the Saga.
+func NewSaga(steps []Step) Saga {
+	return Saga{
+		steps: slices.Clone(steps),
 	}
 }
 
-// WithCompensationContext configures a context for compensation operations.
+// WithCompensationContext returns a copy of the Saga that derives a context
+// for compensation operations. The receiver is not modified; the result must
+// be used.
 //
 // The factory receives the action context, which may already be canceled.
 // Use context.WithoutCancel when compensations must outlive action cancellation.
-func (s *Saga) WithCompensationContext(factory CtxFactory) *Saga {
+func (s Saga) WithCompensationContext(factory CtxFactory) Saga {
 	s.compensationContextFactory = factory
+	return s
+}
+
+// Clone returns a copy of the Saga.
+func (s Saga) Clone() Saga {
+	s.steps = slices.Clone(s.steps)
 	return s
 }
 
 // Execute runs all Saga steps.
 //
 // If any step fails, compensations are triggered for completed steps in reverse order.
-func (s *Saga) Execute(ctx context.Context) (Result, error) {
+func (s Saga) Execute(ctx context.Context) (Result, error) {
 	var (
 		tracks         []*simpleTracker
 		completedTrack []*simpleTracker
@@ -146,7 +158,7 @@ stop:
 }
 
 // compensate triggers compensation operations in reverse completion order.
-func (s *Saga) compensate(ctx context.Context, tracks []*simpleTracker) {
+func (s Saga) compensate(ctx context.Context, tracks []*simpleTracker) {
 	ctx = s.compensationContextFactory.Apply(ctx)
 
 stop:

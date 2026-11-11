@@ -77,6 +77,33 @@ func TestSaga_Execute(t *testing.T) {
 		require.True(t, len(executedCompensation) == 0)
 	})
 
+	t.Run("new_saga_clones_steps", func(t *testing.T) {
+		var (
+			steps = make([]Step, 2)
+		)
+
+		steps[0] = NewStep("step0").
+			WithAction(NewOperation(func(context.Context, Track) error {
+				return nil
+			}))
+
+		saga := NewSaga(steps)
+
+		// A later change to the caller's slice must not affect the created Saga.
+		steps[1] = NewStep("step1").
+			WithAction(NewOperation(func(context.Context, Track) error {
+				return nil
+			}))
+
+		res, err := saga.Execute(context.Background())
+		require.NoError(t, err)
+		require.Len(t, res.Steps, 2)
+		require.Equal(t, "step0", res.Steps[0].StepName)
+		require.Equal(t, ExecutionStatusSuccess, res.Steps[0].Action.Status)
+		require.Equal(t, "", res.Steps[1].StepName)
+		require.Equal(t, ExecutionStatusUnset, res.Steps[1].Action.Status)
+	})
+
 	t.Run("success_compensation_on_step1", func(t *testing.T) {
 		var (
 			executedActions      []string
@@ -677,6 +704,95 @@ func Test_execute_context(t *testing.T) {
 			require.Equal(t, ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
 			require.ErrorIs(t, res.Steps[1].Action.Errors[0], ErrExecuteActionsContextDone)
 		})
+
+		t.Run("option_does_not_modify_original_saga", func(t *testing.T) {
+			type ctxKey struct{}
+
+			var (
+				compensationValues []any
+
+				steps = make([]Step, 2)
+			)
+
+			steps[0] = NewStep("step0").
+				WithAction(NewOperation(func(context.Context, Track) error {
+					return testtool.ErrExpTestA
+				})).
+				WithCompensation(NewOperation(func(ctx context.Context, _ Track) error {
+					compensationValues = append(compensationValues, ctx.Value(ctxKey{}))
+					return nil
+				})).
+				WithCompensationOnActionFailure()
+
+			original := NewSaga(steps)
+			derived := original.WithCompensationContext(func(ctx context.Context) context.Context {
+				return context.WithValue(ctx, ctxKey{}, "configured")
+			})
+			steps[1] =
+				NewStep("step1").
+					WithAction(NewOperation(func(context.Context, Track) error {
+						return nil
+					}))
+
+			_, err := original.Execute(context.Background())
+			require.Error(t, err)
+
+			_, err = derived.Execute(context.Background())
+			require.Error(t, err)
+
+			require.Len(t, compensationValues, 2)
+			require.True(t, compensationValues[0] == nil)
+			require.Equal(t, any("configured"), compensationValues[1])
+		})
+	})
+}
+
+func Test_Saga_Clone(t *testing.T) {
+	t.Run("copies_steps", func(t *testing.T) {
+		original := NewSaga([]Step{
+			NewStep("step0").
+				WithAction(NewOperation(func(context.Context, Track) error {
+					return nil
+				})),
+		})
+
+		clone := original.Clone()
+
+		// The clone must not observe changes to the original's steps.
+		original.steps[0] = NewStep("changed")
+		require.Equal(t, "step0", clone.steps[0].name)
+	})
+
+	t.Run("preserves_compensation_context", func(t *testing.T) {
+		type ctxKey struct{}
+
+		var compensationValue any
+		original := NewSaga([]Step{
+			NewStep("step0").
+				WithAction(NewOperation(func(context.Context, Track) error {
+					return testtool.ErrExpTestA
+				})).
+				WithCompensation(NewOperation(func(ctx context.Context, _ Track) error {
+					compensationValue = ctx.Value(ctxKey{})
+					return nil
+				})).
+				WithCompensationOnActionFailure(),
+		}).WithCompensationContext(func(ctx context.Context) context.Context {
+			return context.WithValue(ctx, ctxKey{}, "configured")
+		})
+
+		_, err := original.Clone().Execute(context.Background())
+		require.Error(t, err)
+		require.Equal(t, any("configured"), compensationValue)
+	})
+
+	t.Run("zero_value", func(t *testing.T) {
+		var saga Saga
+
+		res, err := saga.Execute(context.Background())
+		require.NoError(t, err)
+		require.Equal(t, StageResultSuccess, res.Status)
+		require.Len(t, res.Steps, 0)
 	})
 }
 
