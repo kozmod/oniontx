@@ -1,8 +1,6 @@
 .PHONY: tools
 tools: ## Run tools (vet, gofmt, goimports, tidy, etc.)
-	@go version
-	gofmt -w .
-	goimports -w .
+	@../../../scripts/fmt.sh
 	go mod tidy
 	go vet ./...
 

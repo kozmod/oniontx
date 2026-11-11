@@ -1,0 +1,8 @@
+.DS_Store
+.vs/
+.vscode/
+.idea/
+tmp/
+out/
+cover.out
+/bin

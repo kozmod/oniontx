@@ -1,15 +1,8 @@
 .PHONY: tools
 tools: ## Run tools (vet, gofmt, goimports, tidy, etc.)
-	@go version
-	gofmt -w .
-	goimports -w .
+	@../scripts/fmt.sh
 	go mod tidy
 	go vet ./...
-
-.PHONY: tools.update
-tools.update: ## Update or install tools
-	go install golang.org/x/tools/cmd/goimports@latest
-	go install github.com/vektra/mockery/v2@v2.40.1
 
 .PHONY: deps.update
 deps.update: ## Update dependencies versions
