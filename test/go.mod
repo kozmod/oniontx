@@ -1,6 +1,6 @@
 module github.com/kozmod/oniontx/test
 
-go 1.25.0
+go 1.27.4
 
 require (
 	github.com/gojuno/minimock/v3 v3.4.5

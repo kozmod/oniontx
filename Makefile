@@ -7,17 +7,16 @@ godoc: ## Install and run godoc
 
 .PHONY: tools
 tools: ## Run tools (vet, gofmt, goimports, tidy, etc.)
-	@go version
-	@(for sub in ${SUBMODULES} ; do \
-		pushd "$$sub" && gofmt -w . && goimports -w . && go mod tidy && GIT_TRACE=1 GIT_CURL_VERBOSE=1 go mod download -x && popd; \
-	done)
-	@go mod tidy
-	@GIT_TRACE=1 GIT_CURL_VERBOSE=1 go mod download -x
+#	@go version
+#	@(for sub in ${SUBMODULES} ; do \
+#		pushd "$$sub" && gofmt -w . && goimports -w . && go mod tidy && GIT_TRACE=1 GIT_CURL_VERBOSE=1 go mod download -x && popd; \
+#	done)
+#	@go mod tidy
+#	@GIT_TRACE=1 GIT_CURL_VERBOSE=1 go mod download -x
 
 .PHONY: tools.update
 tools.update: ## Update or install tools
 	@echo "available versions:"
-	@go list -m -versions github.com/golangci/golangci-lint/v2
 	@go list -m -versions golang.org/x/tools/cmd/goimports
 	@echo "install:"
 	go install golang.org/x/tools/cmd/goimports@latest
@@ -38,8 +37,7 @@ test.cover.all: ## Run tests with coverage (show all coverage)
 .PHONY: lint
 lint: ## Run `golangci-lint`
 	@go version
-	@golangci-lint --version
-	@golangci-lint run ./...
+	./scripts/lint.sh
 
 .PHONY: tags.list
 tags.list: ## List all exists 'git' tags
