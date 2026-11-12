@@ -396,6 +396,60 @@ func Test_Saga_panic_recovery(t *testing.T) {
 	})
 }
 
+func Test_Saga_Uncalled_Steps(t *testing.T) {
+	var (
+		ctx = context.Background()
+	)
+	t.Run("uncalled_steps_are_reported", func(t *testing.T) {
+		steps := []Step{
+			NewStep("step0").
+				WithAction(NewOperation(func(context.Context, Track) error {
+					return nil
+				})).
+				WithCompensation(NewOperation(func(context.Context, Track) error {
+					return nil
+				})),
+			NewStep("step1").
+				WithAction(NewOperation(func(context.Context, Track) error {
+					return testtool.ErrExpTestA
+				})),
+			NewStep("step2").
+				WithAction(NewOperation(func(context.Context, Track) error {
+					t.Fatal("should not have been called")
+					return nil
+				})).
+				WithCompensation(NewOperation(func(context.Context, Track) error {
+					return nil
+				})),
+			NewStep("step3").
+				WithAction(NewOperation(func(context.Context, Track) error {
+					t.Fatal("should not have been called")
+					return nil
+				})),
+		}
+
+		res, err := NewSaga(steps).Execute(ctx)
+		require.Error(t, err)
+		require.Equal(t, StageResultCompensated, res.Status)
+		require.Len(t, res.Steps, 4)
+
+		// step2 has both operations configured but was not reached.
+		require.Equal(t, "step2", res.Steps[2].StepName)
+		require.Equal(t, 2, res.Steps[2].StepPosition)
+		require.Equal(t, ExecutionStatusUncalled, res.Steps[2].Action.Status)
+		require.Equal(t, 0, res.Steps[2].Action.Calls)
+		require.Equal(t, ExecutionStatusUncalled, res.Steps[2].Compensation.Status)
+		require.Equal(t, 0, res.Steps[2].Compensation.Calls)
+
+		// step3 has no compensation configured.
+		require.Equal(t, "step3", res.Steps[3].StepName)
+		require.Equal(t, 3, res.Steps[3].StepPosition)
+		require.Equal(t, ExecutionStatusUncalled, res.Steps[3].Action.Status)
+		require.Equal(t, 0, res.Steps[3].Action.Calls)
+		require.Equal(t, ExecutionStatusUnset, res.Steps[3].Compensation.Status)
+	})
+}
+
 func Test_actions_v2(t *testing.T) {
 	var (
 		ctx = context.Background()

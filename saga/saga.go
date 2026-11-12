@@ -94,23 +94,24 @@ func (s Saga) Clone() Saga {
 
 // Execute runs all Saga steps.
 //
-// If any step fails, compensations are triggered for completed steps in reverse order.
+// The returned Result contains every configured step.
 func (s Saga) Execute(ctx context.Context) (Result, error) {
 	var (
-		tracks         []*simpleTracker
+		tracks         = make([]*simpleTracker, len(s.steps))
 		completedTrack []*simpleTracker
 	)
 
-stop:
 	for i, step := range s.steps {
-		tr := newInMemoryTrack(uint32(i), step)
+		tracks[i] = newInMemoryTrack(uint32(i), step)
+	}
 
-		tracks = append(tracks, tr)
+stop:
+	for i, tr := range tracks {
 		select {
 		case <-ctx.Done():
 			tr.action.apply(
 				newTrackFailedAct(
-					fmt.Errorf("action failed [%d#%s]: %w", i, tr.stepName,
+					fmt.Errorf("action failed [%d#%s]: %w", i, tr.step.name,
 						errors.Join(ErrExecuteActionsContextDone, ctx.Err()),
 					),
 				),
@@ -118,15 +119,15 @@ stop:
 			s.compensate(ctx, completedTrack)
 			break stop
 		default:
-			if step.action.fn == nil {
+			if tr.step.action.fn == nil {
 				continue
 			}
 
-			if step.compensateOnActionFailure {
+			if tr.step.compensateOnActionFailure {
 				completedTrack = append(completedTrack, tr)
 			}
 
-			err := step.action.fn(ctx, tr.action)
+			err := tr.step.action.fn(ctx, tr.action)
 
 			switch status := tr.action.GetTrackData().Status; {
 			case err != nil || status == ExecutionStatusFail:
@@ -134,7 +135,7 @@ stop:
 					err = errors.Join(ErrActionFailed, err)
 					tr.action.apply(
 						newTrackFailedAct(
-							fmt.Errorf("action failed [%d#%s]: %w", i, tr.stepName, err),
+							fmt.Errorf("action failed [%d#%s]: %w", i, tr.step.name, err),
 						),
 					)
 				}
@@ -147,7 +148,7 @@ stop:
 				}
 			}
 
-			if !step.compensateOnActionFailure {
+			if !tr.step.compensateOnActionFailure {
 				completedTrack = append(completedTrack, tr)
 			}
 		}
@@ -164,10 +165,10 @@ func (s Saga) compensate(ctx context.Context, tracks []*simpleTracker) {
 stop:
 	for i := len(tracks) - 1; i >= 0; i-- {
 		tr := tracks[i]
-		if tr.compensationFunc == nil {
-			if tr.compensateOnActionFailure {
+		if tr.step.compensation.fn == nil {
+			if tr.step.compensateOnActionFailure {
 				tr.compensation.apply(newTrackFailedAct(
-					fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.stepName, ErrCompensationNotConfigured),
+					fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.step.name, ErrCompensationNotConfigured),
 				))
 			}
 			continue
@@ -175,17 +176,17 @@ stop:
 		select {
 		case <-ctx.Done():
 			tr.compensation.apply(newTrackFailedAct(
-				fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.stepName,
+				fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.step.name,
 					errors.Join(ErrExecuteCompensationContextDone, ctx.Err()),
 				),
 			))
 
 			break stop
 		default:
-			err := tr.compensationFunc(ctx, tr.compensation)
+			err := tr.step.compensation.fn(ctx, tr.compensation)
 			if err != nil {
 				tr.compensation.apply(newTrackFailedAct(
-					fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.stepName, err),
+					fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.step.name, err),
 				))
 			} else if tr.compensation.GetTrackData().Status != ExecutionStatusSuccess {
 				tr.compensation.apply(newTrackSucceededAct())
