@@ -190,23 +190,18 @@ func (ed *executionRetryTrack) apply(act trackAct) {
 
 // simpleTracker manages the execution state for a single saga step.
 type simpleTracker struct {
-	stepName     string
+	step         Step
 	stepPosition uint32
 
 	action       mutableTrack
 	compensation mutableTrack
-
-	compensationFunc          OperationFunc
-	compensateOnActionFailure bool
 }
 
 // newInMemoryTrack creates a new simpleTracker for a given step.
 func newInMemoryTrack(position uint32, step Step) *simpleTracker {
 	tracker := &simpleTracker{
-		stepName:                  step.name,
-		stepPosition:              position,
-		compensationFunc:          step.compensation.fn,
-		compensateOnActionFailure: step.compensateOnActionFailure,
+		step:         step,
+		stepPosition: position,
 	}
 
 	actionStatus := ExecutionStatusUncalled
@@ -227,10 +222,10 @@ func newInMemoryTrack(position uint32, step Step) *simpleTracker {
 // GetStepData returns a snapshot of the current step state.
 func (t *simpleTracker) GetStepData() StepData {
 	return StepData{
-		StepName:                    t.stepName,
+		StepName:                    t.step.name,
 		StepPosition:                t.stepPosition,
 		Action:                      t.action.GetTrackData(),
 		Compensation:                t.compensation.GetTrackData(),
-		CompensationOnActionFailure: t.compensateOnActionFailure,
+		CompensationOnActionFailure: t.step.compensateOnActionFailure,
 	}
 }
