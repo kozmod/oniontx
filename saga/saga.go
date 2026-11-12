@@ -14,9 +14,10 @@ var (
 	// in a workflow cannot be completed successfully.
 	ErrActionFailed = fmt.Errorf("action failed")
 
-	// ErrCompensationFailed indicates that a compensation operation has failed.
-	// This error is returned when trying to undo a previously
-	// completed action, and the compensation logic itself encounters an error.
+	// ErrCompensationFailed indicates that a required compensation did not
+	// complete successfully. This includes an operation error, cancellation
+	// before invocation, or missing compensation for a failed action configured
+	// with WithCompensationOnActionFailure.
 	ErrCompensationFailed = fmt.Errorf("compensation failed")
 
 	// ErrPanicRecovered is returned when a panic is recovered and converted to an error.
@@ -94,35 +95,37 @@ func (s Saga) Clone() Saga {
 
 // Execute runs all Saga steps.
 //
-// The returned Result contains every configured step.
+// The returned Result contains every configured step and the complete error history.
+// A non-nil error wraps failure categories and the terminal causes of failed
+// operations or interrupted execution. Errors from successful retries remain
+// available through Result.Errors and do not cause Execute to return an error.
 func (s Saga) Execute(ctx context.Context) (Result, error) {
 	var (
-		tracks         = make([]*simpleTracker, len(s.steps))
+		track = sagaTrack{
+			tracks: make([]*simpleTracker, len(s.steps)),
+		}
 		completedTrack []*simpleTracker
 	)
 
 	for i, step := range s.steps {
-		tracks[i] = newInMemoryTrack(uint32(i), step)
+		track.tracks[i] = newInMemoryTrack(uint32(i), step)
 	}
 
 stop:
-	for i, tr := range tracks {
+	for i, tr := range track.tracks {
+		if tr.step.action.fn == nil {
+			continue
+		}
 		select {
 		case <-ctx.Done():
-			tr.action.apply(
-				newTrackFailedAct(
-					fmt.Errorf("action failed [%d#%s]: %w", i, tr.step.name,
-						errors.Join(ErrExecuteActionsContextDone, ctx.Err()),
-					),
-				),
+			track.err = fmt.Errorf(
+				"execution failed [%d#%s]: %w", i, tr.step.name,
+				errors.Join(ErrExecuteActionsContextDone, ctx.Err()),
 			)
-			s.compensate(ctx, completedTrack)
+			track.compensating = true
+			track.err = errors.Join(track.err, s.compensate(ctx, completedTrack))
 			break stop
 		default:
-			if tr.step.action.fn == nil {
-				continue
-			}
-
 			if tr.step.compensateOnActionFailure {
 				completedTrack = append(completedTrack, tr)
 			}
@@ -140,7 +143,8 @@ stop:
 					)
 				}
 				// Run compensation when an action error arises.
-				s.compensate(ctx, completedTrack)
+				track.compensating = true
+				track.err = errors.Join(track.err, s.compensate(ctx, completedTrack))
 				break stop
 			default:
 				if status != ExecutionStatusSuccess {
@@ -154,43 +158,39 @@ stop:
 		}
 	}
 
-	result, err := prepareResult(tracks)
+	result, err := prepareResult(track)
 	return result, err
 }
 
 // compensate triggers compensation operations in reverse completion order.
-func (s Saga) compensate(ctx context.Context, tracks []*simpleTracker) {
-	ctx = s.compensationContextFactory.Apply(ctx)
+func (s Saga) compensate(ctx context.Context, tracks []*simpleTracker) error {
+	compensationCtx := s.compensationContextFactory.Apply(ctx)
 
-stop:
 	for i := len(tracks) - 1; i >= 0; i-- {
 		tr := tracks[i]
+		position := tr.stepPosition
 		if tr.step.compensation.fn == nil {
-			if tr.step.compensateOnActionFailure {
+			if tr.step.compensateOnActionFailure && tr.action.GetTrackData().Status == ExecutionStatusFail {
 				tr.compensation.apply(newTrackFailedAct(
-					fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.step.name, ErrCompensationNotConfigured),
+					fmt.Errorf("compensation failed [%d#%s]: %w", position, tr.step.name, ErrCompensationNotConfigured),
 				))
 			}
 			continue
 		}
 		select {
-		case <-ctx.Done():
-			tr.compensation.apply(newTrackFailedAct(
-				fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.step.name,
-					errors.Join(ErrExecuteCompensationContextDone, ctx.Err()),
-				),
-			))
-
-			break stop
+		case <-compensationCtx.Done():
+			return fmt.Errorf("compensation interrupted [%d#%s]: %w", position, tr.step.name,
+				errors.Join(ErrExecuteCompensationContextDone, compensationCtx.Err()))
 		default:
-			err := tr.step.compensation.fn(ctx, tr.compensation)
+			err := tr.step.compensation.fn(compensationCtx, tr.compensation)
 			if err != nil {
 				tr.compensation.apply(newTrackFailedAct(
-					fmt.Errorf("compensation failed [%d#%s]: %w", i, tr.step.name, err),
+					fmt.Errorf("compensation failed [%d#%s]: %w", position, tr.step.name, err),
 				))
 			} else if tr.compensation.GetTrackData().Status != ExecutionStatusSuccess {
 				tr.compensation.apply(newTrackSucceededAct())
 			}
 		}
 	}
+	return nil
 }

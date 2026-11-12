@@ -87,6 +87,11 @@ func (o Operation) WithRetry(policy RetryPolicy) Operation {
 // WithBeforeHook adds a before-hook to the Operation.
 // The hook executes before the wrapped operation. If the hook returns an error,
 // the wrapped operation is skipped and the hook error becomes the operation error.
+// If the error remains the final operation error after any retries, the Saga
+// marks the operation as failed even if its main function was never called
+// (TrackData.Calls == 0). For an action configured with
+// [Step.WithCompensationOnActionFailure], this final failure also requires compensation.
+// A successful retry clears the failure status and does not trigger compensation.
 // Returns a new Operation with the before-hook applied.
 //
 // Use cases:

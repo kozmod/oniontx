@@ -29,7 +29,12 @@ func Benchmark_PrepareResult(b *testing.B) {
 				b.ReportAllocs()
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {
-					benchmarkPrepareResultResult, benchmarkPrepareResultErr = prepareResult(tracks)
+					benchmarkPrepareResultResult, benchmarkPrepareResultErr = prepareResult(
+						sagaTrack{
+							tracks:       tracks,
+							compensating: scenario.compensated,
+						},
+					)
 				}
 			})
 		}
