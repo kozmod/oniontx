@@ -6,7 +6,7 @@ require (
 	github.com/gojuno/minimock/v3 v3.4.5
 	github.com/jackc/pgx/v5 v5.12.0
 	github.com/jmoiron/sqlx v1.4.0
-	github.com/kozmod/oniontx v0.9.2
+	github.com/kozmod/oniontx v0.11.2
 	github.com/lib/pq v1.10.9
 	github.com/pkg/errors v0.9.1
 	github.com/redis/go-redis/v9 v9.7.3
