@@ -6,13 +6,15 @@ import (
 	"strings"
 )
 
-// ExecutionStatus represents the current state of an action or compensation execution.
+// ExecutionStatus represents the current state of an action or compensation
+// operation, including its hooks and decorators.
 type ExecutionStatus string
 
 const (
 	// ExecutionStatusSuccess indicates the operation completed successfully.
 	ExecutionStatusSuccess ExecutionStatus = "Success"
-	// ExecutionStatusFail indicates the operation failed.
+	// ExecutionStatusFail indicates the operation failed, including a failure in
+	// a before-hook that prevented the main function from being called.
 	ExecutionStatusFail ExecutionStatus = "Fail"
 	// ExecutionStatusUncalled indicates the operation has not been invoked.
 	ExecutionStatusUncalled ExecutionStatus = "Uncalled"
@@ -36,6 +38,12 @@ type (
 	mutableTrack interface {
 		Track
 		apply(trackAct)
+	}
+
+	sagaTrack struct {
+		tracks       []*simpleTracker
+		err          error
+		compensating bool
 	}
 )
 
@@ -77,8 +85,14 @@ func (s StepData) string(errorsInTrackDataString bool) string {
 
 // TrackData contains execution metrics for a single operation snapshot.
 type TrackData struct {
+	// Calls counts invocations of the main function, including retry attempts.
+	// Hooks do not increment this counter. A before-hook failure can therefore
+	// produce ExecutionStatusFail with Calls == 0.
 	Calls  uint32
 	Errors []error
+
+	// Status describes the whole operation, including hooks and decorators.
+	// Calls == 0 alone does not imply ExecutionStatusUncalled.
 	Status ExecutionStatus
 }
 

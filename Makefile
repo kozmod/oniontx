@@ -1,9 +1,6 @@
-SUBMODULES=test
-
-.PHONY: godoc
-godoc: ## Install and run godoc
-	go install golang.org/x/tools/cmd/godoc@latest
-	godoc -http=:6060
+.PHONY: pkgsite
+pkgsite: ## Run local docs (ARGS=update to update pkgsite)
+	@./scripts/pkgsite.sh $(ARGS)
 
 .PHONY: fmt
 fmt: ## Run tools (gofmt, goimports, etc.)

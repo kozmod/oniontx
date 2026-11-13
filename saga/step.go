@@ -41,6 +41,11 @@ func (s Step) WithCompensation(op Operation) Step {
 // WithCompensationOnActionFailure enables compensation for this step even if
 // its own action fails. Without this flag, only successfully completed steps
 // are considered for compensation.
+//
+// Action failure includes a before-hook error, even when the main function was
+// never called (TrackData.Calls == 0); the hook may itself have side effects.
+// An action left Uncalled because execution stopped before entering the operation
+// does not require compensation.
 func (s Step) WithCompensationOnActionFailure() Step {
 	s.compensateOnActionFailure = true
 	return s

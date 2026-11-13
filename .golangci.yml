@@ -64,6 +64,9 @@ linters:
       - tmp
       - .github
     rules:
+      - path: '_test\.go$'
+        linters:
+          - goconst
       # _ instead of err checks
       - path: ".*"
         text: G104

@@ -548,9 +548,10 @@ func Test_execute_context(t *testing.T) {
 
 		require.Equal(t, "step3", res.Steps[3].StepName)
 		require.Equal(t, 3, res.Steps[3].StepPosition)
-		require.Equal(t, ExecutionStatusFail, res.Steps[3].Action.Status)
-		require.Equal(t, 1, len(res.Steps[3].Action.Errors))
-		require.ErrorIs(t, res.Steps[3].Action.Errors[0], ErrExecuteActionsContextDone)
+		require.Equal(t, ExecutionStatusUncalled, res.Steps[3].Action.Status)
+		require.Equal(t, 0, len(res.Steps[3].Action.Errors))
+		require.ErrorIs(t, err, ErrExecuteActionsContextDone)
+		require.ErrorIs(t, err, context.Canceled)
 		require.Equal(t, ExecutionStatusUnset, res.Steps[3].Compensation.Status)
 		require.Equal(t, 0, len(res.Steps[3].Compensation.Errors))
 		require.Equal(t, false, res.Steps[3].CompensationOnActionFailure)
@@ -618,10 +619,11 @@ func Test_execute_context(t *testing.T) {
 		require.Equal(t, 1, res.Steps[0].Action.Calls)
 		require.Equal(t, 1, len(res.Steps[0].Action.Errors))
 		require.ErrorIs(t, res.Steps[0].Action.Errors[0], testtool.ErrExpTestA)
-		require.Equal(t, ExecutionStatusFail, res.Steps[0].Compensation.Status)
+		require.Equal(t, ExecutionStatusUncalled, res.Steps[0].Compensation.Status)
 		require.Equal(t, 0, res.Steps[0].Compensation.Calls)
-		require.Equal(t, 1, len(res.Steps[0].Compensation.Errors))
-		require.ErrorIs(t, res.Steps[0].Compensation.Errors[0], ErrExecuteCompensationContextDone)
+		require.Equal(t, 0, len(res.Steps[0].Compensation.Errors))
+		require.ErrorIs(t, err, ErrExecuteCompensationContextDone)
+		require.ErrorIs(t, err, context.Canceled)
 	})
 
 	t.Run("with_compensation_context", func(t *testing.T) {
@@ -756,7 +758,9 @@ func Test_execute_context(t *testing.T) {
 			require.Equal(t, StageResultCompensated, res.Status)
 			require.True(t, compensationCalled)
 			require.Equal(t, ExecutionStatusSuccess, res.Steps[0].Compensation.Status)
-			require.ErrorIs(t, res.Steps[1].Action.Errors[0], ErrExecuteActionsContextDone)
+			require.Equal(t, ExecutionStatusUncalled, res.Steps[1].Action.Status)
+			require.Len(t, res.Steps[1].Action.Errors, 0)
+			require.ErrorIs(t, err, ErrExecuteActionsContextDone)
 		})
 
 		t.Run("option_does_not_modify_original_saga", func(t *testing.T) {
