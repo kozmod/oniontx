@@ -87,11 +87,13 @@ func Test_Saga_retry(t *testing.T) {
 								return testtool.ErrExpTestA
 							}
 							return nil
-						}).WithRetry(NewBaseRetryPolicy(3, time.Nanosecond)),
+						}).
+							WithRetry(NewBaseRetryPolicy(3, time.Nanosecond)),
 					),
 			}
 
-			resp, err := NewSaga(steps).Execute(ctx)
+			resp, err := NewSaga(steps).
+				Execute(ctx)
 			require.NoError(t, err)
 			require.Equal(t, StageResultSuccess, resp.Status)
 			require.Equal(t, 3, actionCalls)
@@ -118,13 +120,15 @@ func Test_Saga_retry(t *testing.T) {
 									return testtool.ErrExpTestA
 								}
 								return nil
-							}).WithRetry(
-								NewBaseRetryPolicy(3, time.Nanosecond),
-							),
+							}).
+								WithRetry(
+									NewBaseRetryPolicy(3, time.Nanosecond),
+								),
 						),
 				}
 
-				resp, err := NewSaga(steps).Execute(ctx)
+				resp, err := NewSaga(steps).
+					Execute(ctx)
 				require.NoError(t, err)
 				require.Equal(t, StageResultSuccess, resp.Status)
 				require.Equal(t, 3, actionCalls)
@@ -157,14 +161,16 @@ func Test_Saga_retry(t *testing.T) {
 									return testtool.ErrExpTestA
 								}
 								return nil
-							}).WithRetry(
-								NewBaseRetryPolicy(3, time.Nanosecond),
-							),
+							}).
+								WithRetry(
+									NewBaseRetryPolicy(3, time.Nanosecond),
+								),
 						).
 						WithCompensationOnActionFailure(),
 				}
 
-				resp, err := NewSaga(steps).Execute(ctx)
+				resp, err := NewSaga(steps).
+					Execute(ctx)
 				require.Error(t, err)
 				require.Equal(t, StageResultCompensated, resp.Status)
 				require.Equal(t, 1, actionCalls)
@@ -187,11 +193,13 @@ func Test_Saga_retry(t *testing.T) {
 							cancel()
 						}
 						return testtool.ErrExpTestA
-					}).WithRetry(NewBaseRetryPolicy(3, time.Hour)),
+					}).
+						WithRetry(NewBaseRetryPolicy(3, time.Hour)),
 				),
 		}
 
-		resp, err := NewSaga(steps).Execute(ctx)
+		resp, err := NewSaga(steps).
+			Execute(ctx)
 		require.Error(t, err)
 		require.Equal(t, StageResultFail, resp.Status)
 		require.Equal(t, 1, actionCalls)
@@ -254,4 +262,65 @@ func Test_waitRetryDelay(t *testing.T) {
 
 		require.NoError(t, err)
 	})
+}
+
+func Test_WithRetry_zero_retries_records_failure(t *testing.T) {
+	var (
+		track = newExecutionTrack(nil, ExecutionStatusUncalled)
+		fn    = wrapCall(func(context.Context, Track) error {
+			return testtool.ErrExpTestA
+		})
+		err = WithRetry(NewBaseRetryPolicy(0, 0), fn)(context.Background(), track)
+	)
+	require.Equal(t, testtool.ErrExpTestA, err)
+	require.ErrorIsNot(t, err, ErrRetryFailed)
+
+	data := track.GetTrackData()
+	require.Equal(t, ExecutionStatusFail, data.Status)
+	require.Equal(t, 1, data.Calls)
+	require.Len(t, data.Errors, 1)
+	require.ErrorIs(t, data.Errors[0], testtool.ErrExpTestA)
+}
+
+func Test_WithRetry_context_done_before_initial_call(t *testing.T) {
+	for _, deadlineCase := range []struct {
+		name     string
+		deadline bool
+	}{
+		{
+			name:     "canceled",
+			deadline: false,
+		},
+		{
+			name:     "deadline",
+			deadline: true,
+		},
+	} {
+		t.Run(deadlineCase.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			expected := context.Canceled
+			switch {
+			case deadlineCase.deadline:
+				cancel()
+				ctx, cancel = context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+				expected = context.DeadlineExceeded
+			}
+			cancel()
+			for _, attempts := range []uint32{0, 1} {
+				track := newExecutionTrack(nil, ExecutionStatusUncalled)
+				fn := wrapCall(func(context.Context, Track) error {
+					t.Fatal("initial call must not run")
+					return nil
+				})
+				err := WithRetry(NewBaseRetryPolicy(attempts, 0), fn)(ctx, track)
+				require.ErrorIs(t, err, expected)
+				require.ErrorIs(t, err, ErrRetryContextDone)
+				require.ErrorIsNot(t, err, ErrRetryFailed)
+				data := track.GetTrackData()
+				require.Equal(t, ExecutionStatusUncalled, data.Status)
+				require.Equal(t, 0, data.Calls)
+				require.Len(t, data.Errors, 0)
+			}
+		})
+	}
 }

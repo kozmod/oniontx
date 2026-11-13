@@ -81,7 +81,8 @@ func Test_SagaExecute_preservesExecutionErrors(t *testing.T) {
 		}
 	)
 
-	res, err := NewSaga(steps).Execute(context.Background())
+	res, err := NewSaga(steps).
+		Execute(context.Background())
 	require.NotNil(t, res)
 	require.NotNil(t, res.Status)
 	require.Equal(t, StageResultFail, res.Status)
@@ -119,7 +120,8 @@ func Test_SagaExecute_actionFailureWithoutCompensation(t *testing.T) {
 			})),
 	}
 
-	res, err := NewSaga(steps).Execute(context.Background())
+	res, err := NewSaga(steps).
+		Execute(context.Background())
 	require.NotNil(t, res)
 	require.Equal(t, StageResultFail, res.Status)
 	require.ErrorIs(t, err, ErrActionFailed)
@@ -132,7 +134,7 @@ func Test_Saga_Execute_Cancellation_Inside_Operation(t *testing.T) {
 		condition bool
 	}{
 		{
-			name:      "success",
+			name:      "action",
 			condition: false,
 		},
 		{
@@ -149,13 +151,17 @@ func Test_Saga_Execute_Cancellation_Inside_Operation(t *testing.T) {
 			})
 			step := NewStep("step").
 				WithAction(canceledOperation)
-			if compensationCase.condition {
+			switch {
+			case compensationCase.condition:
 				step = NewStep("step").
 					WithAction(NewOperation(func(context.Context, Track) error {
 						return testtool.ErrExpTestA
-					})).WithCompensation(canceledOperation).WithCompensationOnActionFailure()
+					})).
+					WithCompensation(canceledOperation).
+					WithCompensationOnActionFailure()
 			}
-			result, err := NewSaga([]Step{step}).Execute(ctx)
+			result, err := NewSaga([]Step{step}).
+				Execute(ctx)
 			require.Equal(t, StageResultFail, result.Status)
 			require.ErrorIs(t, err, context.Canceled)
 			require.ErrorIs(t, err, ErrActionFailed)
@@ -197,10 +203,12 @@ func Test_Saga_Execute_Successful_Retry_Errors_Stay_In_History(t *testing.T) {
 							return testtool.ErrExpTestA
 						}
 						return nil
-					}).WithRetry(NewBaseRetryPolicy(1, 0))).
+					}).
+						WithRetry(NewBaseRetryPolicy(1, 0))).
 					WithCompensation(NewOperation(nil)),
 			}
-			if failNextCase.failNext {
+			switch {
+			case failNextCase.failNext:
 				steps = append(steps,
 					NewStep("failed").
 						WithAction(NewOperation(func(context.Context, Track) error {
@@ -208,7 +216,8 @@ func Test_Saga_Execute_Successful_Retry_Errors_Stay_In_History(t *testing.T) {
 						})),
 				)
 			}
-			result, err := NewSaga(steps).Execute(context.Background())
+			result, err := NewSaga(steps).
+				Execute(context.Background())
 			require.Equal(t, 2, calls)
 			require.True(t, slices.ContainsFunc(result.Errors(), func(err error) bool {
 				return errors.Is(err, testtool.ErrExpTestA)
@@ -232,10 +241,11 @@ func Test_Saga_Execute_Successful_Retry_Errors_Stay_In_History(t *testing.T) {
 func Test_Saga_Execute_Successful_Compensation_Retry(t *testing.T) {
 	calls := 0
 	result, err := NewSaga([]Step{
-		NewStep("step").WithAction(
-			NewOperation(func(context.Context, Track) error {
-				return testtool.ErrExpTestA
-			})).
+		NewStep("step").
+			WithAction(
+				NewOperation(func(context.Context, Track) error {
+					return testtool.ErrExpTestA
+				})).
 			WithCompensation(
 				NewOperation(func(context.Context, Track) error {
 					calls++
@@ -243,8 +253,11 @@ func Test_Saga_Execute_Successful_Compensation_Retry(t *testing.T) {
 						return testtool.ErrExpTestB
 					}
 					return nil
-				}).WithRetry(NewBaseRetryPolicy(1, 0))).WithCompensationOnActionFailure(),
+				}).
+					WithRetry(NewBaseRetryPolicy(1, 0))).
+			WithCompensationOnActionFailure(),
 	}).Execute(context.Background())
+	require.NotNil(t, result)
 	require.Equal(t, StageResultCompensated, result.Status)
 	require.ErrorIs(t, err, testtool.ErrExpTestA)
 	require.ErrorIsNot(t, err, testtool.ErrExpTestB)
@@ -270,7 +283,7 @@ func Test_Result_String_Includes_Execution_Interruption(t *testing.T) {
 }
 
 func Test_Saga_Successful_Action_Does_Not_Require_Missing_Compensation(t *testing.T) {
-	for _, fcanceledCase := range []struct {
+	for _, canceledCase := range []struct {
 		name     string
 		canceled bool
 	}{
@@ -283,20 +296,23 @@ func Test_Saga_Successful_Action_Does_Not_Require_Missing_Compensation(t *testin
 			canceled: true,
 		},
 	} {
-		t.Run(fcanceledCase.name, func(t *testing.T) {
+		t.Run(canceledCase.name, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			result, err := NewSaga([]Step{
 				NewStep("completed").
 					WithAction(NewOperation(func(context.Context, Track) error {
-						if fcanceledCase.canceled {
+						switch {
+						case canceledCase.canceled:
 							cancel()
 						}
 						return nil
-					})).WithCompensationOnActionFailure(),
+					})).
+					WithCompensationOnActionFailure(),
 				NewStep("next").
 					WithAction(NewOperation(func(context.Context, Track) error {
-						if fcanceledCase.canceled {
+						switch {
+						case canceledCase.canceled:
 							t.Fatal("action must not run after cancellation")
 						}
 						return testtool.ErrExpTestA
@@ -310,7 +326,7 @@ func Test_Saga_Successful_Action_Does_Not_Require_Missing_Compensation(t *testin
 			require.Len(t, result.Steps[0].Compensation.Errors, 0)
 
 			switch {
-			case fcanceledCase.canceled:
+			case canceledCase.canceled:
 				require.ErrorIs(t, err, context.Canceled)
 				require.ErrorIs(t, err, ErrExecuteActionsContextDone)
 				require.ErrorIsNot(t, err, ErrActionFailed)

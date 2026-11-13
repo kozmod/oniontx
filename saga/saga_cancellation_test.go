@@ -11,15 +11,24 @@ import (
 )
 
 func Test_Saga_Cancellation_Before_Action(t *testing.T) {
-	for _, deadline := range []bool{false, true} {
-		name := "canceled"
-		if deadline {
-			name = "deadline"
-		}
-		t.Run(name, func(t *testing.T) {
+	for _, deadlineCase := range []struct {
+		name     string
+		deadline bool
+	}{
+		{
+			name:     "canceled",
+			deadline: false,
+		},
+		{
+			name:     "deadline",
+			deadline: true,
+		},
+	} {
+		t.Run(deadlineCase.name, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			expected := context.Canceled
-			if deadline {
+			switch {
+			case deadlineCase.deadline:
 				cancel()
 				ctx, cancel = context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
 				expected = context.DeadlineExceeded
@@ -30,9 +39,15 @@ func Test_Saga_Cancellation_Before_Action(t *testing.T) {
 				return nil
 			})
 			result, err := NewSaga([]Step{
-				NewStep("skipped").WithAction(unexpected).WithCompensation(unexpected).WithCompensationOnActionFailure(),
-				NewStep("future").WithAction(unexpected).WithCompensation(unexpected),
-			}).Execute(ctx)
+				NewStep("skipped").
+					WithAction(unexpected).
+					WithCompensation(unexpected).
+					WithCompensationOnActionFailure(),
+				NewStep("future").
+					WithAction(unexpected).
+					WithCompensation(unexpected),
+			}).
+				Execute(ctx)
 			require.Equal(t, StageResultFail, result.Status)
 			require.ErrorIs(t, err, expected)
 			require.ErrorIs(t, err, ErrExecuteActionsContextDone)
@@ -55,22 +70,41 @@ func Test_Saga_Cancellation_Before_Action(t *testing.T) {
 func Test_Saga_Compensation_Context_Stops_Rollback(t *testing.T) {
 	compensationCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	actionErr := errors.New("action failed")
-	var calls []string
-	compensation := func(name string) Operation {
-		return NewOperation(func(ctx context.Context, _ Track) error {
-			require.Equal(t, compensationCtx, ctx)
-			calls = append(calls, name)
-			cancel()
-			return nil
-		})
-	}
+
+	var (
+		actionErr = errors.New("action failed")
+		calls     []string
+
+		compensation = func(name string) Operation {
+			return NewOperation(func(ctx context.Context, _ Track) error {
+				require.Equal(t, compensationCtx, ctx)
+				calls = append(calls, name)
+				cancel()
+				return nil
+			})
+		}
+	)
+
 	result, err := NewSaga([]Step{
-		NewStep("first").WithAction(NewOperation(nil)).WithCompensation(compensation("first")),
-		NewStep("second").WithAction(NewOperation(nil)).WithCompensation(compensation("second")),
-		NewStep("failed").WithAction(NewOperation(func(context.Context, Track) error { return actionErr })),
-		NewStep("future").WithAction(NewOperation(nil)).WithCompensation(compensation("future")).WithCompensationOnActionFailure(),
-	}).WithCompensationContext(func(context.Context) context.Context { return compensationCtx }).Execute(context.Background())
+		NewStep("first").
+			WithAction(NewOperation(nil)).
+			WithCompensation(compensation("first")),
+		NewStep("second").
+			WithAction(NewOperation(nil)).
+			WithCompensation(compensation("second")),
+		NewStep("failed").
+			WithAction(NewOperation(func(context.Context, Track) error {
+				return actionErr
+			})),
+		NewStep("future").
+			WithAction(NewOperation(nil)).
+			WithCompensation(compensation("future")).
+			WithCompensationOnActionFailure(),
+	}).
+		WithCompensationContext(func(context.Context) context.Context {
+			return compensationCtx
+		}).
+		Execute(context.Background())
 	require.Equal(t, StageResultFail, result.Status)
 	require.True(t, slices.Equal([]string{"second"}, calls))
 	require.ErrorIs(t, err, ErrActionFailed)
@@ -84,33 +118,46 @@ func Test_Saga_Compensation_Context_Stops_Rollback(t *testing.T) {
 }
 
 func Test_Saga_Cancellation_Ignores_Unset_Actions(t *testing.T) {
-	for _, withAction := range []bool{false, true} {
-		name := "only_unset"
-		if withAction {
-			name = "unset_after_completed_action"
-		}
-		t.Run(name, func(t *testing.T) {
+	for _, actionCase := range []struct {
+		name       string
+		withAction bool
+	}{
+		{
+			name:       "only_unset",
+			withAction: false,
+		},
+		{
+			name:       "unset_after_completed_action",
+			withAction: true,
+		},
+	} {
+		t.Run(actionCase.name, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			var steps []Step
-			if withAction {
-				steps = append(steps, NewStep("completed").WithAction(NewOperation(func(context.Context, Track) error {
-					cancel()
-					return nil
-				})).WithCompensation(NewOperation(func(context.Context, Track) error {
-					t.Fatal("completed workflow must not be compensated")
-					return nil
-				})))
-			} else {
+			switch {
+			case actionCase.withAction:
+				steps = append(steps, NewStep("completed").
+					WithAction(NewOperation(func(context.Context, Track) error {
+						cancel()
+						return nil
+					})).
+					WithCompensation(NewOperation(func(context.Context, Track) error {
+						t.Fatal("completed workflow must not be compensated")
+						return nil
+					})))
+			default:
 				cancel()
 			}
 			steps = append(steps, NewStep("unset"), NewStep("another unset"))
-			result, err := NewSaga(steps).Execute(ctx)
+			result, err := NewSaga(steps).
+				Execute(ctx)
 			require.NoError(t, err)
 			require.Equal(t, StageResultSuccess, result.Status)
 			require.Len(t, result.Errors(), 0)
 			require.Equal(t, ExecutionStatusUnset, result.Steps[len(steps)-1].Action.Status)
-			if withAction {
+			switch {
+			case actionCase.withAction:
 				require.Equal(t, ExecutionStatusSuccess, result.Steps[0].Action.Status)
 				require.Equal(t, ExecutionStatusUncalled, result.Steps[0].Compensation.Status)
 			}
