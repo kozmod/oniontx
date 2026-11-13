@@ -153,9 +153,9 @@ steps := []saga.Step{
                 err := fmt.Errorf("first_step_Error")
                 return err
             }).
-                // Protection against panics — important for production!
-                // If the action panics, the panic will be caught
-                // and returned as an error with ErrPanicRecovered
+                // Recover inside retry so a panic can be retried as an error.
+                // Saga.WithPanicRecovery(true) can recover around the complete
+                // operation without retrying the panic. It is disabled by default.
                 WithPanicRecovery().
                 // Add retry for action
                 WithRetry(
@@ -205,6 +205,10 @@ ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 defer cancel()
 
 result, err := saga.NewSaga(steps).
+    // Recover action and compensation panics as ErrPanicRecovered errors.
+    // Disabled by default. Unlike operation-level recovery inside retry,
+    // saga-level recovery does not retry panics.
+    WithPanicRecovery(true).
     // Compensations can continue if the action context is canceled.
     WithCompensationContext(context.WithoutCancel).
     Execute(ctx)
