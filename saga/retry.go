@@ -127,26 +127,27 @@ func (o AdvancedRetryPolicy) limitDelay(delay time.Duration) time.Duration {
 // WithRetry returns a function with retry logic for execution.
 // It makes the initial call and then up to policy.Attempts() retry calls until fn succeeds.
 // Between attempts, it waits for the delay determined by the RetryPolicy strategy.
-// Context cancellation is checked before each retry attempt and while waiting
+// Context cancellation is checked before the initial call, before each retry, and while waiting
 // between attempts.
 //
 // Behavior:
-//   - If attempts = 0, the function executes fn once and returns its result
+//   - If attempts = 0, the function executes fn once unless the context is already done, and returns its result
 //   - On first successful execution, returns nil and sets status to ExecutionStatusSuccess
 //   - On failure, retries up to policy.Attempts() times with delays between attempts
 //   - Context cancellation is respected before each attempt and during retry delays
-//   - All errors from failed attempts are collected in Track.Errors
+//   - Errors from failed attempts are recorded when Track supports internal state updates
 //   - Each retry attempt is wrapped with a "retry [N]" prefix for error context
 //
 // Return values:
 //   - nil if any attempt succeeds
 //   - ErrNilRetryPolicy if policy is nil
 //   - ErrNilRetryFunc if fn is nil
-//   - ErrRetryContextDone and the context error if context is cancelled before a retry attempt or during a retry delay
-//   - ErrRetryFailed if all attempts fail (including the initial call)
+//   - ErrRetryContextDone and the context error if context is cancelled before the initial call, before a retry, or during a retry delay
+//   - The original operation error if the initial call fails and no retries are configured
+//   - ErrRetryFailed joined with the final cause if retries are configured and execution fails
 //
-// A failure returns ErrRetryFailed joined with the cause of the final failed
-// attempt. This preserves context cancellation and lets callers use errors.Is.
+// Cancellation before the initial call leaves Track unchanged and does not return
+// ErrRetryFailed. Returned errors preserve their causes for errors.Is and errors.As.
 func WithRetry(policy RetryPolicy, fn func(ctx context.Context, track Track) error) func(context.Context, Track) error {
 	return func(ctx context.Context, track Track) error {
 		if policy == nil {
@@ -154,6 +155,9 @@ func WithRetry(policy RetryPolicy, fn func(ctx context.Context, track Track) err
 		}
 		if fn == nil {
 			return ErrNilRetryFunc
+		}
+		if err := ctx.Err(); err != nil {
+			return errors.Join(ErrRetryContextDone, err)
 		}
 
 		// first call
@@ -166,10 +170,11 @@ func WithRetry(policy RetryPolicy, fn func(ctx context.Context, track Track) err
 		case err == nil:
 			applyTrackAct(track, newTrackSucceededAct())
 			return nil
-		case attempts == 0:
-			return err
 		case err != nil:
 			applyTrackAct(track, newTrackFailedAct(err))
+		}
+		if attempts == 0 {
+			return err
 		}
 
 		// retries
