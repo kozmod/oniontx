@@ -64,6 +64,7 @@ var (
 type Saga struct {
 	steps                      []Step
 	compensationContextFactory CtxFactory
+	recoverPanic               bool
 }
 
 // NewSaga creates a new Saga instance.
@@ -87,6 +88,17 @@ func (s Saga) WithCompensationContext(factory CtxFactory) Saga {
 	return s
 }
 
+// WithPanicRecovery returns a copy of Saga with recovery for action and
+// compensation calls enabled or disabled. Recovery is disabled by default.
+// When enabled, panics become errors wrapping ErrPanicRecovered: action panics
+// trigger compensation, and compensation panics allow remaining compensations
+// to continue. Recovery surrounds all operation decorators, including retry.
+// Operation.WithPanicRecovery remains independent of this setting.
+func (s Saga) WithPanicRecovery(enabled bool) Saga {
+	s.recoverPanic = enabled
+	return s
+}
+
 // Clone returns a copy of the Saga.
 func (s Saga) Clone() Saga {
 	s.steps = slices.Clone(s.steps)
@@ -99,6 +111,13 @@ func (s Saga) Clone() Saga {
 // A non-nil error wraps failure categories and the terminal causes of failed
 // operations or interrupted execution. Errors from successful retries remain
 // available through Result.Errors and do not cause Execute to return an error.
+//
+// Panic recovery is disabled by default. An unrecovered panic escapes Execute
+// without returning a Result and may leave compensations unexecuted.
+// WithPanicRecovery(true) converts panics from action and compensation calls,
+// including hooks and decorators, to errors wrapping ErrPanicRecovered.
+// Recovery surrounds the complete operation, so panics are not retried unless
+// Operation.WithPanicRecovery is explicitly applied inside WithRetry.
 func (s Saga) Execute(ctx context.Context) (Result, error) {
 	var (
 		track = sagaTrack{
@@ -130,7 +149,11 @@ stop:
 				completedTrack = append(completedTrack, tr)
 			}
 
-			err := tr.step.action.fn(ctx, tr.action)
+			action := tr.step.action
+			if s.recoverPanic {
+				action = action.WithPanicRecovery()
+			}
+			err := action.fn(ctx, tr.action)
 
 			switch status := tr.action.GetTrackData().Status; {
 			case err != nil || status == ExecutionStatusFail:
@@ -182,7 +205,11 @@ func (s Saga) compensate(ctx context.Context, tracks []*simpleTracker) error {
 			return fmt.Errorf("compensation interrupted [%d#%s]: %w", position, tr.step.name,
 				errors.Join(ErrExecuteCompensationContextDone, compensationCtx.Err()))
 		default:
-			err := tr.step.compensation.fn(compensationCtx, tr.compensation)
+			compensation := tr.step.compensation
+			if s.recoverPanic {
+				compensation = compensation.WithPanicRecovery()
+			}
+			err := compensation.fn(compensationCtx, tr.compensation)
 			if err != nil {
 				tr.compensation.apply(newTrackFailedAct(
 					fmt.Errorf("compensation failed [%d#%s]: %w", position, tr.step.name, err),

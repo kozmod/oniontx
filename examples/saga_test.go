@@ -84,7 +84,10 @@ func Test_Saga_example(t *testing.T) {
 		// Create and execute the Saga.
 		// Saga automatically manages the order: actions execute sequentially,
 		// on error, compensations run in reverse order
-		result, err := saga.NewSaga(steps).Execute(context.Background())
+		result, err := saga.NewSaga(steps).
+			// Recover action and compensation panics as errors. Disabled by default.
+			WithPanicRecovery(true).
+			Execute(context.Background())
 
 		// Handle the result
 		if err != nil {
@@ -124,9 +127,8 @@ func Test_Saga_example(t *testing.T) {
 						err := fmt.Errorf("first_step_Error")
 						return err
 					}).
-						// Protection against panics — important for production!
-						// If the action panics, the panic will be caught
-						// and returned as an error with ErrPanicRecovered
+						// Recover inside retry so action panics can be retried.
+						// Saga-level recovery surrounds retry and does not retry panics.
 						WithPanicRecovery().
 						// Add retry for action
 						WithRetry(
@@ -176,7 +178,10 @@ func Test_Saga_example(t *testing.T) {
 		// 2. If all attempts fail, compensations will run
 		// 3. Compensations will also retry on failure with exponential backoff
 		// 4. Jitter distributes load during mass failures
-		result, err := saga.NewSaga(steps).Execute(context.Background())
+		result, err := saga.NewSaga(steps).
+			// Recover action and compensation panics as errors. Disabled by default.
+			WithPanicRecovery(true).
+			Execute(context.Background())
 
 		if err != nil {
 			// Handle error with full context.
@@ -215,6 +220,7 @@ func Test_Saga_example(t *testing.T) {
 		}
 
 		result, err := saga.NewSaga(steps).
+			WithPanicRecovery(true).
 			// Preserve context values but detach compensations from action
 			// cancellation. Compensation operations should enforce their own
 			// execution limits where necessary.
