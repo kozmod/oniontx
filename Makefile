@@ -1,3 +1,11 @@
+.DEFAULT_GOAL := help
+
+.DEFAULT:
+	@echo "Unknown target: $@" >&2
+	@echo "" >&2
+	@$(MAKE) --no-print-directory help
+	@exit 1
+
 .PHONY: pkgsite
 pkgsite: ## Run local docs (ARGS=update to update pkgsite)
 	@./scripts/pkgsite.sh $(ARGS)
