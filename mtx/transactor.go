@@ -174,6 +174,8 @@ func (t *Transactor[B, T]) WithTxRefreshFromContext(refresh bool) *Transactor[B,
 // The function follows these rules:
 //   - If a transaction exists in the context, it is reused (nested call)
 //   - Otherwise, a new transaction is created (top-level call)
+//   - Nested errors trigger rollback only when propagated to the top-level callback;
+//     if it handles an inner error and returns nil, the top-level call attempts to commit
 //   - Errors from the function or from commit/rollback are properly wrapped
 //   - A top-level panic always triggers rollback; it is then either converted to
 //     an error or resumed with its original value, depending on panic recovery

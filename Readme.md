@@ -107,8 +107,9 @@ transaction object through repository APIs.
 
 > **Note:** Nested `WithinTx` calls do not create database save-points or independent
 > nested transactions. 
-> They participate in the same outer transaction, so an error
-> from an inner call causes the outer transaction to be rolled back.
+> They participate in the same outer transaction. An inner error triggers rollback
+> only if it is propagated to the outermost `WithinTx` callback. If the caller
+> handles the inner error and returns `nil`, the outermost call attempts to commit.
 
 <a name="libs"><a/> The [test/integration](https://github.com/kozmod/oniontx/tree/main/test) module contains working `Transactor`
 implementations for `stdlib`, `sqlx`, `pgx`, `gorm`, `redis`, `mongo`:
